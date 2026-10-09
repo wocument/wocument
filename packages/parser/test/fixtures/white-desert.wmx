@@ -1,0 +1,95 @@
+---
+wmxdsl: 1
+title: White Desert
+lang: en
+---
+
+\palette[name=dark, paper=#0b0b0c, ink=#f4f1ea, muted=#a09c94, accent=#e8c170, rule=#2b2b2e]
+
+\grid[name=essay, cols=12, gutter=16px, margin-x=48px, margin-y=0, max=1680px, baseline=26px, rows=8]
+\grid[name=essay, at=tablet, cols=8, gutter=12px, margin-x=32px, margin-y=0, baseline=25px]
+\grid[name=essay, at=phone, cols=4, gutter=8px, margin-x=16px, margin-y=0, baseline=24px]
+
+%% GAP 6: margin-y=0 is needed so plates touch. But the text scenes below then
+%% have no breathing room, so a second grid is needed only to change margin-y.
+\grid[name=essay-text, cols=12, gutter=16px, margin-x=48px, margin-y=6bl, max=1680px, baseline=26px, body=4-9]
+\grid[name=essay-text, at=tablet, cols=8, gutter=12px, margin-x=32px, margin-y=4bl, baseline=25px, body=2-7]
+\grid[name=essay-text, at=phone, cols=4, gutter=8px, margin-x=16px, margin-y=3bl, baseline=24px, body=all]
+
+\style[name=headline-hero, extends=headline, size=fluid(48px, 128px)]
+
+\parent[name=plate, grid=essay, palette=dark, height=screen, snap=hard, enter=fade]
+
+\folio[position=bottom-right, progress]{White Desert}
+
+\scene[name=cover, parent=plate]{
+  \figure[src=/salt/pans-aerial.jpg, alt="Aerial view of salt pans at dawn", layer=background,
+          focus="50% 40%", src@phone=/salt/pans-aerial-portrait.jpg, loading=eager]
+
+  %% GAP 1: white headline over a bright photo. There is no scrim or tint, so
+  %% legibility depends on the photo. The only workaround is baking a gradient into the image.
+  \frame[cols=1-7, rows=6-8, cols@phone=all, valign=bottom, enter=rise]{
+    \kicker{Photo essay}
+    \headline[style=headline-hero]{White \br Desert}
+    \deck{Eight months a year, forty thousand families harvest salt from the Little Rann of Kutch.}
+    \byline{Photographs by Asha Verma}
+  }
+}
+
+\scene[name=intro, grid=essay-text, palette=dark]{
+  \lede{The season starts when the monsoon water drains and the ground turns white.}
+
+  Families move out onto the flats in October and stay until June. They dig wells by hand,
+  pump brine into shallow pans, and rake the crystals every morning before the heat.
+}
+
+\scene[name=plate-rake, parent=plate]{
+  %% GAP 11: does rows=1-7 include the caption, or does the caption hang below
+  %% the box into row 8? The spec does not say.
+  \figure[src=/salt/rake.jpg, alt="A woman raking salt crystals in a shallow pan",
+          cols=2-11, rows=1-7, cols@phone=all, fit=contain]{
+    \caption{Raking starts at five, before the pans become too hot to stand in.}
+  }
+}
+
+\scene[name=diptych, grid=essay, palette=dark]{
+  \figure[src=/salt/hands.jpg, alt="Hands cracked by brine", cols=1-7, height=70vh,
+          cols@phone=all, height@phone=auto]
+  \figure[src=/salt/well.jpg, alt="A hand-dug brine well", cols=8-12, height=70vh,
+          cols@phone=all, height@phone=auto]
+
+  %% GAP 3: second row. Auto top puts each figure below the previous sibling that shares
+  %% its columns. These two share columns with different figures above, so their tops only
+  %% line up because both figures above have the same fixed height. With ratio-based
+  %% heights the row would be ragged. There is also no defined gap between rows: the
+  %% spec says "directly below", so the rows touch unless I add offset-y by hand.
+  \figure[src=/salt/pump.jpg, alt="A diesel pump at the edge of a pan", cols=1-5, height=50vh,
+          offset-y=16px, cols@phone=all, height@phone=auto]
+  \figure[src=/salt/children.jpg, alt="Children walking along a bund", cols=6-12, height=50vh,
+          offset-y=16px, cols@phone=all, height@phone=auto]
+}
+
+\scene[name=plate-dusk, parent=plate]{
+  %% GAP 5: caption-side=overlay exists, but there is no way to say WHICH corner,
+  %% and the overlay has the same legibility problem as GAP 1.
+  \figure[src=/salt/dusk.jpg, alt="Salt mounds at dusk", layer=background, caption-side=overlay]{
+    \caption{By April the mounds are taller than the people who built them.}
+  }
+}
+
+\scene[name=strip, grid=essay, palette=dark]{
+  \gallery[layout=strip, ratio=4:5, gap=8px, cols=all, bleed=both]{
+    \figure[src=/salt/s1.jpg, alt="Portrait of a salt worker, 1 of 5"]
+    \figure[src=/salt/s2.jpg, alt="Portrait of a salt worker, 2 of 5"]
+    \figure[src=/salt/s3.jpg, alt="Portrait of a salt worker, 3 of 5"]
+    \figure[src=/salt/s4.jpg, alt="Portrait of a salt worker, 4 of 5"]
+    \figure[src=/salt/s5.jpg, alt="Portrait of a salt worker, 5 of 5"]
+    \caption{Five of the forty thousand.}
+  }
+}
+
+\scene[name=close, grid=essay-text, palette=dark]{
+  The salt sells for a fraction of a rupee per kilo at the pan. \endmark
+
+  \credit{Photographs and text: Asha Verma}
+}

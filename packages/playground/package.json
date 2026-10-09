@@ -1,0 +1,13 @@
+{
+  "name": "@wmxdsl/playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --build ../.. && vite --host --strictPort"
+  },
+  "devDependencies": {
+    "lenis": "^1.3.26",
+    "pngjs": "^7.0.0"
+  }
+}

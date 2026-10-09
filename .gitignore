@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.worktrees/
+
+# Test photographs that are not in the repository.
+packages/playground/public/spread/
+# Pictures converted to WebP for the playground.
+packages/playground/public/_webp/

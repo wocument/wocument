@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@wmxdsl/schema": ["./packages/schema/src/index.ts"],
+      "@wmxdsl/parser": ["./packages/parser/src/index.ts"],
+      "@wmxdsl/resolved-document": ["./packages/resolved-document/src/index.ts"],
+      "@wmxdsl/resolver": ["./packages/resolver/src/index.ts"],
+      "@wmxdsl/assets": ["./packages/assets/src/index.ts"],
+      "@wmxdsl/text-engine": ["./packages/text-engine/src/index.ts"],
+      "@wmxdsl/layout": ["./packages/layout/src/index.ts"],
+      "@wmxdsl/renderer": ["./packages/renderer/src/index.ts"]
+    },
+    "baseUrl": "."
+  },
+  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "packages/*/scripts/**/*.ts", "packages/*/examples/**/*.ts", "vitest.config.ts"]
+}

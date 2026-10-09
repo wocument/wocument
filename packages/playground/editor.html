@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WMX editor</title>
+    <style>
+      :root {
+        --bg: #f6f5f2; --panel: #ffffff; --ink: #1c1b19; --muted: #6d6a64; --line: #dedbd4;
+        --accent: #c8442b; --error: #b3261e; --warning: #8a5a00; --code-bg: #fbfaf8; --gutter: #a19d95;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #141413; --panel: #1c1c1a; --ink: #ecebe7; --muted: #9b978f; --line: #33322f;
+          --accent: #e0694f; --error: #f2847a; --warning: #e2b35a; --code-bg: #181817; --gutter: #6b6862;
+          color-scheme: dark;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body { display: flex; flex-direction: column; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; }
+      button, select { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; }
+      button:hover, select:hover { border-color: var(--muted); }
+      button:disabled { color: var(--muted); border-color: var(--line); cursor: default; }
+      #save:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+      button:focus-visible, select:focus-visible, textarea:focus-visible, [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+      header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+      header h1 { font-size: 15px; margin: 0 8px 0 0; }
+      header label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+      #status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+      #status.error { color: var(--error); }
+
+      main { flex: 1; display: flex; min-height: 0; }
+      #source { position: relative; display: flex; width: 44%; min-width: 260px; max-width: 80%; resize: horizontal; overflow: hidden; border-right: 1px solid var(--line); background: var(--code-bg); }
+      #gutter, #code { margin: 0; padding: 12px 8px; font: 13px/20px ui-monospace, SFMono-Regular, Menlo, monospace; tab-size: 2; }
+      #gutter { width: 3.5em; flex: none; text-align: right; color: var(--gutter); overflow: hidden; user-select: none; white-space: pre; }
+      #code { flex: 1; border: 0; resize: none; background: transparent; color: var(--ink); white-space: pre; overflow: auto; }
+
+      #output { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+      [role="tablist"] { display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); }
+      [role="tab"] { border: 0; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+      [role="tab"][aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+      [role="tab"][data-for="source"] { display: none; }
+      [role="tabpanel"] { flex: 1; min-height: 0; overflow: auto; }
+      [role="tabpanel"][hidden] { display: none; }
+
+      #frame-wrap { height: 100%; overflow: auto; background: var(--line); }
+      #frame { display: block; height: 100%; width: 100%; margin: 0 auto; border: 0; background: #fff; }
+      #problems { list-style: none; margin: 0; padding: 8px; }
+      #problems li { padding: 6px 8px; border-radius: 6px; cursor: pointer; display: grid; grid-template-columns: auto auto 1fr; gap: 10px; }
+      #problems li:hover { background: var(--code-bg); }
+      #problems .error { color: var(--error); }
+      #problems .warning { color: var(--warning); }
+      #problems .where { color: var(--muted); font-variant-numeric: tabular-nums; }
+      #problems .none { color: var(--muted); cursor: default; display: block; }
+      #json { margin: 0; padding: 12px; font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre; }
+
+      /* Narrow screens: the source becomes one more tab. */
+      @media (max-width: 800px) {
+        #source { width: 100%; max-width: none; resize: none; border-right: 0; }
+        [role="tab"][data-for="source"] { display: inline-block; }
+        main[data-tab="source"] #output [role="tabpanel"], main:not([data-tab="source"]) #source { display: none; }
+        main { flex-direction: column-reverse; }
+        main[data-tab="source"] #output { flex: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>WMX editor</h1>
+      <label>Document <select id="doc"></select></label>
+      <button id="save" type="button" title="Write the source back to its .wmx file (Cmd/Ctrl-S)" disabled>Saved</button>
+      <button id="format" type="button" title="Rewrite the source in canonical form (grammar §09)">Format</button>
+      <button id="revert" type="button" title="Go back to the file as saved">Revert</button>
+      <label>Width
+        <select id="width">
+          <option value="fit">Fit pane</option>
+          <option value="390">390 phone</option>
+          <option value="768">768 tablet</option>
+          <option value="1280">1280</option>
+          <option value="1920">1920</option>
+        </select>
+      </label>
+      <label><input id="motion" type="checkbox" /> Motion</label>
+      <span id="status" role="status"></span>
+    </header>
+    <main data-tab="preview">
+      <div id="source">
+        <pre id="gutter" aria-hidden="true"></pre>
+        <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="WMX source"></textarea>
+      </div>
+      <div id="output">
+        <div role="tablist">
+          <button role="tab" type="button" data-for="source" aria-selected="false">Source</button>
+          <button role="tab" type="button" data-for="preview" aria-selected="true">Preview</button>
+          <button role="tab" type="button" data-for="problems" aria-selected="false">Problems</button>
+          <button role="tab" type="button" data-for="resolved" aria-selected="false">Resolved</button>
+        </div>
+        <div role="tabpanel" id="panel-preview"><div id="frame-wrap"><iframe id="frame" title="Rendered page"></iframe></div></div>
+        <div role="tabpanel" id="panel-problems" hidden><ul id="problems"></ul></div>
+        <div role="tabpanel" id="panel-resolved" hidden><pre id="json"></pre></div>
+      </div>
+    </main>
+    <script type="module" src="/src/editor.ts"></script>
+  </body>
+</html>

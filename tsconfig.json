@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/schema" },
+    { "path": "packages/parser" },
+    { "path": "packages/resolved-document" },
+    { "path": "packages/resolver" },
+    { "path": "packages/assets" },
+    { "path": "packages/text-engine" },
+    { "path": "packages/layout" },
+    { "path": "packages/renderer" },
+    { "path": "packages/cli" }
+  ]
+}

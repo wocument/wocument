@@ -1,0 +1,13 @@
+{
+  "name": "@wmxdsl/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "wmxdsl": "./dist/cli.js",
+    "wmx": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ]
+}

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WMX preview</title>
+    <script>document.documentElement.classList.add("wmx-js");</script>
+    <style>
+      html, body { margin: 0; }
+      #svh { position: fixed; top: 0; height: 100svh; width: 0; visibility: hidden; }
+    </style>
+  </head>
+  <body>
+    <div id="svh"></div>
+    <!-- Not id="page": the playground plugin fills that one with a static document. -->
+    <main id="preview"></main>
+    <script type="module" src="/src/preview.ts"></script>
+  </body>
+</html>

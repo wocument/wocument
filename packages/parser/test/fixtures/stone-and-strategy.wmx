@@ -1,0 +1,99 @@
+---
+wmxdsl: 1
+title: Stone & Strategy
+lang: en
+---
+
+%% ---------- design head ----------
+\font[family="Tiempos Text", src=/fonts/tiempos-text.woff2, weight=400]
+\font[family="Tiempos Text", src=/fonts/tiempos-text-italic.woff2, weight=400, italic]
+\font[family="Tiempos Headline", src=/fonts/tiempos-headline.woff2, weight=700]
+
+\token[name=ember, value=#e0563a]
+\palette[name=night, paper=#0d0d0f, ink=#f2efe9, muted=#9a968e, accent=$ember, rule=#2a2a2e]
+
+\grid[name=feature, cols=12, gutter=24px, margin-x=64px, max=1440px, baseline=28px, rows=6, body=4-9]
+\grid[name=feature, at=tablet, cols=8, gutter=20px, margin-x=40px, baseline=27px, body=2-7]
+\grid[name=feature, at=phone,  cols=4, gutter=16px, margin-x=20px, baseline=26px, body=all]
+
+\style[name=body, family="Tiempos Text, serif", features="liga kern onum"]
+\style[name=headline-xl, extends=headline, family="Tiempos Headline, serif",
+       size=fluid(44px, 104px), tracking=-0.02em]
+
+\parent[name=interlude, grid=feature, height=screen, palette=night, snap=hard, enter=fade]
+
+\folio[position=top-left, progress]{Architecture Today · Heritage}
+
+%% ---------- story ----------
+\story[name=main]{
+  \dropcap[lines=3]
+  Stone endures where nearly everything else decays. Long after the commanders
+  who ordered their construction have been forgotten, the great fortifications
+  of medieval Europe continue to impose their presence on the landscapes they
+  were built to dominate.
+
+  The history of European fortification is a history of problem and response.
+
+  \pullquote[side=right, width=50%, wrap=rect, wrap-offset=1bl, enter=rise]{
+    Stone remembers even when the stone-cutter does not.
+  }
+
+  \subhead{Landscape as defence}
+
+  What the builders understood above all was the relationship between landscape
+  and defence. The most formidable fortifications were never merely strong in
+  themselves.
+
+  \framebreak
+
+  \figure[src=/img/keep-cutout.png, alt="The keep at Carcassonne, cut out against white",
+          cols=7-12, cols@tablet=5-8, shape=alpha, wrap=contour, wrap-side=left,
+          wrap-offset=16px, enter=fade]{
+    \caption{The keep at Carcassonne, restored in 1853 by Viollet-le-Duc.}
+    \credit{Jean-Pierre Dalbéra / CC BY 2.0}
+  }
+
+  By the fourteenth century the logic had inverted. Walls grew lower and
+  thicker as artillery made height a liability. \endmark
+}
+
+%% ---------- scenes ----------
+\scene[name=opener, grid=feature, height=screen, palette=night, snap=hard, stagger=120ms]{
+  \video[src=/video/ramparts.mp4, poster=/img/ramparts.jpg, alt="", layer=background,
+         fit=cover, focus="50% 70%", play=visible, loop, muted]
+
+  \frame[cols=1-8, rows=4-6, cols@tablet=1-7, cols@phone=all, valign=bottom, enter=rise]{
+    \kicker{Essay · Heritage}
+    \headline[style=headline-xl]{Stone \br & Strategy}
+    \deck{How the great fortifications of medieval Europe shaped a continent.}
+    \byline{Dr. Helena Müller}
+    \meta{June 2026 · 11 min read}
+  }
+}
+
+\scene[name=part-one, grid=feature]{
+  \frame[story=main, cols=1-8, columns=2, cols@tablet=all, cols@phone=all, columns@phone=1]
+
+  \sidebar[cols=9-12, top=0, bg=rule, inset=1bl, hide@tablet, hide@phone, enter=fade]{
+    \title{By the numbers}
+    1,200+ surviving castles in France alone.
+
+    150 years: average construction time.
+  }
+}
+
+\scene[name=breath, parent=interlude]{
+  \figure[src=/img/valley.jpg, alt="Fog over the Aude valley at dawn", layer=background,
+          focus="30% 60%", src@phone=/img/valley-portrait.jpg]
+  \frame[cols=3-10, rows=3-4, cols@phone=all]{
+    \pullquote{The wall was never the defence. The valley was.}
+  }
+}
+
+\scene[name=part-two, grid=feature]{
+  \frame[story=main, cols=1-10, cols@tablet=all, cols@phone=all]
+  \frame[cols=1-6, cols@phone=all]{
+    \rule
+    \bio{Dr. Helena Müller teaches architectural history at Heidelberg.}
+  }
+}

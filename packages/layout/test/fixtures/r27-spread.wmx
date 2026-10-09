@@ -1,0 +1,132 @@
+---
+wmxdsl: 1
+title: The Keeper of Thread
+lang: en
+description: An ability check after a newspaper interview spread -- pull quotes, text wrapped around a cut-out, a big editorial headline. The designer is fictional.
+---
+
+%% Photos live in public/spread/ and are NOT in git: test photographs and a model cut-out. Without them the page lays out but draws grey
+%% boxes where the pictures go -- see docs/README.md for the file list.
+
+\breakpoint[name=wide, min=1920px]
+\palette[name=newsprint, paper=#f5f2eb, ink=#161616, muted=#5f5a52, accent=#a8232a, rule=#cfc8bb]
+\grid[name=news, cols=12, gutter=22px, margin-x=40px, margin-y=1bl, max=1600px, baseline=26px, body=1-12]
+\grid[name=news, at=wide, cols=16, gutter=28px, margin-x=64px, max=2400px, baseline=32px, body=1-16]
+\grid[name=news, at=tablet, cols=8, gutter=20px, margin-x=28px, baseline=26px, body=1-8]
+\grid[name=news, at=phone, cols=4, gutter=16px, margin-x=18px, baseline=26px, body=all]
+
+\style[name=body, family="Georgia, serif", size=fluid(17px, 19px, 768px, 1600px), leading=1bl]
+\style[name=body, at=wide, size=fluid(19px, 22px, 1920px, 2560px)]
+\style[name=spread-kicker, extends=kicker, size=13px, color=accent]
+\style[name=spread-head, extends=headline, family="Georgia, serif", weight=700, size=fluid(40px, 60px), tracking=-0.02em, color=ink, fit=width, fit-max=132px, fit-height=36vh]
+\style[name=spread-deck, extends=deck, family="Georgia, serif", italic=false, size=fluid(19px, 24px), color=ink]
+\style[name=spread-byline, extends=byline, size=13px, space-before=1bl]
+\style[name=pq, extends=pullquote, family="Georgia, serif", italic, size=fluid(22px, 30px), leading=1.25em, color=ink, align=center]
+\style[name=qmark, family="Georgia, serif", italic=false, weight=700, size=2.4em, color=accent]
+
+\story[name=main]{
+  \dropcap[lines=3]
+  From the tapestries that hang in her studio to the drawers of swatches that fill a whole wall,
+  Meera Anand's working life has been an argument about thread. For four decades the designer has
+  insisted that a garment is only as good as the cloth it is cut from, and that the cloth is only as
+  good as the hands that made it.
+
+  Her newest collection, shown last month at the close of the couture week, returned to the idea she
+  began with: that the oldest techniques in the country are also its most modern. Beneath long
+  coats and fluid skirts sat embroidery that would take a single artisan most of a season to
+  finish.
+
+  "I keep coming back to the same few things," she says, turning a length of silk between her
+  fingers. "Hand-block prints, the gold thread from the old workshops, the weaves that only three
+  or four villages still know. Everything else changes around them."
+
+  \figure[src=/spread/model.png, alt="A model in a black dress with gold cuffs", cols=5-8, cols@wide=7-10, max-width=480px,
+          cols@tablet=3-6, cols@phone=1-4, shape=alpha, wrap=contour, wrap-side=both, wrap-offset=10px,
+          wrap@phone=jump]
+
+  **How did you first come to textiles?**
+
+  Almost by accident. I studied history, and the part that caught me was the part nobody else
+  wanted: the trade records, the lists of cloth that went out through the ports. Then I went to the
+  museum stores and saw the actual pieces, and I could not believe how little anyone knew about the
+  people who made them.
+
+  **You started with one workshop.**
+
+  Two printers and a borrowed room. We printed on the floor because we had no tables. I sold the
+  first scarves from a suitcase, and the first real order came from a shop that wanted forty of a
+  design I had made only twice. We learned to repeat ourselves very quickly.
+
+  **What has changed most about the people who buy your clothes?**
+
+  They are younger, and they ask better questions. Ten years ago a customer wanted to know the price.
+  Now she wants to know who embroidered the sleeve and how long it took, and whether the dye came
+  from a plant or a factory. That makes me very happy, because the answers are the whole point.
+
+  \pullquote[cols=3-6, cols@wide=4-7, max-width=480px, cols@tablet=1-4, wrap=rect, wrap-side=both, hide@phone, style=pq]{
+    \span[style=qmark]{“}
+
+    If there is such a thing as quiet luxury here, it was stitched by hand long before anyone gave it
+    a name.
+
+    \span[style=qmark]{”}
+  }
+
+  **Is it harder now to find the artisans?**
+
+  Harder to keep them. The skills are still there, but a young man in a weaving village can earn
+  more driving a taxi in the city. So we pay for the time, not the piece, and we put the maker's
+  name on the label. It sounds small. It changes how a family thinks about the work.
+
+  **Your new book is about the workshops, not the clothes.**
+
+  The clothes are the last step. The book follows six crafts from the raw fibre to the finished
+  cloth, and most of the photographs are of hands. I wanted people to see the waiting, the drying,
+  the mistakes that get unpicked. Nobody photographs the unpicking.
+
+  \figure[src=/spread/textile.jpg, alt="A hand-embroidered panel in blue and ochre thread", cols=10-12, cols@wide=15-16, max-width=340px,
+          cols@tablet=5-8, cols@phone=all, ratio=3:4, wrap=rect]{
+    \caption{A hand-embroidered panel from the studio archive.}
+    \credit{Photo: test image}
+  }
+
+  **Does anyone still need a designer, when the craft is the star?**
+
+  Somebody has to hold the thread between the village and the shop. That is the job. I choose what
+  to make, and I am stubborn about how, but the beauty was always theirs. I only arrange it.
+
+  **What would you tell someone starting now?**
+
+  Go to the workshops before you draw anything. Sit there for a week. Learn what a hand can do in an
+  hour and what it cannot do at all, and then design for the hand, not for the photograph.
+
+  \figure[src=/spread/hands.jpg, alt="Hands tying the fringe of a woven rug", ratio=4:3, wrap=jump]{
+    \caption{Finishing a rug by hand: the last step is the fringe.}
+    \credit{Photo: test image}
+  }
+
+  She has no plans to stop. The studio is already sampling next winter's collection, built around a
+  single weave from the eastern hills that, she says, "almost disappeared while nobody was looking."
+  The swatches are pinned to the wall by the window, where the light is best, next to a photograph of
+  the woman who taught her team to make it.
+}
+
+\scene[name=spread, grid=news, palette=newsprint, height=page]{
+  \figure[src=/spread/weaver.jpg, alt="A weaver at a handloom, working a black and white pattern",
+          cols=1-7, cols@wide=1-6, cols@tablet=all, cols@phone=all, ratio=16:10]{
+    \credit{Photo: test image}
+  }
+  \figure[src=/spread/look.jpg, alt="A red embroidered blouse worn with an embellished ivory skirt",
+          cols=8-12, cols@wide=13-16, cols@tablet=all, cols@phone=all, ratio=4:5, wrap=rect, wrap@tablet=none, wrap@phone=none]{
+    \caption{A look from the new collection: zardozi on red silk.}
+    \credit{Photo: test image}
+  }
+  \frame[cols=1-7, cols@wide=7-12, cols@tablet=all, cols@phone=all]{
+    \kicker[style=spread-kicker]{Interview · Design}
+    \headline[style=spread-head]{Meera Anand: \br the keeper of thread}
+    \deck[style=spread-deck]{The designer on forty years of hand-made cloth, the customers who ask better questions, and her new book about the workshops.}
+    \byline[style=spread-byline]{By Nandini Rao}
+  }
+  \frame[story=main, cols=1-12, cols@wide=all, cols@tablet=all, cols@phone=all, columns=auto,
+         measure=fluid(355px, 390px, 768px, 1600px), measure@wide=fluid(390px, 450px, 1920px, 2560px)]
+}

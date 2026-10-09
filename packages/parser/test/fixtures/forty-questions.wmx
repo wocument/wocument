@@ -1,0 +1,84 @@
+---
+wmxdsl: 1
+title: Forty Questions for a Lighthouse Keeper
+lang: en
+---
+
+\grid[name=talk, cols=12, gutter=24px, margin-x=64px, max=1360px, baseline=28px, rows=6, body=4-9]
+\grid[name=talk, at=tablet, cols=8, gutter=20px, margin-x=40px, baseline=27px, body=2-7]
+\grid[name=talk, at=phone, cols=4, gutter=16px, margin-x=20px, baseline=26px, body=all]
+
+\style[name=question, family="sans-serif", weight=700, size=18px, space-before=1bl, keep-with-next]
+\style[name=speaker, family="sans-serif", weight=700, case=small-caps, tracking=0.05em, color=accent]
+
+\parent[name=quote, grid=talk, height=screen, snap=hard, enter=zoom]
+
+\story[name=talk]{
+  \lede{Mairi Beaton kept the light on Eilean Glas for nineteen years. She was the last
+  keeper on the station before automation.}
+
+  \figure[src=/keeper/mairi-cutout.png, alt="Mairi Beaton, arms folded, looking left",
+          cols=7-12, cols@tablet=5-8, cols@phone=all, shape=alpha, wrap=contour,
+          wrap-side=left, wrap-offset=20px, wrap@phone=jump, enter=fade]
+
+  %% GAP 2 again, and this time it is the whole format. A question is a paragraph with a
+  %% different style. There is no styled paragraph, so every question is a bare paragraph
+  %% wrapped in \span. keep-with-next, space-before and weight-based leading on the
+  %% "question" style cannot apply because \span is character-level.
+  \span[style=question]{What does a keeper actually do all night?}
+
+  \span[style=speaker]{Beaton:} You wind the clockwork every forty minutes. You trim the
+  wick. You write the weather in the log. Mostly you listen.
+
+  \span[style=question]{Listen for what?}
+
+  \span[style=speaker]{Beaton:} For the lens stopping. A turning lens makes a sound you stop
+  hearing after a week. When it stops, you wake up.
+
+  \audio[src=/keeper/clip-lens.mp3, title="Beaton on the sound of the lens", side=right, width=40%,
+         side@phone=full]
+
+  \span[style=question]{Were you lonely?}
+
+  \span[style=speaker]{Beaton:} Never once. People ask that because they imagine themselves
+  there. I was not them.
+
+  \framebreak
+
+  \figure[src=/keeper/mairi-1989.jpg, alt="Beaton at the lamp room door in 1989", side=left,
+          width=45%, shape=circle, clip, wrap=contour, wrap-offset=1bl, side@phone=full]{
+    \credit{Northern Lighthouse Board archive}
+  }
+
+  \span[style=question]{What happened on the last night?}
+
+  \span[style=speaker]{Beaton:} I lit it by hand, which we had not done in years. Then the
+  engineers switched over and it lit itself, and that was that. \endmark
+
+  \sidebar[side=full, bg=rule, inset=1bl]{
+    \title{Mairi Beaton}
+    Born 1948, Scalpay. Assistant keeper 1971, principal keeper 1979 to 1990.
+  }
+}
+
+\scene[name=top, grid=talk]{
+  \frame[cols=1-8, cols@phone=all]{
+    \kicker{The interview}
+    \headline{Forty Questions for a Lighthouse Keeper}
+    \byline{Interview by Callum Reid}
+  }
+  \frame[story=talk, cols=1-12, cols@tablet=all, cols@phone=all]
+}
+
+\scene[name=q1, parent=quote]{
+  %% GAP 8: the design calls for an oversized opening quotation mark in the accent color
+  %% and a rule above and below. \pullquote has no decoration attributes. The mark could
+  %% be faked with a styled \span, the rules with two \rule objects placed by hand.
+  \frame[cols=2-11, rows=2-5, cols@phone=all, valign=center]{
+    \pullquote{When the lens stops, you wake up. \cite{Mairi Beaton}}
+  }
+}
+
+\scene[name=rest, grid=talk]{
+  \frame[story=talk]
+}

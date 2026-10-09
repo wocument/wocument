@@ -1,0 +1,4163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/ResolvedDocument",
+  "definitions": {
+    "ResolvedDocument": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "wmxdsl-resolved",
+          "description": "Always `\"wmxdsl-resolved\"`. Lets a consumer reject a file that is not a Resolved Document before reading further."
+        },
+        "version": {
+          "type": "number",
+          "const": 1,
+          "description": "Format major version. Bumped on any change that removes a field, changes a field's type or meaning, or weakens a guarantee in the schema document. Adding a field does not bump it."
+        },
+        "meta": {
+          "$ref": "#/definitions/Meta",
+          "description": "Frontmatter metadata, with defaults written in (spec §04)."
+        },
+        "breakpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BreakpointRange"
+          },
+          "description": "Sorted, total cover of all viewport widths from 0 upward, each range naming the variant it selects (spec §07.4). The active variant is the last entry whose `minWidth` is at or below the viewport width."
+        },
+        "fonts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FontFace"
+          },
+          "description": "Every registered font face, from theme and document (spec §07.1). Layout waits for the faces its active scenes use."
+        },
+        "strings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "All text of the document, once. Runs, drop caps and end marks refer to entries by index. Quotes are curled, dashes and ellipses substituted, and U+00AD soft hyphens inserted (spec §10.2, §15.4 point 4)."
+        },
+        "assets": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Asset"
+          },
+          "propertyNames": {
+            "description": "Asset id. Opaque, stable within one build, unique in `assets`."
+          },
+          "description": "Media files, generated responsive sets, text tracks and traced polygons, keyed by asset id. Shared by all variants so art-directed and repeated media is stored once (spec §11.4-§11.9, §12.2)."
+        },
+        "variants": {
+          "$ref": "#/definitions/Variants",
+          "description": "One complete variant per breakpoint plus `base` (spec §06.4). Nothing in a variant falls back to another variant."
+        },
+        "music": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MusicCue"
+          },
+          "description": "Soundtrack cues in document order (spec §10.6). The playing track is the last cue above the reading position. Empty when the document has none."
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Diagnostic"
+          },
+          "description": "Resolve and asset warnings (errors fail the build and never reach here). Carried for tooling and for the runtime console; layout ignores them (spec §15.6)."
+        }
+      },
+      "required": [
+        "format",
+        "version",
+        "meta",
+        "breakpoints",
+        "fonts",
+        "strings",
+        "assets",
+        "variants",
+        "music",
+        "diagnostics"
+      ],
+      "additionalProperties": false,
+      "description": "The resolver's entire output and the layout engine's entire input (spec §15.1, §15.3). Every value is concrete: no tokens, `extends`, `parent`, defaults, shorthand or viewport-dependent result remains."
+    },
+    "Meta": {
+      "type": "object",
+      "properties": {
+        "wmxdsl": {
+          "type": "number",
+          "const": 1,
+          "description": "Language major version from frontmatter `wmxdsl`. Always 1 (spec §17)."
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title for `<title>` and social cards. Independent of `\\headline` (spec §04)."
+        },
+        "lang": {
+          "type": "string",
+          "description": "BCP-47 language tag; `\"en\"` when the frontmatter sets none. Drives quote curling, hyphenation and the page's `lang` (spec §04, §10.2)."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Meta description, or `null` (spec §04)."
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Author names from frontmatter `author`, a single string becoming a one-element list; `[]` when absent. Metadata only; the visible byline is a `\\byline` (spec §04)."
+        },
+        "date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "ISO 8601 date string exactly as given, or `null` (spec §04)."
+        },
+        "section": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Section label, or `null` (spec §04)."
+        },
+        "socialImage": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AssetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Social card image, as an image asset id, or `null` (spec §04)."
+        },
+        "theme": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Theme file path as written in frontmatter, or `null`. Provenance only: its definitions are already applied (spec §07.8)."
+        }
+      },
+      "required": [
+        "wmxdsl",
+        "title",
+        "lang",
+        "description",
+        "authors",
+        "date",
+        "section",
+        "socialImage",
+        "theme"
+      ],
+      "additionalProperties": false,
+      "description": "Frontmatter, resolved (spec §04). Absent optional fields are written as `null` or `[]`, never omitted."
+    },
+    "AssetId": {
+      "type": "string",
+      "description": "Asset id. Opaque, stable within one build, unique in `assets`."
+    },
+    "BreakpointRange": {
+      "type": "object",
+      "properties": {
+        "minWidth": {
+          "type": "number",
+          "description": "Lowest viewport width, in CSS px, inclusive, that selects `variant`. The first entry is always 0.",
+          "minimum": 0
+        },
+        "variant": {
+          "$ref": "#/definitions/VariantName",
+          "description": "Key into `variants`. The same name may appear twice when a named breakpoint splits `base` into two ranges."
+        }
+      },
+      "required": [
+        "minWidth",
+        "variant"
+      ],
+      "additionalProperties": false,
+      "description": "One threshold of the breakpoint cover. Ranges are half-open: this one runs from `minWidth` up to the next entry's `minWidth`."
+    },
+    "VariantName": {
+      "type": "string",
+      "description": "Variant name: `\"base\"` or the name of a `\\breakpoint` (spec §07.4)."
+    },
+    "FontFace": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string",
+          "description": "Family name exactly as styles refer to it."
+        },
+        "src": {
+          "type": "string",
+          "description": "Public URL of the font file, as the build emits it."
+        },
+        "weight": {
+          "$ref": "#/definitions/WeightRange",
+          "description": "Weight range the file covers. A static face has `min` equal to `max`; a variable face such as `300-700` has both ends (spec §07.1)."
+        },
+        "italic": {
+          "type": "boolean",
+          "description": "True for an italic face."
+        }
+      },
+      "required": [
+        "family",
+        "src",
+        "weight",
+        "italic"
+      ],
+      "additionalProperties": false,
+      "description": "A registered font face (spec §07.1)."
+    },
+    "WeightRange": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "number",
+          "description": "Lowest weight the face covers."
+        },
+        "max": {
+          "type": "number",
+          "description": "Highest weight the face covers."
+        }
+      },
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false,
+      "description": "An inclusive weight range."
+    },
+    "Asset": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ImageAsset"
+        },
+        {
+          "$ref": "#/definitions/VideoAsset"
+        },
+        {
+          "$ref": "#/definitions/LottieAsset"
+        },
+        {
+          "$ref": "#/definitions/AudioAsset"
+        },
+        {
+          "$ref": "#/definitions/FileAsset"
+        },
+        {
+          "$ref": "#/definitions/PolygonAsset"
+        }
+      ],
+      "description": "A file the page loads, or data the build derived from one."
+    },
+    "ImageAsset": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "image",
+          "description": "Asset tag."
+        },
+        "width": {
+          "type": "number",
+          "description": "Intrinsic width of the source image in px."
+        },
+        "height": {
+          "type": "number",
+          "description": "Intrinsic height of the source image in px."
+        },
+        "animated": {
+          "type": "boolean",
+          "description": "True for an animated image such as a GIF (spec §11.4)."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ImageSource"
+          },
+          "description": "Generated sources, preferred format first."
+        },
+        "fallback": {
+          "type": "string",
+          "description": "URL for the plain `<img src>`."
+        }
+      },
+      "required": [
+        "kind",
+        "width",
+        "height",
+        "animated",
+        "sources",
+        "fallback"
+      ],
+      "additionalProperties": false,
+      "description": "An image and its generated responsive set (spec §11.4)."
+    },
+    "ImageSource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "MIME type, for example `image/avif`."
+        },
+        "srcset": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ImageCandidate"
+          },
+          "description": "Candidates, narrowest first."
+        }
+      },
+      "required": [
+        "type",
+        "srcset"
+      ],
+      "additionalProperties": false,
+      "description": "One format's set of widths."
+    },
+    "ImageCandidate": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Public URL."
+        },
+        "width": {
+          "type": "number",
+          "description": "Width in px, the `w` descriptor."
+        }
+      },
+      "required": [
+        "url",
+        "width"
+      ],
+      "additionalProperties": false,
+      "description": "One generated width."
+    },
+    "VideoAsset": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "video",
+          "description": "Asset tag."
+        },
+        "width": {
+          "type": "number",
+          "description": "Intrinsic width in px."
+        },
+        "height": {
+          "type": "number",
+          "description": "Intrinsic height in px."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MediaSource"
+          },
+          "description": "Encodings, preferred first."
+        }
+      },
+      "required": [
+        "kind",
+        "width",
+        "height",
+        "sources"
+      ],
+      "additionalProperties": false,
+      "description": "A video file."
+    },
+    "MediaSource": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "MIME type."
+        },
+        "url": {
+          "type": "string",
+          "description": "Public URL."
+        }
+      },
+      "required": [
+        "type",
+        "url"
+      ],
+      "additionalProperties": false,
+      "description": "One encoding of a video or audio file."
+    },
+    "LottieAsset": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "lottie",
+          "description": "Asset tag."
+        },
+        "url": {
+          "type": "string",
+          "description": "Public URL of the `.json` or `.lottie` file."
+        },
+        "width": {
+          "type": "number",
+          "description": "Width in px, from the file."
+        },
+        "height": {
+          "type": "number",
+          "description": "Height in px, from the file."
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "description": "A Lottie animation (spec §11.7)."
+    },
+    "AudioAsset": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "audio",
+          "description": "Asset tag."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MediaSource"
+          },
+          "description": "Encodings, preferred first."
+        }
+      },
+      "required": [
+        "kind",
+        "sources"
+      ],
+      "additionalProperties": false,
+      "description": "An audio file (spec §11.8)."
+    },
+    "FileAsset": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "file",
+          "description": "Asset tag."
+        },
+        "url": {
+          "type": "string",
+          "description": "Public URL."
+        },
+        "type": {
+          "type": "string",
+          "description": "MIME type, for example `text/vtt`."
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "type"
+      ],
+      "additionalProperties": false,
+      "description": "A file used as-is: a `.vtt` caption track or a transcript (spec §11.5, §11.8)."
+    },
+    "PolygonAsset": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "polygon",
+          "description": "Asset tag."
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": "Vertices in order, at least three.",
+          "minItems": 3
+        }
+      },
+      "required": [
+        "kind",
+        "points"
+      ],
+      "additionalProperties": false,
+      "description": "A polygon in normalized box coordinates, `[0, 0]` top-left to `[1, 1]` bottom-right. Layout scales it to the object's box and expands it by `wrap-offset` (spec §12.2)."
+    },
+    "Variants": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "$ref": "#/definitions/Variant",
+          "description": "The variant for every width no named breakpoint covers (spec §07.4)."
+        }
+      },
+      "required": [
+        "base"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/Variant"
+      },
+      "description": "The variants, keyed by name. `base` is always present, and so is every breakpoint named in `breakpoints`."
+    },
+    "Variant": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/VariantName",
+          "description": "This variant's key in `variants`."
+        },
+        "styles": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ResolvedStyle"
+          },
+          "propertyNames": {
+            "description": "Style key: an author or theme style name for a block style, or a composed key for a run style (see `ResolvedStyle`)."
+          },
+          "description": "Every style key referenced anywhere in this variant, fully flattened. Contains exactly the referenced keys (spec §07.6)."
+        },
+        "stories": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Story"
+          },
+          "propertyNames": {
+            "description": "Story id: the `\\story` name, or `<ownerId>#text` for an inline frame, pull quote or sidebar, `<ownerId>#caption` for a caption and credit, `folio#text` for the document's folio, `<parentName>#folio` for a parent's."
+          },
+          "description": "Every story, named and anonymous. A named story has the same block list, in the same order, in every variant."
+        },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Scene"
+          },
+          "description": "Scenes in document order, parents already merged in (spec §08, §08.4)."
+        },
+        "frames": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Frame"
+          },
+          "propertyNames": {
+            "description": "Frame id: author `name`, else `frame-<n>` in document order; `<sceneId>/<id>` for a frame instantiated from a parent; `<sceneId>/frame` for the default frame of a shorthand or implicit scene."
+          },
+          "description": "Every frame in the document, hidden ones included, keyed by id (spec §09.2)."
+        },
+        "objects": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ObjectElement"
+          },
+          "propertyNames": {
+            "description": "Object id: author `name`, else `<command>-<n>` numbered per command in document order (`figure-2`); `<sceneId>/<id>` when instantiated from a parent. Groups, scene-level rules and gallery children are objects."
+          },
+          "description": "Every object, grid-placed, anchored, background, grouped and gallery children, hidden ones included, keyed by id (spec §11)."
+        },
+        "threads": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/FrameId"
+            }
+          },
+          "propertyNames": {
+            "description": "Story id: the `\\story` name, or `<ownerId>#text` for an inline frame, pull quote or sidebar, `<ownerId>#caption` for a caption and credit, `folio#text` for the document's folio, `<parentName>#folio` for a parent's."
+          },
+          "description": "For each story shown in frames, its visible frames in thread order: scene order, then source order in the scene, hidden frames removed (spec §09.3). Stories laid out by an object, such as captions, are not listed."
+        }
+      },
+      "required": [
+        "name",
+        "styles",
+        "stories",
+        "scenes",
+        "frames",
+        "objects",
+        "threads"
+      ],
+      "additionalProperties": false,
+      "description": "Everything layout and the renderer need for one breakpoint, fully valued."
+    },
+    "ResolvedStyle": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Font family fallback list, most preferred first; generic families such as `serif` are allowed (spec §07.1, §07.6)."
+        },
+        "weight": {
+          "type": "number",
+          "description": "Numeric font weight."
+        },
+        "italic": {
+          "type": "boolean",
+          "description": "Italic face."
+        },
+        "size": {
+          "$ref": "#/definitions/Len",
+          "description": "Font size: `px` or `fluid` (spec §07.6). For a composed run style, already scaled against its block style."
+        },
+        "leading": {
+          "$ref": "#/definitions/Len",
+          "description": "Line height. `bl` means baseline steps of the scene grid the line lands in (spec §07.6)."
+        },
+        "tracking": {
+          "$ref": "#/definitions/Len",
+          "description": "Letter spacing, `em` already multiplied out against `size` (spec §07.6)."
+        },
+        "case": {
+          "type": "string",
+          "enum": [
+            "none",
+            "upper",
+            "lower",
+            "small-caps"
+          ],
+          "description": "Case transform applied to the text before measuring and rendering (spec §07.6)."
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "left",
+            "right",
+            "center",
+            "justify"
+          ],
+          "description": "Horizontal alignment within the slot (spec §07.6). `justify` spreads a line to the slot's full width by widening its spaces; the line that ends a paragraph is left alone."
+        },
+        "color": {
+          "$ref": "#/definitions/Color",
+          "description": "Text color (spec §07.6)."
+        },
+        "underline": {
+          "type": "boolean",
+          "description": "True when the text is underlined. Only the composed `+link` styles set it, from the default theme's link style (spec §16)."
+        },
+        "indent": {
+          "$ref": "#/definitions/Len",
+          "description": "First-line indent the style asks for. The indent actually applied to a paragraph is `ParagraphBlock.indent` (spec §07.6)."
+        },
+        "spaceBefore": {
+          "$ref": "#/definitions/Len",
+          "description": "Space above the block, suppressed at the top of a frame or column (spec §07.6)."
+        },
+        "spaceAfter": {
+          "$ref": "#/definitions/Len",
+          "description": "Space below the block (spec §07.6)."
+        },
+        "hyphenate": {
+          "type": "boolean",
+          "description": "Whether the U+00AD soft hyphens in this style's text are honoured. When false, the consumer strips them before prepare (spec §07.6)."
+        },
+        "widows": {
+          "type": "number",
+          "description": "Minimum lines of a paragraph at the top of a frame or column (spec §07.6)."
+        },
+        "orphans": {
+          "type": "number",
+          "description": "Minimum lines of a paragraph at the bottom of a frame or column (spec §07.6)."
+        },
+        "keepWithNext": {
+          "type": "boolean",
+          "description": "Keep this block in the same frame or column as the next block (spec §07.6)."
+        },
+        "balance": {
+          "type": "boolean",
+          "description": "Break lines evenly: at the narrowest width that takes no more lines than the slot's (spec §07.6)."
+        },
+        "hyphenMark": {
+          "type": "string",
+          "enum": [
+            "end",
+            "both"
+          ],
+          "description": "`both`: a hyphenated word also shows a hyphen where it continues, hanging before the next line (spec §07.6)."
+        },
+        "composer": {
+          "type": "string",
+          "enum": [
+            "line",
+            "paragraph"
+          ],
+          "description": "`paragraph`: each line's break is chosen for the whole paragraph, evening the spacing and keeping a word from standing alone on the last line; `line`: each line takes as many words as fit (spec §07.6)."
+        },
+        "hyphenateMin": {
+          "type": "number",
+          "description": "The shortest word, in letters, that hyphenates (spec §07.6)."
+        },
+        "hyphenateCaps": {
+          "type": "boolean",
+          "description": "False: a word that starts with a capital never hyphenates (spec §07.6)."
+        },
+        "hang": {
+          "type": "string",
+          "enum": [
+            "none",
+            "quotes",
+            "punctuation"
+          ],
+          "description": "Quotation marks (`quotes`), and also hyphens, full stops and commas (`punctuation`), at a line's edge hang outside the column (spec §07.6)."
+        },
+        "bindShort": {
+          "type": "boolean",
+          "description": "A short word (a, the, of, to...) never ends a line: it stays with the word after it (spec §07.6)."
+        },
+        "justifyMin": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "With `align=justify`, a line in a slot narrower than this is set ragged right instead; `null`: every line justifies (spec §07.6)."
+        },
+        "minSlot": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The narrowest gap beside an object that text is set in; a narrower gap stays empty (spec §07.6, §09.6 step 3). `null`: 6em of the style's size, whatever size it ends with."
+        },
+        "mark": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A pull quote's decorative mark, such as `“`, set above its text at three times the size, bold, in the accent; `null` for none (spec §07.6)."
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "OpenType feature tags to enable, for example `[\"liga\", \"kern\", \"onum\"]` (spec §07.6)."
+        },
+        "snap": {
+          "type": "string",
+          "enum": [
+            "baseline",
+            "none"
+          ],
+          "description": "`baseline`: each line's baseline sits on the grid step. `none`: lines use their own leading and the block's height rounds up to whole baseline steps (spec §07.6)."
+        },
+        "fit": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/StyleFit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`fit=width`: set each paragraph at the largest size, from `size` to `max` (three times `size` when `null`), that splits no word and, with `height`, stays no taller (spec §07.6). `null` for `fit=none`."
+        }
+      },
+      "required": [
+        "family",
+        "weight",
+        "italic",
+        "size",
+        "leading",
+        "tracking",
+        "case",
+        "align",
+        "color",
+        "underline",
+        "indent",
+        "spaceBefore",
+        "spaceAfter",
+        "hyphenate",
+        "widows",
+        "orphans",
+        "keepWithNext",
+        "balance",
+        "hyphenMark",
+        "composer",
+        "hyphenateMin",
+        "hyphenateCaps",
+        "hang",
+        "bindShort",
+        "justifyMin",
+        "minSlot",
+        "mark",
+        "features",
+        "snap",
+        "fit"
+      ],
+      "additionalProperties": false,
+      "description": "A fully flattened paragraph or run style (spec §07.6). Block keys are style names. Run keys are composed as `<blockKey>` then, in this order and only if present, `+strong`, `+em`, `+code`, `+link`, then `+span:<name>` per `\\span` from outermost to innermost: `body+em+link`, `headline+span:smallcaps`."
+    },
+    "Len": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LenPx"
+        },
+        {
+          "$ref": "#/definitions/LenViewport"
+        },
+        {
+          "$ref": "#/definitions/LenPct"
+        },
+        {
+          "$ref": "#/definitions/LenGrid"
+        },
+        {
+          "$ref": "#/definitions/LenFluid"
+        }
+      ],
+      "description": "A length whose value needs at most the viewport or the frame's scene grid. `rem`, `em`, tokens, and `bl` inside grid definitions are already eliminated (spec §06.3)."
+    },
+    "LenPx": {
+      "type": "object",
+      "properties": {
+        "u": {
+          "type": "string",
+          "const": "px",
+          "description": "Unit tag."
+        },
+        "n": {
+          "type": "number",
+          "description": "Pixels."
+        }
+      },
+      "required": [
+        "u",
+        "n"
+      ],
+      "additionalProperties": false,
+      "description": "Absolute CSS pixels."
+    },
+    "LenViewport": {
+      "type": "object",
+      "properties": {
+        "u": {
+          "type": "string",
+          "enum": [
+            "vw",
+            "vh"
+          ],
+          "description": "Unit tag."
+        },
+        "n": {
+          "type": "number",
+          "description": "Percent of the viewport dimension: 40 means 40vw."
+        }
+      },
+      "required": [
+        "u",
+        "n"
+      ],
+      "additionalProperties": false,
+      "description": "A fraction of the viewport: `vw` of its width, `vh` of the small viewport height (spec §06.3)."
+    },
+    "LenPct": {
+      "type": "object",
+      "properties": {
+        "u": {
+          "type": "string",
+          "const": "pct",
+          "description": "Unit tag."
+        },
+        "n": {
+          "type": "number",
+          "description": "Percent: 50 means half the reference box."
+        }
+      },
+      "required": [
+        "u",
+        "n"
+      ],
+      "additionalProperties": false,
+      "description": "A percentage of the reference box the field's own description names (spec §06.3)."
+    },
+    "LenGrid": {
+      "type": "object",
+      "properties": {
+        "u": {
+          "type": "string",
+          "enum": [
+            "col",
+            "bl"
+          ],
+          "description": "Unit tag."
+        },
+        "n": {
+          "type": "number",
+          "description": "Number of columns or baseline steps."
+        }
+      },
+      "required": [
+        "u",
+        "n"
+      ],
+      "additionalProperties": false,
+      "description": "Grid-relative: `col` is n columns including the n-1 gutters between them, `bl` is n baseline steps, both of the grid of the scene where the element is laid out (spec §06.3)."
+    },
+    "LenFluid": {
+      "type": "object",
+      "properties": {
+        "u": {
+          "type": "string",
+          "const": "fluid",
+          "description": "Unit tag."
+        },
+        "min": {
+          "type": "number",
+          "description": "Pixels at or below viewport width `from`."
+        },
+        "max": {
+          "type": "number",
+          "description": "Pixels at or above viewport width `to`."
+        },
+        "from": {
+          "type": "number",
+          "description": "Viewport width in px where interpolation starts."
+        },
+        "to": {
+          "type": "number",
+          "description": "Viewport width in px where interpolation ends."
+        }
+      },
+      "required": [
+        "u",
+        "min",
+        "max",
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "description": "Linear from `min` px at viewport width `from` to `max` px at `to`, clamped outside that range (spec §06.3)."
+    },
+    "Color": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ColorRole"
+        },
+        {
+          "$ref": "#/definitions/ColorHex"
+        }
+      ],
+      "description": "A color: a palette role, resolved against the palette of the scene the element is rendered in, or a fixed hex value (spec §07.3)."
+    },
+    "ColorRole": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "paper",
+            "ink",
+            "muted",
+            "accent",
+            "rule"
+          ],
+          "description": "One of the five fixed roles."
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "additionalProperties": false,
+      "description": "A palette role, left symbolic so a scene's palette restyles everything in it (spec §07.3)."
+    },
+    "ColorHex": {
+      "type": "object",
+      "properties": {
+        "hex": {
+          "type": "string",
+          "description": "Eight lowercase hex digits with a leading `#`, alpha last: `#e0563aff`.",
+          "pattern": "^#[0-9a-f]{8}$"
+        }
+      },
+      "required": [
+        "hex"
+      ],
+      "additionalProperties": false,
+      "description": "A fixed color."
+    },
+    "StyleFit": {
+      "type": "object",
+      "properties": {
+        "max": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Largest size, or `null` for three times the style's size."
+        },
+        "height": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Tallest the paragraph may be, or `null` for no limit."
+        }
+      },
+      "required": [
+        "max",
+        "height"
+      ],
+      "additionalProperties": false,
+      "description": "Fitted text (spec §07.6)."
+    },
+    "Story": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/StoryId",
+          "description": "This story's key in `stories`."
+        },
+        "origin": {
+          "type": "string",
+          "enum": [
+            "named",
+            "frame",
+            "pullquote",
+            "sidebar",
+            "caption",
+            "folio"
+          ],
+          "description": "Where the story came from. `named` is a `\\story`; the others are anonymous stories owned by `owner` (spec §09.2, §11.10)."
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FrameId"
+            },
+            {
+              "$ref": "#/definitions/ObjectId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The frame or object that owns an anonymous story, or `null` for a named story and the folio."
+        },
+        "overset": {
+          "type": "string",
+          "enum": [
+            "grow",
+            "clip",
+            "error"
+          ],
+          "description": "What happens to text left over after the last frame of the thread is full (spec §09.5). Anonymous stories are always `grow`."
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Block"
+          },
+          "description": "The content, in source order. A thread cursor addresses a block by its index here (spec §09.1)."
+        }
+      },
+      "required": [
+        "id",
+        "origin",
+        "owner",
+        "overset",
+        "blocks"
+      ],
+      "additionalProperties": false,
+      "description": "A run of content with no position of its own (spec §09.1)."
+    },
+    "StoryId": {
+      "type": "string",
+      "description": "Story id: the `\\story` name, or `<ownerId>#text` for an inline frame, pull quote or sidebar, `<ownerId>#caption` for a caption and credit, `folio#text` for the document's folio, `<parentName>#folio` for a parent's."
+    },
+    "FrameId": {
+      "type": "string",
+      "description": "Frame id: author `name`, else `frame-<n>` in document order; `<sceneId>/<id>` for a frame instantiated from a parent; `<sceneId>/frame` for the default frame of a shorthand or implicit scene."
+    },
+    "ObjectId": {
+      "type": "string",
+      "description": "Object id: author `name`, else `<command>-<n>` numbered per command in document order (`figure-2`); `<sceneId>/<id>` when instantiated from a parent. Groups, scene-level rules and gallery children are objects."
+    },
+    "Block": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ParagraphBlock"
+        },
+        {
+          "$ref": "#/definitions/ObjectBlock"
+        },
+        {
+          "$ref": "#/definitions/FrameBreakBlock"
+        },
+        {
+          "$ref": "#/definitions/RuleBlock"
+        }
+      ],
+      "description": "One unit of story content. Anchored objects, frame breaks and in-frame rules are blocks, so every anchor falls between blocks."
+    },
+    "ParagraphBlock": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "paragraph",
+          "description": "Block tag."
+        },
+        "element": {
+          "type": "string",
+          "enum": [
+            "prose",
+            "kicker",
+            "headline",
+            "deck",
+            "byline",
+            "meta",
+            "lede",
+            "subhead",
+            "cite",
+            "bio",
+            "caption",
+            "credit",
+            "title"
+          ],
+          "description": "The source construct, which the renderer maps to an HTML element: `prose` is bare prose, the rest are the text commands of spec §10.3."
+        },
+        "level": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "enum": [
+            1,
+            2,
+            null
+          ],
+          "description": "Heading level for `subhead` (1 or 2, rendered `h2`/`h3`); `null` for every other element (spec §10.3)."
+        },
+        "quote": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Consecutive blocks with the same number belong to one `\\blockquote`, counted from 1 within the story; `null` outside a block quote (spec §10.3)."
+        },
+        "style": {
+          "$ref": "#/definitions/StyleKey",
+          "description": "Block style key, and the value of `style` on every Positioned Line of this paragraph (spec §07.6, §15.3)."
+        },
+        "span": {
+          "type": "string",
+          "enum": [
+            "column",
+            "all"
+          ],
+          "description": "`all` stretches the block across every internal column of a multi-column frame; `column` is the normal case (spec §10.3)."
+        },
+        "indent": {
+          "$ref": "#/definitions/Len",
+          "description": "First-line indent actually applied: the style's indent, or zero `px` where §07.6 says it is skipped (first paragraph of a story, after a non-paragraph block, under a drop cap)."
+        },
+        "dropcap": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Dropcap"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The drop cap on this paragraph, or `null` (spec §10.4)."
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Run"
+          },
+          "description": "The paragraph's content as a flat list of styled runs. When there is a drop cap, the runs start after the cap's graphemes."
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Link"
+          },
+          "description": "Link targets. A text run's `link` indexes this list, so consecutive runs with the same index form one link (spec §10.2)."
+        }
+      },
+      "required": [
+        "kind",
+        "element",
+        "level",
+        "quote",
+        "style",
+        "span",
+        "indent",
+        "dropcap",
+        "runs",
+        "links"
+      ],
+      "additionalProperties": false,
+      "description": "A paragraph of text: bare prose or a text element (spec §10.1, §10.3)."
+    },
+    "StyleKey": {
+      "type": "string",
+      "description": "Style key: an author or theme style name for a block style, or a composed key for a run style (see `ResolvedStyle`)."
+    },
+    "Dropcap": {
+      "type": "object",
+      "properties": {
+        "lines": {
+          "type": "number",
+          "description": "Baseline steps the cap spans (spec §10.4 `lines`)."
+        },
+        "chars": {
+          "type": "number",
+          "description": "Graphemes taken, not counting an opening quotation mark (spec §10.4 `chars`)."
+        },
+        "s": {
+          "$ref": "#/definitions/StringIndex",
+          "description": "The exact cap text, including any opening quotation mark, as a string index. The paragraph's runs do not repeat it."
+        },
+        "style": {
+          "$ref": "#/definitions/StyleKey",
+          "description": "Style key of the cap, normally `dropcap` (spec §10.4, §16)."
+        },
+        "hang": {
+          "type": "boolean",
+          "description": "True when the cap's opening quotation mark hangs outside the column, so the letter lines up with the text (spec §10.4 `quote=hang`)."
+        }
+      },
+      "required": [
+        "lines",
+        "chars",
+        "s",
+        "style",
+        "hang"
+      ],
+      "additionalProperties": false,
+      "description": "A drop cap: the inputs to measuring and placing it. Its width is measured during prepare and lives on the prepared paragraph, not here (spec §10.4)."
+    },
+    "StringIndex": {
+      "type": "number",
+      "description": "Index into the document's `strings`."
+    },
+    "Run": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/TextRun"
+        },
+        {
+          "$ref": "#/definitions/BreakRun"
+        },
+        {
+          "$ref": "#/definitions/EndmarkRun"
+        }
+      ],
+      "description": "A piece of paragraph content."
+    },
+    "TextRun": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "text",
+          "description": "Run tag."
+        },
+        "s": {
+          "$ref": "#/definitions/StringIndex",
+          "description": "The text, as a string index."
+        },
+        "style": {
+          "$ref": "#/definitions/StyleKey",
+          "description": "Composed run style key: what the text engine measures with."
+        },
+        "marks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "em",
+              "code"
+            ]
+          },
+          "description": "Semantic marks, outermost first, for `<strong>`, `<em>` and `<code>`. Independent of appearance (spec §10.2)."
+        },
+        "link": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Index into the paragraph's `links`, or `null` when the run is not in a link."
+        }
+      },
+      "required": [
+        "kind",
+        "s",
+        "style",
+        "marks",
+        "link"
+      ],
+      "additionalProperties": false,
+      "description": "Text in one style with one set of semantics."
+    },
+    "BreakRun": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "break",
+          "description": "Run tag."
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "A forced line break, from `\\br` (spec §10.2)."
+    },
+    "EndmarkRun": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "endmark",
+          "description": "Run tag."
+        },
+        "s": {
+          "$ref": "#/definitions/StringIndex",
+          "description": "The glyph, as a string index."
+        },
+        "style": {
+          "$ref": "#/definitions/StyleKey",
+          "description": "Composed style key `<paragraph style>+endmark`: the enclosing paragraph's style in the accent color."
+        }
+      },
+      "required": [
+        "kind",
+        "s",
+        "style"
+      ],
+      "additionalProperties": false,
+      "description": "The end-of-article sign, from `\\endmark` (spec §10.4)."
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "href": {
+          "type": "string",
+          "description": "The URL as written, relative paths resolved against the source file."
+        }
+      },
+      "required": [
+        "href"
+      ],
+      "additionalProperties": false,
+      "description": "A link target (spec §10.2)."
+    },
+    "ObjectBlock": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "object",
+          "description": "Block tag."
+        },
+        "object": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "The anchored object. Present in `objects` even when hidden; a hidden object is stepped over."
+        }
+      },
+      "required": [
+        "kind",
+        "object"
+      ],
+      "additionalProperties": false,
+      "description": "An anchored object's position in its story. Layout places the object when the flow reaches this block (spec §11.3)."
+    },
+    "FrameBreakBlock": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "framebreak",
+          "description": "Block tag."
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "frame",
+            "column"
+          ],
+          "description": "`frame` ends the frame and all its remaining columns; `column` ends only the current internal column (spec §09.3)."
+        }
+      },
+      "required": [
+        "kind",
+        "scope"
+      ],
+      "additionalProperties": false,
+      "description": "A `\\framebreak` (spec §09.3)."
+    },
+    "RuleBlock": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "rule",
+          "description": "Block tag."
+        },
+        "rule": {
+          "$ref": "#/definitions/RuleSpec",
+          "description": "The rule itself."
+        }
+      },
+      "required": [
+        "kind",
+        "rule"
+      ],
+      "additionalProperties": false,
+      "description": "A `\\rule` inside a frame: a horizontal divider set as a block (spec §10.4)."
+    },
+    "RuleSpec": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "$ref": "#/definitions/Len",
+          "description": "Line thickness."
+        },
+        "color": {
+          "$ref": "#/definitions/Color",
+          "description": "Line color."
+        },
+        "width": {
+          "$ref": "#/definitions/Len",
+          "description": "Length of the line; `pct` is of the column or box it sits in."
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "description": "Where a rule shorter than its column sits."
+        }
+      },
+      "required": [
+        "weight",
+        "color",
+        "width",
+        "align"
+      ],
+      "additionalProperties": false,
+      "description": "A horizontal rule's appearance (spec §10.4)."
+    },
+    "Scene": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/SceneId",
+          "description": "Scene id (spec §08.1)."
+        },
+        "parent": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Name of the parent this scene was built from, or `null`. Provenance only: attributes and children are already merged (spec §08.4)."
+        },
+        "grid": {
+          "$ref": "#/definitions/Grid",
+          "description": "The scene's grid at this breakpoint (spec §07.5)."
+        },
+        "palette": {
+          "$ref": "#/definitions/Palette",
+          "description": "The scene's palette at this breakpoint, all five roles concrete (spec §07.3)."
+        },
+        "height": {
+          "type": "string",
+          "enum": [
+            "flow",
+            "screen",
+            "page"
+          ],
+          "description": "`flow`: as tall as its content plus `margin-y`. `screen`: one small-viewport height, divided into rows. `page`: at least one small-viewport height, taller when its content needs it; multi-column frames fill column bands (spec §08.2, §09.7)."
+        },
+        "snap": {
+          "type": "string",
+          "enum": [
+            "none",
+            "soft",
+            "hard"
+          ],
+          "description": "Scroll snapping on the scene's top edge. `hard` on a flow scene is already downgraded to `soft` (spec §08.3)."
+        },
+        "turn": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SceneTurn"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How the page arrives when the reader reaches it, or `null` for none (spec §08.3)."
+        },
+        "bg": {
+          "$ref": "#/definitions/Color",
+          "description": "Scene background color (spec §08.1)."
+        },
+        "linearized": {
+          "type": "boolean",
+          "description": "True when this scene linearized at this breakpoint. Placements below are already rewritten: stacked in source order at full width, one internal column, wrap `jump` (spec §07.5)."
+        },
+        "folio": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Folio"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The folio shown while this scene is under it: the scene's parent's folio if it declares one, else the document's; `null` when there is none or the scene sets `folio=hide` (spec §10.5)."
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ElementRef"
+          },
+          "description": "Top-level children in paint order: the parent's children first, beneath, then the scene's own, each in source order (spec §08.4, §11.3). Anchored objects are not listed here; they belong to their story."
+        }
+      },
+      "required": [
+        "id",
+        "parent",
+        "grid",
+        "palette",
+        "height",
+        "snap",
+        "turn",
+        "bg",
+        "linearized",
+        "folio",
+        "children"
+      ],
+      "additionalProperties": false,
+      "description": "A full-width band of the article (spec §08.1)."
+    },
+    "SceneId": {
+      "type": "string",
+      "description": "Scene id: the scene's `name`, else `scene-1`, `scene-2`... in document order (spec §08.1). Also the scene's element id and URL fragment."
+    },
+    "Grid": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The grid's name. Provenance only."
+        },
+        "cols": {
+          "type": "number",
+          "description": "Number of columns."
+        },
+        "gutter": {
+          "$ref": "#/definitions/Len",
+          "description": "Space between columns. Never `bl`, `col` or `pct`."
+        },
+        "marginX": {
+          "$ref": "#/definitions/Len",
+          "description": "Left and right outer margin."
+        },
+        "marginY": {
+          "$ref": "#/definitions/Len",
+          "description": "Top and bottom scene padding; `bl` already converted to px."
+        },
+        "max": {
+          "$ref": "#/definitions/Len",
+          "description": "Maximum width of the column area; beyond it the grid centers and the margins grow."
+        },
+        "baseline": {
+          "type": "number",
+          "description": "Baseline step in px: the `bl` unit for everything in this scene."
+        },
+        "rows": {
+          "type": "number",
+          "description": "Row count, used only by screen scenes (spec §08.2)."
+        },
+        "rowGap": {
+          "$ref": "#/definitions/Len",
+          "description": "Space between rows."
+        },
+        "body": {
+          "$ref": "#/definitions/TrackRange",
+          "description": "Columns of the default frame, with `all` resolved (spec §07.5 `body`)."
+        },
+        "outdent": {
+          "$ref": "#/definitions/Len",
+          "description": "How far an object on the grid's left or right outer edge reaches into the margin (spec §07.5 `outdent`)."
+        }
+      },
+      "required": [
+        "name",
+        "cols",
+        "gutter",
+        "marginX",
+        "marginY",
+        "max",
+        "baseline",
+        "rows",
+        "rowGap",
+        "body",
+        "outdent"
+      ],
+      "additionalProperties": false,
+      "description": "A grid's inputs at one breakpoint. Layout computes geometry from these and the viewport width (spec §07.5)."
+    },
+    "TrackRange": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "number",
+          "description": "First track.",
+          "minimum": 1
+        },
+        "to": {
+          "type": "number",
+          "description": "Last track, inclusive; at least `from`.",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "description": "A grid track range, 1-based and inclusive, with `end` and `all` already resolved to numbers (spec §06.2)."
+    },
+    "Palette": {
+      "type": "object",
+      "properties": {
+        "paper": {
+          "type": "string",
+          "description": "Scene background.",
+          "pattern": "^#[0-9a-f]{8}$"
+        },
+        "ink": {
+          "type": "string",
+          "description": "Primary text.",
+          "pattern": "^#[0-9a-f]{8}$"
+        },
+        "muted": {
+          "type": "string",
+          "description": "Captions, meta, credits.",
+          "pattern": "^#[0-9a-f]{8}$"
+        },
+        "accent": {
+          "type": "string",
+          "description": "Kickers, links, drop caps, pull quote marks.",
+          "pattern": "^#[0-9a-f]{8}$"
+        },
+        "rule": {
+          "type": "string",
+          "description": "Rules and borders.",
+          "pattern": "^#[0-9a-f]{8}$"
+        }
+      },
+      "required": [
+        "paper",
+        "ink",
+        "muted",
+        "accent",
+        "rule"
+      ],
+      "additionalProperties": false,
+      "description": "The five palette roles as hex colors (spec §07.3)."
+    },
+    "SceneTurn": {
+      "type": "object",
+      "properties": {
+        "effect": {
+          "type": "string",
+          "enum": [
+            "fade",
+            "slide"
+          ],
+          "description": "`fade`, or `slide`: 8% of the viewport height into place while fading, from the scroll direction."
+        },
+        "durationMs": {
+          "type": "number",
+          "description": "The scene's `duration`."
+        },
+        "ease": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "in",
+            "out",
+            "linear"
+          ],
+          "description": "The scene's `ease`."
+        }
+      },
+      "required": [
+        "effect",
+        "durationMs",
+        "ease"
+      ],
+      "additionalProperties": false,
+      "description": "A page turn (spec §08.3): plays each time the scene enters the viewport after being fully out of it."
+    },
+    "Folio": {
+      "type": "object",
+      "properties": {
+        "story": {
+          "$ref": "#/definitions/StoryId",
+          "description": "Its text as an anonymous story: `folio#text` for the document's folio, `<parentName>#folio` for a parent's."
+        },
+        "position": {
+          "type": "string",
+          "enum": [
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right",
+            "margin-left",
+            "margin-right"
+          ],
+          "description": "Viewport corner."
+        },
+        "progress": {
+          "type": "boolean",
+          "description": "Show a reading-progress indicator for the whole article."
+        }
+      },
+      "required": [
+        "story",
+        "position",
+        "progress"
+      ],
+      "additionalProperties": false,
+      "description": "The persistent label fixed to the viewport (spec §10.5)."
+    },
+    "ElementRef": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "frame",
+            "object"
+          ],
+          "description": "Which table the id is in."
+        },
+        "id": {
+          "type": "string",
+          "description": "Key into `frames` or `objects`."
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "additionalProperties": false,
+      "description": "A reference to a frame or an object (groups are objects)."
+    },
+    "Frame": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/FrameId",
+          "description": "Frame id, and the `frame` of every Positioned Line set in it."
+        },
+        "scene": {
+          "$ref": "#/definitions/SceneId",
+          "description": "Scene the frame belongs to."
+        },
+        "story": {
+          "$ref": "#/definitions/StoryId",
+          "description": "The story shown. For an inline frame this is its anonymous story, `<id>#text` (spec §09.2)."
+        },
+        "cols": {
+          "$ref": "#/definitions/TrackRange",
+          "description": "Columns spanned, with the grid's `body` default and linearize already applied."
+        },
+        "vertical": {
+          "$ref": "#/definitions/Vertical",
+          "description": "Vertical placement (spec §09.2 `top`, `height`, `rows`)."
+        },
+        "columns": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "const": "auto"
+            }
+          ],
+          "description": "Number of internal columns (spec §09.2 `columns`). `auto` leaves the number to layout, which fits the columns to `measure` -- or, with no measure, to 32 times the text size -- so a wider screen gets more columns rather than longer lines."
+        },
+        "columnGap": {
+          "$ref": "#/definitions/Len",
+          "description": "Space between internal columns (spec §09.2 `column-gap`)."
+        },
+        "balance": {
+          "type": "boolean",
+          "description": "Balance internal columns when the frame has no definite height (spec §09.4)."
+        },
+        "columnRule": {
+          "type": "string",
+          "enum": [
+            "none",
+            "rule"
+          ],
+          "description": "`rule`: a 1px line in the palette's `rule` colour mid-gap between columns that hold text, per band (spec §09.2)."
+        },
+        "valign": {
+          "type": "string",
+          "enum": [
+            "top",
+            "center",
+            "bottom"
+          ],
+          "description": "Vertical alignment of content that fits a definite height (spec §09.2)."
+        },
+        "measure": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on every line's width, including lines beside a wrap; the capped slot stays left-aligned. `null` means no cap (spec §09.2 `measure`)."
+        },
+        "inset": {
+          "$ref": "#/definitions/Len",
+          "description": "Inner padding on every side (spec §09.2)."
+        },
+        "bg": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Color"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Background color, or `null` for none (spec §09.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the content layer, source order written in (spec §09.2)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. A hidden frame is absent from `threads` (spec §09.3)."
+        },
+        "wrap": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "offset": {
+                  "$ref": "#/definitions/Len"
+                }
+              },
+              "required": [
+                "offset"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`wrap=rect` (spec §09.2): the frame's box, to its last line, cuts into the frames set after it, as an object's rectangle does, with `offset` below it (not at its sides, which are on grid lines). `null` for `wrap=none`."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The frame's reveal (spec §13)."
+        }
+      },
+      "required": [
+        "id",
+        "scene",
+        "story",
+        "cols",
+        "vertical",
+        "columns",
+        "columnGap",
+        "balance",
+        "columnRule",
+        "valign",
+        "measure",
+        "inset",
+        "bg",
+        "z",
+        "hidden",
+        "wrap",
+        "reveal"
+      ],
+      "additionalProperties": false,
+      "description": "A rectangle on a scene's grid that shows a slice of a story (spec §09.2)."
+    },
+    "Vertical": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/VerticalFlow"
+        },
+        {
+          "$ref": "#/definitions/VerticalRows"
+        }
+      ],
+      "description": "Vertical placement on the grid. Which shape applies depends on the scene's height mode (spec §08.2)."
+    },
+    "VerticalFlow": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "flow",
+          "description": "Placement tag."
+        },
+        "top": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "string",
+              "const": "auto"
+            }
+          ],
+          "description": "Offset from the top of the scene's content area, or `auto`: below the previous sibling in source order that overlaps its columns, separated by `row-gap` (spec §09.2)."
+        },
+        "height": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "string",
+              "const": "auto"
+            }
+          ],
+          "description": "Box height, or `auto`: from the content, or from `ratio` for media (spec §09.2, §11.1)."
+        }
+      },
+      "required": [
+        "mode",
+        "top",
+        "height"
+      ],
+      "additionalProperties": false,
+      "description": "Vertical placement in a flow scene (spec §09.2 `top`, `height`)."
+    },
+    "VerticalRows": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "rows",
+          "description": "Placement tag."
+        },
+        "rows": {
+          "$ref": "#/definitions/TrackRange",
+          "description": "Rows occupied, with `all` resolved."
+        }
+      },
+      "required": [
+        "mode",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "description": "Vertical placement in a screen scene: a range of the grid's rows (spec §08.2)."
+    },
+    "Reveal": {
+      "type": "object",
+      "properties": {
+        "enter": {
+          "$ref": "#/definitions/RevealKind",
+          "description": "Animation as the element enters the viewport."
+        },
+        "exit": {
+          "$ref": "#/definitions/RevealKind",
+          "description": "Animation as the element leaves through the top of the viewport."
+        },
+        "enterAt": {
+          "type": "number",
+          "description": "Fraction of the element that must be inside the viewport before `enter` fires: 0.15 is `15%`.",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "durationMs": {
+          "type": "number",
+          "description": "Duration in milliseconds."
+        },
+        "delayMs": {
+          "type": "number",
+          "description": "Delay in milliseconds, including this element's stagger step."
+        },
+        "ease": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "in",
+            "out",
+            "linear"
+          ],
+          "description": "Easing curve."
+        },
+        "replay": {
+          "type": "boolean",
+          "description": "Replay `enter` every time the element comes back into view."
+        },
+        "motion": {
+          "type": "string",
+          "enum": [
+            "reduce",
+            "always"
+          ],
+          "description": "`reduce`: every reveal becomes `none` under reduced motion. `always`: this element keeps its motion (spec §13 rule 3)."
+        }
+      },
+      "required": [
+        "enter",
+        "exit",
+        "enterAt",
+        "durationMs",
+        "delayMs",
+        "ease",
+        "replay",
+        "motion"
+      ],
+      "additionalProperties": false,
+      "description": "Reveal animation parameters, with any scene, parent or group stagger already baked into `delayMs` (spec §13)."
+    },
+    "RevealKind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "fade",
+        "rise",
+        "drop",
+        "slide-left",
+        "slide-right",
+        "zoom",
+        "wipe"
+      ],
+      "description": "The reveal animations (spec §13)."
+    },
+    "ObjectElement": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/FigureObject"
+        },
+        {
+          "$ref": "#/definitions/VideoObject"
+        },
+        {
+          "$ref": "#/definitions/EmbedObject"
+        },
+        {
+          "$ref": "#/definitions/LottieObject"
+        },
+        {
+          "$ref": "#/definitions/AudioObject"
+        },
+        {
+          "$ref": "#/definitions/GalleryObject"
+        },
+        {
+          "$ref": "#/definitions/PullquoteObject"
+        },
+        {
+          "$ref": "#/definitions/SidebarObject"
+        },
+        {
+          "$ref": "#/definitions/GroupObject"
+        },
+        {
+          "$ref": "#/definitions/RuleObject"
+        }
+      ],
+      "description": "Any placed non-text item (spec §11)."
+    },
+    "FigureObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "figure",
+          "description": "Object kind, and the Positioned Object's `kind`."
+        },
+        "image": {
+          "$ref": "#/definitions/AssetId",
+          "description": "Image asset for this breakpoint; `src@phone` selects a different one (spec §11.4)."
+        },
+        "motionVideo": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AssetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "For an animated GIF the compiler transcoded, the looping muted video asset; otherwise `null` (spec §11.4)."
+        },
+        "alt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Text alternative. `\"\"` marks a decorative image; `null` means missing, which warned (spec §11.4)."
+        },
+        "media": {
+          "$ref": "#/definitions/MediaFit",
+          "description": "Fit, focus, shape and clip."
+        },
+        "loading": {
+          "type": "string",
+          "enum": [
+            "lazy",
+            "eager"
+          ],
+          "description": "Fetch priority (spec §11.4)."
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Caption"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Caption and credit, or `null`."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "alt",
+        "bleed",
+        "caption",
+        "hidden",
+        "id",
+        "image",
+        "kind",
+        "layer",
+        "loading",
+        "maxWidth",
+        "media",
+        "motionVideo",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "reveal",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\figure`: an image, GIF included (spec §11.4)."
+    },
+    "MediaFit": {
+      "type": "object",
+      "properties": {
+        "ratio": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Box aspect ratio, `auto` already replaced by the media's own (spec §11.4)."
+        },
+        "fit": {
+          "type": "string",
+          "enum": [
+            "cover",
+            "contain",
+            "fill",
+            "none"
+          ],
+          "description": "How the media fills the box."
+        },
+        "focus": {
+          "$ref": "#/definitions/FocusPoint",
+          "description": "Focal point kept in view when `cover` crops."
+        },
+        "shape": {
+          "$ref": "#/definitions/Shape",
+          "description": "The object's outline (spec §12.2). `rect` when the command takes no `shape`."
+        },
+        "clip": {
+          "type": "boolean",
+          "description": "Clip the media to `shape` (spec §11.4)."
+        }
+      },
+      "required": [
+        "ratio",
+        "fit",
+        "focus",
+        "shape",
+        "clip"
+      ],
+      "additionalProperties": false,
+      "description": "How visual media fill their box (spec §11.4)."
+    },
+    "Ratio": {
+      "type": "object",
+      "properties": {
+        "w": {
+          "type": "number",
+          "description": "Width term."
+        },
+        "h": {
+          "type": "number",
+          "description": "Height term."
+        }
+      },
+      "required": [
+        "w",
+        "h"
+      ],
+      "additionalProperties": false,
+      "description": "An aspect ratio, width to height. `auto` is already replaced by the media's intrinsic ratio (spec §06.2, §11.4)."
+    },
+    "FocusPoint": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": "0 is the left edge, 1 the right."
+        },
+        "y": {
+          "type": "number",
+          "description": "0 is the top edge, 1 the bottom."
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "description": "A point inside a box, in fractions from the top-left: `x: 0.5, y: 0.7` is `\"50% 70%\"` (spec §11.4 `focus`)."
+    },
+    "Shape": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ShapeRect"
+        },
+        {
+          "$ref": "#/definitions/ShapeInscribed"
+        },
+        {
+          "$ref": "#/definitions/ShapePolygon"
+        }
+      ],
+      "description": "An object's outline, used for contour wrap and for clipping (spec §12.2)."
+    },
+    "ShapeRect": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "rect",
+          "description": "Shape tag."
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "The box itself."
+    },
+    "ShapeInscribed": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "circle",
+            "ellipse"
+          ],
+          "description": "Shape tag."
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "A circle or an ellipse inscribed in the box (spec §12.2)."
+    },
+    "ShapePolygon": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "polygon",
+          "description": "Shape tag."
+        },
+        "polygon": {
+          "$ref": "#/definitions/AssetId",
+          "description": "A `polygon` asset in normalized box coordinates."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "poly",
+            "alpha"
+          ],
+          "description": "Where the polygon came from. Provenance only."
+        }
+      },
+      "required": [
+        "kind",
+        "polygon",
+        "source"
+      ],
+      "additionalProperties": false,
+      "description": "A polygon: from `poly(...)`, or traced from the alpha channel at build time with `fit`/`focus` crops applied first (spec §12.2)."
+    },
+    "Caption": {
+      "type": "object",
+      "properties": {
+        "story": {
+          "$ref": "#/definitions/StoryId",
+          "description": "Anonymous story holding the `\\caption` and `\\credit` paragraphs, `<ownerId>#caption`."
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "below",
+            "above",
+            "overlay"
+          ],
+          "description": "Where it sits. `overlay` takes no space in the box (spec §11.1)."
+        }
+      },
+      "required": [
+        "story",
+        "side"
+      ],
+      "additionalProperties": false,
+      "description": "An object's caption and credit (spec §11.1, §11.4)."
+    },
+    "Placement": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/GridPlacement"
+        },
+        {
+          "$ref": "#/definitions/AnchoredPlacement"
+        },
+        {
+          "$ref": "#/definitions/BackgroundPlacement"
+        },
+        {
+          "$ref": "#/definitions/ContainedPlacement"
+        }
+      ],
+      "description": "Where an object's position comes from (spec §11.3)."
+    },
+    "GridPlacement": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "grid",
+          "description": "Placement tag."
+        },
+        "scene": {
+          "$ref": "#/definitions/SceneId",
+          "description": "Scene the object belongs to."
+        },
+        "cols": {
+          "$ref": "#/definitions/TrackRange",
+          "description": "Columns spanned, linearize already applied."
+        },
+        "vertical": {
+          "$ref": "#/definitions/Vertical",
+          "description": "Vertical placement."
+        }
+      },
+      "required": [
+        "mode",
+        "scene",
+        "cols",
+        "vertical"
+      ],
+      "additionalProperties": false,
+      "description": "Grid-placed: written directly in a scene (spec §11.3)."
+    },
+    "AnchoredPlacement": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "anchored",
+          "description": "Placement tag."
+        },
+        "story": {
+          "$ref": "#/definitions/StoryId",
+          "description": "The story holding the anchor."
+        },
+        "block": {
+          "type": "number",
+          "description": "Index of the anchor's `ObjectBlock` in that story's `blocks`."
+        },
+        "horizontal": {
+          "$ref": "#/definitions/AnchorHorizontal",
+          "description": "Horizontal position (spec §11.3 table)."
+        },
+        "height": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "string",
+              "const": "auto"
+            }
+          ],
+          "description": "Box height, or `auto` from ratio or content (spec §11.1)."
+        }
+      },
+      "required": [
+        "mode",
+        "story",
+        "block",
+        "horizontal",
+        "height"
+      ],
+      "additionalProperties": false,
+      "description": "Anchored: written in a story, so it travels with the text (spec §11.3)."
+    },
+    "AnchorHorizontal": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/AnchorFull"
+        },
+        {
+          "$ref": "#/definitions/AnchorSide"
+        },
+        {
+          "$ref": "#/definitions/AnchorCols"
+        }
+      ],
+      "description": "Horizontal position of an anchored object (spec §11.3)."
+    },
+    "AnchorFull": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "full",
+          "description": "Horizontal tag."
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false,
+      "description": "`side=full` (the default): the full width of the current frame column; text stops above and resumes below."
+    },
+    "AnchorSide": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "side",
+          "description": "Horizontal tag."
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "left",
+            "right",
+            "center"
+          ],
+          "description": "Which edge of the column the object sits against; `center`: centred in it, text on both sides (2026-10-09)."
+        },
+        "width": {
+          "$ref": "#/definitions/Len",
+          "description": "Object width; `pct` is of the column width."
+        }
+      },
+      "required": [
+        "mode",
+        "side",
+        "width"
+      ],
+      "additionalProperties": false,
+      "description": "`side=left` or `right` with a width: inside the current column, and text wraps beside it."
+    },
+    "AnchorCols": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "cols",
+          "description": "Horizontal tag."
+        },
+        "cols": {
+          "$ref": "#/definitions/TrackRange",
+          "description": "Columns spanned."
+        }
+      },
+      "required": [
+        "mode",
+        "cols"
+      ],
+      "additionalProperties": false,
+      "description": "`cols=`: absolute grid columns of the scene the anchor lands in, whichever frame holds it. Text in any overlapping frame wraps."
+    },
+    "BackgroundPlacement": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "background",
+          "description": "Placement tag."
+        },
+        "scene": {
+          "$ref": "#/definitions/SceneId",
+          "description": "Scene the object fills."
+        }
+      },
+      "required": [
+        "mode",
+        "scene"
+      ],
+      "additionalProperties": false,
+      "description": "`layer=background`: fills the whole scene behind everything; `cols`, `rows` and `top` do not apply (spec §11.2)."
+    },
+    "ContainedPlacement": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "contained",
+          "description": "Placement tag."
+        },
+        "container": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "The group or gallery."
+        },
+        "index": {
+          "type": "number",
+          "description": "Position among the container's children, from 0."
+        }
+      },
+      "required": [
+        "mode",
+        "container",
+        "index"
+      ],
+      "additionalProperties": false,
+      "description": "Inside a group or gallery, which positions its children itself; the child's own placement attributes are ignored (spec §11.9, §11.11)."
+    },
+    "Wrap": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/WrapNone"
+        },
+        {
+          "$ref": "#/definitions/WrapJump"
+        },
+        {
+          "$ref": "#/definitions/WrapShaped"
+        }
+      ],
+      "description": "How text flows around an object (spec §12.1)."
+    },
+    "WrapNone": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "none",
+          "description": "Wrap tag."
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false,
+      "description": "Text ignores the object and may overlap it."
+    },
+    "WrapJump": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "jump",
+          "description": "Wrap tag."
+        },
+        "offset": {
+          "$ref": "#/definitions/Len",
+          "description": "Standoff above and below the object (spec §12.1 `wrap-offset`)."
+        }
+      },
+      "required": [
+        "mode",
+        "offset"
+      ],
+      "additionalProperties": false,
+      "description": "Text skips the object's full vertical extent."
+    },
+    "WrapShaped": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "rect",
+            "contour"
+          ],
+          "description": "Wrap tag. `contour` with a `rect` shape behaves like `rect`."
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "both",
+            "left",
+            "right",
+            "largest"
+          ],
+          "description": "Which side or sides of the object text may occupy; `both` sets text in two slots per band (spec §12.1)."
+        },
+        "offset": {
+          "$ref": "#/definitions/Len",
+          "description": "Standoff between the exclusion and the text (spec §12.1)."
+        }
+      },
+      "required": [
+        "mode",
+        "side",
+        "offset"
+      ],
+      "additionalProperties": false,
+      "description": "Text is cut by an exclusion: the box for `rect`, the object's `shape` for `contour` (spec §12.1, §12.2)."
+    },
+    "VideoObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "video",
+          "description": "Object kind."
+        },
+        "video": {
+          "$ref": "#/definitions/AssetId",
+          "description": "Video asset."
+        },
+        "poster": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AssetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Poster image asset, or `null` when missing (warned unless background) (spec §11.5)."
+        },
+        "alt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Text description; `\"\"` decorative, `null` missing (spec §11.5)."
+        },
+        "captions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AssetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Caption track asset (`.vtt`), or `null`."
+        },
+        "play": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "visible",
+            "auto"
+          ],
+          "description": "`visible` plays only while in the viewport. Becomes `manual` under reduced motion at runtime (spec §11.5, §13)."
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "Loop playback."
+        },
+        "muted": {
+          "type": "boolean",
+          "description": "Start muted."
+        },
+        "controls": {
+          "type": "boolean",
+          "description": "Show controls; `false` by default on the background layer (spec §11.5)."
+        },
+        "media": {
+          "$ref": "#/definitions/MediaFit",
+          "description": "Fit, focus, shape and clip."
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Caption"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Caption and credit, or `null`."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "alt",
+        "bleed",
+        "caption",
+        "captions",
+        "controls",
+        "hidden",
+        "id",
+        "kind",
+        "layer",
+        "loop",
+        "maxWidth",
+        "media",
+        "muted",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "play",
+        "poster",
+        "reveal",
+        "video",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\video` (spec §11.5)."
+    },
+    "EmbedObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "embed",
+          "description": "Object kind."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EmbedProvider"
+            },
+            {
+              "$ref": "#/definitions/EmbedIframe"
+            }
+          ],
+          "description": "What to embed."
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Accessible name, or `null` when missing (warned) (spec §11.6)."
+        },
+        "ratio": {
+          "$ref": "#/definitions/Ratio",
+          "description": "Box aspect ratio (spec §11.6)."
+        },
+        "poster": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PosterAsset"
+            },
+            {
+              "$ref": "#/definitions/PosterUrl"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Poster: an image asset, or the provider thumbnail URL the resolver chose (spec §11.6); `null` when the provider has no fixed thumbnail URL (Vimeo, iframes)."
+        },
+        "facade": {
+          "type": "boolean",
+          "description": "Show the poster and load the iframe on interaction (spec §11.6)."
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Caption"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Caption and credit, or `null`."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "bleed",
+        "caption",
+        "facade",
+        "hidden",
+        "id",
+        "kind",
+        "layer",
+        "maxWidth",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "poster",
+        "ratio",
+        "reveal",
+        "source",
+        "title",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\embed`: a third-party player, always rectangular (spec §11.6)."
+    },
+    "EmbedProvider": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "youtube",
+            "vimeo"
+          ],
+          "description": "Provider."
+        },
+        "id": {
+          "type": "string",
+          "description": "Provider video id."
+        }
+      },
+      "required": [
+        "provider",
+        "id"
+      ],
+      "additionalProperties": false,
+      "description": "A video on a provider with a known player."
+    },
+    "EmbedIframe": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "iframe",
+          "description": "Provider tag."
+        },
+        "url": {
+          "type": "string",
+          "description": "Page URL."
+        }
+      },
+      "required": [
+        "provider",
+        "url"
+      ],
+      "additionalProperties": false,
+      "description": "Any other page, in an iframe."
+    },
+    "PosterAsset": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "$ref": "#/definitions/AssetId",
+          "description": "Image asset id."
+        }
+      },
+      "required": [
+        "asset"
+      ],
+      "additionalProperties": false,
+      "description": "A poster the build produced as an image asset."
+    },
+    "PosterUrl": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Image URL."
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false,
+      "description": "A poster loaded from a URL, such as a provider thumbnail."
+    },
+    "LottieObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "lottie",
+          "description": "Object kind."
+        },
+        "lottie": {
+          "$ref": "#/definitions/AssetId",
+          "description": "Lottie asset."
+        },
+        "alt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Text alternative; `\"\"` decorative, `null` missing."
+        },
+        "play": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "visible",
+            "auto"
+          ],
+          "description": "Playback trigger (spec §11.7)."
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "Loop playback."
+        },
+        "media": {
+          "$ref": "#/definitions/MediaFit",
+          "description": "Fit, focus, shape and clip. `ratio` comes from the file unless set."
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Caption"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Caption and credit, or `null`."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "alt",
+        "bleed",
+        "caption",
+        "hidden",
+        "id",
+        "kind",
+        "layer",
+        "loop",
+        "lottie",
+        "maxWidth",
+        "media",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "play",
+        "reveal",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\lottie` (spec §11.7)."
+    },
+    "AudioObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "audio",
+          "description": "Object kind."
+        },
+        "audio": {
+          "$ref": "#/definitions/AssetId",
+          "description": "Audio asset."
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Accessible name, or `null` when missing (warned)."
+        },
+        "captions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AssetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Caption track asset, or `null`."
+        },
+        "transcript": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AssetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Transcript file asset, or `null`."
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Caption"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Caption and credit, always below, or `null`."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "audio",
+        "bleed",
+        "caption",
+        "captions",
+        "hidden",
+        "id",
+        "kind",
+        "layer",
+        "maxWidth",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "reveal",
+        "title",
+        "transcript",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\audio`: always shows controls, never autoplays (spec §11.8)."
+    },
+    "GalleryObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "gallery",
+          "description": "Object kind."
+        },
+        "layout": {
+          "type": "string",
+          "enum": [
+            "grid",
+            "strip"
+          ],
+          "description": "`grid` rows or a horizontal swipe `strip`."
+        },
+        "perRow": {
+          "type": "number",
+          "description": "Items per row in `grid` layout (spec §11.9 `per-row`)."
+        },
+        "gap": {
+          "$ref": "#/definitions/Len",
+          "description": "Space between items."
+        },
+        "ratio": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Ratio"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ratio forced on every item, or `null` to keep each item's own (spec §11.9)."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ObjectId"
+          },
+          "description": "Items in source order; each has `ContainedPlacement` pointing back here."
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Caption"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The gallery's own caption and credit, or `null`."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "bleed",
+        "caption",
+        "gap",
+        "hidden",
+        "id",
+        "items",
+        "kind",
+        "layer",
+        "layout",
+        "maxWidth",
+        "offsetX",
+        "offsetY",
+        "perRow",
+        "placement",
+        "ratio",
+        "reveal",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\gallery`: a set of figures and videos laid out together (spec §11.9)."
+    },
+    "PullquoteObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "pullquote",
+          "description": "Object kind."
+        },
+        "story": {
+          "$ref": "#/definitions/StoryId",
+          "description": "Its text as an anonymous story, `<id>#text`, including any `\\cite`."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "bleed",
+        "hidden",
+        "id",
+        "kind",
+        "layer",
+        "maxWidth",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "reveal",
+        "story",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\pullquote`: a text-bearing object (spec §11.10)."
+    },
+    "SidebarObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "sidebar",
+          "description": "Object kind."
+        },
+        "story": {
+          "$ref": "#/definitions/StoryId",
+          "description": "Its content as an anonymous story, `<id>#text`: title, paragraphs and anchored figures."
+        },
+        "bg": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Color"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Box background, or `null`."
+        },
+        "inset": {
+          "$ref": "#/definitions/Len",
+          "description": "Inner padding."
+        },
+        "border": {
+          "type": "string",
+          "enum": [
+            "none",
+            "rule"
+          ],
+          "description": "Border style: `rule` draws one in the palette's rule color."
+        },
+        "portrait": {
+          "type": "boolean",
+          "description": "Narrow the box, from its slot's width, until it is taller than wide (spec §11.10)."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "bg",
+        "bleed",
+        "border",
+        "hidden",
+        "id",
+        "inset",
+        "kind",
+        "layer",
+        "maxWidth",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "portrait",
+        "reveal",
+        "story",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\sidebar`: a boxed aside whose text is its own story and does not thread (spec §11.10)."
+    },
+    "GroupObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "group",
+          "description": "Object kind."
+        },
+        "layout": {
+          "type": "string",
+          "enum": [
+            "stack",
+            "row"
+          ],
+          "description": "`stack`: children one below another at the group's width. `row`: children pack into rows of whole grid columns that wrap (spec §11.11, design 2026-09-26)."
+        },
+        "gap": {
+          "$ref": "#/definitions/Len",
+          "description": "In a stack, space between children; in a row group, space between rows. Items in a row are separated by the grid gutter."
+        },
+        "valign": {
+          "type": "string",
+          "enum": [
+            "top",
+            "center",
+            "bottom",
+            "stretch",
+            "text"
+          ],
+          "description": "Row groups: how a child shorter than its row sits in it. `stretch` gives every child the row's height."
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GroupChild"
+          },
+          "description": "Children in source order, hidden ones included. Objects among them have `ContainedPlacement`; frames keep their own record in `frames`, and their `cols` and `vertical` are ignored."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "bleed",
+        "children",
+        "gap",
+        "hidden",
+        "id",
+        "kind",
+        "layer",
+        "layout",
+        "maxWidth",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "reveal",
+        "valign",
+        "wrap",
+        "z"
+      ],
+      "description": "`\\group`: several objects or frames placed, wrapped, revealed and hidden as one unit (spec §11.11)."
+    },
+    "GroupChild": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "string",
+              "const": "fit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fixed width, rounded to the nearest whole column; `fit`, a text frame's widest line, in whole columns (2026-09-30); or `null` for a child that fills."
+        },
+        "minWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Narrowest the child may be, rounded up to whole columns; `null` means one column."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Widest the child may grow, rounded down to whole columns; `null` means the group's width."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "frame",
+            "object"
+          ],
+          "description": "Which table the id is in."
+        },
+        "id": {
+          "type": "string",
+          "description": "Key into `frames` or `objects`."
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "maxWidth",
+        "minWidth",
+        "width"
+      ],
+      "description": "A child of a group, with how a row group sizes it. Layout rounds these to whole grid columns."
+    },
+    "RuleObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "rule",
+          "description": "Object kind."
+        },
+        "rule": {
+          "$ref": "#/definitions/RuleSpec",
+          "description": "The rule itself."
+        },
+        "id": {
+          "$ref": "#/definitions/ObjectId",
+          "description": "Object id, and the `name` of its Positioned Object."
+        },
+        "placement": {
+          "$ref": "#/definitions/Placement",
+          "description": "How the object is positioned (spec §11.2, §11.3)."
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "background",
+            "content",
+            "overlay"
+          ],
+          "description": "Paint layer. Only `content` can exclude text (spec §11.2)."
+        },
+        "z": {
+          "type": "number",
+          "description": "Stacking order within the layer, source order written in (spec §11.1)."
+        },
+        "bleed": {
+          "type": "string",
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ],
+          "description": "Sides on which the box extends through the margin to the viewport edge (spec §11.1)."
+        },
+        "maxWidth": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Len"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cap on the box width, or `null` for none. The box keeps the centre of the space its placement gave it, so the room it gives back is shared by the text on both sides (spec §11.1)."
+        },
+        "offsetX": {
+          "$ref": "#/definitions/Len",
+          "description": "Horizontal fine adjustment of the box (spec §11.1)."
+        },
+        "offsetY": {
+          "$ref": "#/definitions/Len",
+          "description": "Vertical fine adjustment of the box (spec §11.1)."
+        },
+        "wrap": {
+          "$ref": "#/definitions/Wrap",
+          "description": "How text flows around the object. Always `none` off the content layer (spec §12)."
+        },
+        "reveal": {
+          "$ref": "#/definitions/Reveal",
+          "description": "The object's reveal (spec §13)."
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1)."
+        }
+      },
+      "required": [
+        "bleed",
+        "hidden",
+        "id",
+        "kind",
+        "layer",
+        "maxWidth",
+        "offsetX",
+        "offsetY",
+        "placement",
+        "reveal",
+        "rule",
+        "wrap",
+        "z"
+      ],
+      "description": "A `\\rule` written directly in a scene, placed like an object (spec §10.4)."
+    },
+    "MusicCue": {
+      "type": "object",
+      "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "story": {
+                  "$ref": "#/definitions/StoryId"
+                },
+                "block": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "story",
+                "block"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "scene": {
+                  "$ref": "#/definitions/SceneId"
+                }
+              },
+              "required": [
+                "scene"
+              ],
+              "additionalProperties": false
+            }
+          ],
+          "description": "Where it sits: before a story's block (it fires when that block's first line reaches `enterAt`), or at a scene's top."
+        },
+        "audio": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AssetId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The audio asset to play, or `null` to fade the music out."
+        },
+        "fadeMs": {
+          "type": "number",
+          "description": "Crossfade or fade-out length in milliseconds."
+        },
+        "volume": {
+          "type": "number",
+          "description": "Playback volume, 0 to 1."
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "Repeat the track while it is current."
+        },
+        "enterAt": {
+          "type": "number",
+          "description": "How far up the viewport, from its bottom, the cue's position must come to fire, 0 to 1."
+        }
+      },
+      "required": [
+        "at",
+        "audio",
+        "fadeMs",
+        "volume",
+        "loop",
+        "enterAt"
+      ],
+      "additionalProperties": false,
+      "description": "A `\\music` cue (spec §10.6, 2026-10-09)."
+    },
+    "Diagnostic": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Warning code, for example `\"W031\"`."
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "resolve-warning",
+            "asset-warning"
+          ],
+          "description": "Which stage raised it (spec §15.6)."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable message."
+        },
+        "file": {
+          "type": "string",
+          "description": "Source file the warning points at: the document or its theme."
+        },
+        "line": {
+          "type": "number",
+          "description": "1-based source line."
+        },
+        "column": {
+          "type": "number",
+          "description": "1-based source column."
+        },
+        "fix": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Suggested fix, or `null` when there is none."
+        },
+        "variant": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VariantName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The variant the warning is about, or `null` when it holds at every breakpoint."
+        }
+      },
+      "required": [
+        "code",
+        "category",
+        "message",
+        "file",
+        "line",
+        "column",
+        "fix",
+        "variant"
+      ],
+      "additionalProperties": false,
+      "description": "A resolve or asset warning (spec §15.6)."
+    }
+  },
+  "$id": "https://wmxdsl.dev/schema/resolved-document/1.json",
+  "title": "WMXDSL Resolved Document, format version 1"
+}
