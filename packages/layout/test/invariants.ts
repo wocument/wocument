@@ -96,4 +96,17 @@ export function layoutInvariants(rd: ResolvedDocument, pd: PositionedDocument, {
     if (o.placement.mode === "anchored" && v.stories[o.placement.story]!.overset === "clip") expect(n, o.id).toBeLessThanOrEqual(1);
     else expect(n, o.id).toBe(1);
   }
+  // Picture composition (2026-10-17): in a scene of screen pages, a floating object is on its anchor's
+  // screen, the screen before or the screen after; at most one hero a screen.
+  for (const s of pd.scenes.filter((s) => s.paged)) {
+    const screen = (y: number) => Math.floor((y - s.y + 1e-6) / pd.viewport.height);
+    const heroes = new Map<number, number>();
+    for (const p of s.objects) {
+      const o = v.objects[p.name];
+      if (o?.placement.mode !== "anchored") continue;
+      if (o.placement.place !== "here" && p.anchoredAt !== null) expect(Math.abs(screen(p.box.y) - screen(p.anchoredAt)), `${o.id} window`).toBeLessThanOrEqual(1);
+      if (o.placement.size === "hero") heroes.set(screen(p.box.y), (heroes.get(screen(p.box.y)) ?? 0) + 1);
+    }
+    for (const [k, n] of heroes) expect(n, `${s.name} screen ${k + 1}: heroes`).toBeLessThanOrEqual(1);
+  }
 }
