@@ -234,31 +234,42 @@ describe("floating in screen pages", () => {
     expect(windowBreaks(doc, moved({ "figure-7": 1, "figure-4": -1, "figure-5": -1, "figure-6": -1 }))).toEqual(["figure-7 window: screen 4, anchor on 2"]);
   });
 
-  it("a page set shorter so that text goes on with the pictures keeps its columns level", () => {
-    // 2026-10-17 (stress-portraits page 1, 1440 to 1920 wide): the text ends on page 1 with pictures
-    // still to come, so rule 3 sets the band shorter. A picture chosen at the full band's foot stood
-    // up to 330px below the text beside it. Each column ends where its text or a box at its foot does.
+  /** stress-portraits page 1 at one size: whether it holds a picture, and how far apart its columns end (boxes counted). */
+  function portraitsPage1(width: number, height: number): { pictures: number; apart: number; limit: number } {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
     const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
-    let checked = 0;
-    for (const [width, height] of [[1440, 900], [1799, 1000], [1800, 1000], [1920, 1080]] as const) {
-      const pd = layout(doc, { width, height }, new PrepareCache(createFixedEngine()));
-      layoutInvariants(doc, pd, { standoff: false });
-      const s = pd.scenes[0]!;
-      const text = s.lines.filter((l) => l.story === "nine");
-      // Only a page whose text goes on must end level (a section's last page is balanced instead).
-      if (!text.some((l) => screenOf(pd, l.y) === 1)) continue;
-      checked++;
-      const lines = text.filter((l) => screenOf(pd, l.y) === 0);
-      const feet = [...new Set(lines.map((l) => l.column))].map((c) => {
-        const own = lines.filter((l) => l.column === c);
-        const [left, right] = [Math.min(...own.map((l) => l.x)), Math.max(...own.map((l) => l.x + l.width))];
-        const boxes = s.objects.filter((o) => doc.variants[pd.breakpoint]!.objects[o.name]?.placement.mode !== "contained" && screenOf(pd, o.box.y) === 0 && o.box.x < right - 1 && left < o.box.x + o.box.width - 1);
-        return Math.max(...own.map((l) => l.y + l.height), ...boxes.map((o) => o.box.y + o.box.height));
-      });
-      expect(Math.max(...feet) - Math.min(...feet), `${width}: columns of page 1 end apart`).toBeLessThanOrEqual(2 * s.grid.baseline + 1);
-    }
-    expect(checked).toBeGreaterThan(0);
+    const pd = layout(doc, { width, height }, new PrepareCache(createFixedEngine()));
+    layoutInvariants(doc, pd, { standoff: false });
+    const s = pd.scenes[0]!;
+    const pictures = s.objects.filter((o) => doc.variants[pd.breakpoint]!.objects[o.name]?.placement.mode !== "contained" && screenOf(pd, o.box.y) === 0);
+    const lines = s.lines.filter((l) => l.story === "nine" && screenOf(pd, l.y) === 0);
+    const feet = [...new Set(lines.map((l) => l.column))].map((c) => {
+      const own = lines.filter((l) => l.column === c);
+      const [left, right] = [Math.min(...own.map((l) => l.x)), Math.max(...own.map((l) => l.x + l.width))];
+      const boxes = pictures.filter((o) => o.box.x < right - 1 && left < o.box.x + o.box.width - 1);
+      return Math.max(...own.map((l) => l.y + l.height), ...boxes.map((o) => o.box.y + o.box.height));
+    });
+    return { pictures: pictures.length, apart: Math.max(...feet) - Math.min(...feet), limit: 2 * s.grid.baseline + 1 };
+  }
+
+  // 2026-10-17 (stress-portraits page 1): the text ends on page 1 with pictures still to come, so
+  // rule 3 sets the band shorter. Scored on the full band, a picture at its foot stood up to 330px
+  // below the text beside it; refusing such settings left page 1 no picture at all. Each trial is now
+  // scored on the band as rule 3 sets it: page 1 keeps a picture, and its columns end level, where
+  // their text or a box at their foot does.
+  it.each([[1440, 900], [1799, 1000], [1800, 1000]] as const)("a page rule 3 sets shorter keeps a picture and level columns (stress-portraits at %ix%i)", (width, height) => {
+    const p = portraitsPage1(width, height);
+    expect(p.pictures, "page 1 holds a picture").toBeGreaterThan(0);
+    expect(p.apart, "columns of page 1 end apart").toBeLessThanOrEqual(p.limit);
+  });
+
+  // Known defect, 2026-10-17: at 1920x1080 no setting with a picture lets the text go on without
+  // leaving one or two lines alone by a box (rule 13), even with ten times the trial budget, so every
+  // picture waits and the text ends on page 1 in ragged columns. Fails until the engine sets it.
+  it.fails("a page rule 3 sets shorter keeps a picture and level columns (stress-portraits at 1920x1080)", () => {
+    const p = portraitsPage1(1920, 1080);
+    expect(p.pictures, "page 1 holds a picture").toBeGreaterThan(0);
+    expect(p.apart, "columns of page 1 end apart").toBeLessThanOrEqual(p.limit);
   });
 });

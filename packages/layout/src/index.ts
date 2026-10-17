@@ -780,8 +780,8 @@ function fillFrame(
     const ends = (band: Columns): number[] => columns.map((col, c) => Math.max(feet(band)[c]!, ...band.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode !== "contained" && o.box.x < col.x + col.width - EPS && o.box.x + o.box.width > col.x + EPS).map((o) => o.box.y + o.box.height)));
     /** Rule 3 (see `bands`): the text ends with objects still waiting, so the band is set shorter. */
     const lone = (r: Columns): boolean => r.stop === "full" && (r.deferred.length > 0 || objectsAfter(r.cursor)) && !textAfter(r.cursor);
-    const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends, lone) : undefined;
-    const r = bands(env, contentTop, cursor, (limit, at, from, earlier, deferred) => run(limit, at, from, earlier, deferred), onBand, textAfter, feet, ends, objectsAfter, compose);
+    const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends, lone, textAfter) : undefined;
+    const r = bands(env, contentTop, cursor, (limit, at, from, earlier, deferred) => run(limit, at, from, earlier, deferred), onBand, textAfter, feet, ends, lone, compose);
     anchorsAt(env, story, cursor, frame.id, r.placed);
     return { placed: r.placed, cursor: r.cursor, bottom: Math.max(contentTop, ...r.bottoms) + inset };
   }
@@ -888,8 +888,8 @@ function bands(
   feet: (band: Columns) => number[] = () => [],
   /** Where each column's content ends, pictures included. */
   ends: (band: Columns) => number[] = feet,
-  /** Whether an object is still to come in the story from a resume point (before a frame break). */
-  objectsAfter: (from: Resume) => boolean = () => false,
+  /** Rule 3: the text ends in a band with objects still waiting, so the next page would hold them alone. */
+  lone: (band: Columns) => boolean = () => false,
   /** Picture composition (2026-10-17): the frame's floating objects, screen by screen. */
   compose?: Composer,
 ): Columns {
@@ -926,20 +926,24 @@ function bands(
   let prev: { mark: ReturnType<typeof mark>; tops: number; bottoms: number; earlier: number; at: number; limit: number; from: Resume; waiting: readonly string[]; page: number; band: Columns; floated: Env["floated"] } | null = null;
   for (;;) {
     // The screen's floating objects are chosen first; every setting of the screen below keeps them.
+    /** How much shorter the composer set this band, rule 3 applied (2026-10-17). */
+    let cut = 0;
     if (compose) {
       // Objects that fall back join those already waiting in story order, so earlier ones open the band first.
-      const extra = compose.screen(page, at, limit, from, earlier, waiting, hanging(at));
+      let extra: string[];
+      ({ extra, cut } = compose.screen(page, at, limit, from, earlier, waiting, hanging(at)));
+      // The chosen setting was scored on the band as rule 3 sets it: this band is that much shorter.
+      limit -= cut;
       const block = (id: string) => (env.v.objects[id]!.placement as AnchoredPlacement).block;
       if (extra.length) waiting = [...waiting, ...extra].sort((a, b) => block(a) - block(b));
     }
     let full = run(limit, at, from, earlier, waiting);
     // Rule 3 (2026-09-30): a band that ends the text with objects still waiting would leave the next
     // page to them alone. It sets a line less at a time until some of the text goes over with them.
-    /** The text ends here with objects still waiting: the next page would hold them alone. */
-    const lone = (r: Columns): boolean => r.stop === "full" && (r.deferred.length > 0 || objectsAfter(r.cursor)) && !textAfter(r.cursor);
-    if (lone(full))
-      for (let cut = grid.baseline; cut < limit / 2; cut += grid.baseline) {
-        const t = run(limit - cut, at, from, earlier, waiting);
+    // A band the composer set already has rule 3 applied: its boxes stand against that foot.
+    if (lone(full) && !cut)
+      for (let k = grid.baseline; k < limit / 2; k += grid.baseline) {
+        const t = run(limit - k, at, from, earlier, waiting);
         if (textAfter(t.cursor)) {
           full = t;
           break;
@@ -1066,7 +1070,7 @@ function bands(
 /** Picture composition (2026-10-17) for one banded frame; see `composer`. */
 type Composer = {
   /** Before screen `page` is set: chooses its floating objects (into `env.floated`) and returns those that fall back to today's rule and open the band (§11.3). */
-  screen: (page: number, at: number, limit: number, from: Resume, earlier: readonly Exclusion[], waiting: readonly string[], hanging: readonly Exclusion[]) => string[];
+  screen: (page: number, at: number, limit: number, from: Resume, earlier: readonly Exclusion[], waiting: readonly string[], hanging: readonly Exclusion[]) => { extra: string[]; cut: number };
   /** Floating objects still to place: the frame does not end before they are set. */
   left: () => boolean;
 };
@@ -1124,6 +1128,7 @@ function composer(
   run: (limit: number, at: number, from: Resume, earlier: readonly Exclusion[], deferred: readonly string[]) => Columns,
   ends: (band: Columns) => number[],
   lone: (band: Columns) => boolean,
+  textAfter: (from: Resume) => boolean,
 ): Composer | undefined {
   const { v, grid, viewport, sceneY } = env;
   /** The frame's floating objects in story order: from its first block to a frame break. */
@@ -1221,7 +1226,7 @@ function composer(
     left: () => pending.size > 0,
     screen(page, at, limit, from, earlier, waiting, hanging) {
       env.floated = floatedFor([]);
-      if (pending.size === 0) return [];
+      if (pending.size === 0) return { extra: [], cut: 0 };
       const passed = (id: string): boolean => beyond(from, id);
       for (const id of pending) if (!passed(id)) anchors.delete(id);
       const t = run(limit, at, from, earlier, waiting);
@@ -1275,22 +1280,66 @@ function composer(
       }
       /** Trial layouts left on this screen: every search and fallback below shares the one budget. */
       let left = env.budget;
+      /** Each combination as it was set: rule 3's cut and the boxes raised with the band's foot. */
+      const setAs = new Map<string, { cut: number; combo: Candidate[] }>();
+      const keyOf = (combo: Candidate[]): string => combo.map((c) => ("box" in c ? `${c.id}@${c.box.x},${c.box.y},${c.box.width}` : `${c.id}:wait`)).join("|");
+      /**
+       * Rule 3's cut for a setting whose text ends here with boxes set (see `tryLayout`): of those that
+       * let text go on and keep the hard rules, the one whose columns end closest to level (ties to
+       * the smaller cut); else the first that lets text go on.
+       */
+      const cutFor = (combo: Candidate[], trial: Columns): { k: number; t: Columns; as: Candidate[] } | null => {
+        if (!lone(trial) || !combo.some((c) => "box" in c)) return null;
+        const ok = (s: TrialSummary): boolean => s.allSet && !s.overlaps && !s.stubs && !s.alone;
+        const spread = (s: TrialSummary): number => Math.max(...s.feet) - Math.min(...s.feet);
+        type Cut = { k: number; t: Columns; as: Candidate[]; spread: number };
+        let first: Cut | null = null;
+        let going = null as Cut | null;
+        for (let k = grid.baseline; k < limit / 2; k += grid.baseline) {
+          const gk = { ...g, foot: g.foot - k };
+          const raised: Candidate[] = [];
+          for (const c of combo) {
+            const d = "box" in c && c.spot.place === "bottom" ? candidates(floatOf(c.id), v.spots, gk).find((d) => "box" in d && d.spot === c.spot && d.first === c.first && d.span === c.span) : c;
+            if (d) raised.push(d);
+          }
+          // A box that no longer fits at its spot: a shorter band cannot hold it either.
+          if (raised.length < combo.length) break;
+          env.floated = floatedFor(raised);
+          const t = run(limit - k, at, from, earlier, [...waiting, ...extra]);
+          const s = summarise(t, raised, gk, from, over, [...earlier, ...hanging]);
+          if (textAfter(t.cursor)) {
+            if (ok(s) && (!going || spread(s) < going.spread - EPS)) going = { k, t, as: raised, spread: spread(s) };
+            first ??= { k, t, as: raised, spread: spread(s) };
+          }
+        }
+        return going ?? first;
+      };
       const tryLayout = (combo: Candidate[]): TrialSummary => {
         left--;
         env.floated = floatedFor(combo);
-        const trial = run(limit, at, from, earlier, [...waiting, ...extra]);
-        const sum = summarise(trial, combo, g, from, over, [...earlier, ...hanging]);
+        let trial = run(limit, at, from, earlier, [...waiting, ...extra]);
+        // Rule 3 as `bands` applies it (2026-10-17): text that ends here with objects still waiting
+        // is set shorter, a line at a time, until some goes on. Each box at the foot is set again at
+        // its spot against the shorter band (on the grid, cropped to it, never above the band's top),
+        // so the setting scored is the one the page gets (see `cutFor`); one whose text never goes on
+        // is refused below.
+        const shortAt = cutFor(combo, trial);
+        if (!shortAt) env.floated = floatedFor(combo);
+        else (trial = shortAt.t), (env.floated = floatedFor(shortAt.as));
+        const cut = shortAt?.k ?? 0;
+        const as = shortAt?.as ?? combo;
+        setAs.set(keyOf(combo), { cut, combo: as });
+        const sum = summarise(trial, as, cut ? { ...g, foot: g.foot - cut } : g, from, over, [...earlier, ...hanging]);
         // A box set before its text: the text must still reach its anchor on the next screen, even
         // with the objects still to place set there by today's rule.
         const early = combo.filter((c) => "box" in c && !beyond(trial.cursor, c.id));
         const rest = [...pending].filter((id) => !combo.some((c) => c.id === id && "box" in c));
         const reach = early.length && trial.stop === "full" ? ahead(trial.cursor, rest, trial.deferred).cursor : null;
         // Objects fallen back at the end of their window are set on this screen, not sent on.
-        // A setting whose text ends here with objects still waiting is set shorter by rule 3 (see
-        // `bands`), with its boxes still at the full band's foot, so the columns end apart: refused
-        // (2026-10-17, stress-portraits page 1).
-        const short = lone(trial) && combo.some((c) => "box" in c);
-        const kept = !short && owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && !due.some((id) => trial.deferred.includes(id));
+        // Still alone after it: no cut lets the text go on, and the boxes would stand beside ragged
+        // columns, neither full nor balanced. Refused, so a setting that lets it go on wins.
+        const stuck = lone(trial) && combo.some((c) => "box" in c);
+        const kept = !stuck && owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && !due.some((id) => trial.deferred.includes(id));
         return kept ? sum : { ...sum, allSet: false };
       };
       // The first search keeps back one trial for each fallback below.
@@ -1307,12 +1356,13 @@ function composer(
       if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits))) best = { combo: waits, cost: 0 };
       if (floats.length) env.onCompose?.(page, env.budget - left);
       if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
-      const combo = best?.combo ?? [];
+      const chosen = best ? setAs.get(keyOf(best.combo)) : undefined;
+      const combo = chosen?.combo ?? best?.combo ?? [];
       for (const c of combo) if ("box" in c) (pending.delete(c.id), set.add(c.id));
       env.floated = floatedFor(combo);
       // An empty arrangement earns no rhythm penalty on the next screen.
       previous = signature(combo) || null;
-      return extra;
+      return { extra, cut: chosen?.cut ?? 0 };
     },
   };
 }
