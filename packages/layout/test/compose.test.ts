@@ -83,6 +83,12 @@ describe("candidates", () => {
     }
   });
 
+  it("a crop grown to the foot stays within 85% of the band", () => {
+    const cs = boxes(candidates(float({ sizes: ["column"], heightAt: () => 716, crops: true }), [spot("column", "bottom")], g3));
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) expect(c.box.height).toBeLessThanOrEqual(0.85 * g3.band);
+  });
+
   it("wait only inside the window", () => {
     const waits = (anchorScreen: number) => candidates(float({ anchorScreen }), VANILLA, g3).filter((c) => "wait" in c);
     expect(waits(g3.index - 1)).toEqual([]);

@@ -79,7 +79,8 @@ export function candidates(f: Float, spots: Spot[], g: ScreenGeometry): Candidat
       if (spot.place === "bottom") {
         y = g.origin + Math.floor((g.foot - height - g.origin) / g.baseline + EPS) * g.baseline;
         if (y < top - EPS) continue;
-        if (f.crops) height = g.foot - y;
+        // A crop grows to the foot only within the 85% cap; past it, the box keeps its own height.
+        if (f.crops && g.foot - y <= max + EPS) height = g.foot - y;
       } else if (y + height > g.foot + EPS) continue;
       out.push({ id: f.id, size: spot.size, spot, first, span, box: { x: a.x, y, width, height } });
     }
