@@ -98,15 +98,41 @@ export function layoutInvariants(rd: ResolvedDocument, pd: PositionedDocument, {
   }
   // Picture composition (2026-10-17): in a scene of screen pages, a floating object is on its anchor's
   // screen, the screen before or the screen after; at most one hero a screen.
+  expect(windowBreaks(rd, pd)).toEqual([]);
   for (const s of pd.scenes.filter((s) => s.paged)) {
     const screen = (y: number) => Math.floor((y - s.y + 1e-6) / pd.viewport.height);
     const heroes = new Map<number, number>();
     for (const p of s.objects) {
       const o = v.objects[p.name];
-      if (o?.placement.mode !== "anchored") continue;
-      if (o.placement.place !== "here" && p.anchoredAt !== null) expect(Math.abs(screen(p.box.y) - screen(p.anchoredAt)), `${o.id} window`).toBeLessThanOrEqual(1);
-      if (o.placement.size === "hero") heroes.set(screen(p.box.y), (heroes.get(screen(p.box.y)) ?? 0) + 1);
+      if (o?.placement.mode === "anchored" && o.placement.size === "hero") heroes.set(screen(p.box.y), (heroes.get(screen(p.box.y)) ?? 0) + 1);
     }
     for (const [k, n] of heroes) expect(n, `${s.name} screen ${k + 1}: heroes`).toBeLessThanOrEqual(1);
   }
+}
+
+/**
+ * The floating objects (anchored, `place` other than `here`) of paged scenes outside their window: more
+ * than one screen from their anchor. The window yields only to overflow (ruling 2026-10-17): an object
+ * may land further after its anchor only when every screen from its anchor's screen to the one before
+ * its own already holds a floating object set earlier in story order.
+ */
+export function windowBreaks(rd: ResolvedDocument, pd: PositionedDocument): string[] {
+  const v = rd.variants[pd.breakpoint]!;
+  const out: string[] = [];
+  for (const s of pd.scenes.filter((s) => s.paged)) {
+    const screen = (y: number) => Math.floor((y - s.y + 1e-6) / pd.viewport.height);
+    const floats = s.objects.flatMap((p) => {
+      const o = v.objects[p.name];
+      return o?.placement.mode === "anchored" && o.placement.place !== "here" && p.anchoredAt !== null
+        ? [{ name: p.name, story: o.placement.story, block: o.placement.block, at: screen(p.box.y), anchor: screen(p.anchoredAt) }]
+        : [];
+    });
+    for (const f of floats) {
+      if (Math.abs(f.at - f.anchor) <= 1) continue;
+      const full = (k: number) => floats.some((e) => e.story === f.story && e.block < f.block && e.at === k);
+      const overflow = f.at > f.anchor && Array.from({ length: f.at - f.anchor }, (_, i) => f.anchor + i).every(full);
+      if (!overflow) out.push(`${f.name} window: screen ${f.at + 1}, anchor on ${f.anchor + 1}`);
+    }
+  }
+  return out;
 }

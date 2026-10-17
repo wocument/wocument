@@ -922,7 +922,12 @@ function bands(
   let prev: { mark: ReturnType<typeof mark>; tops: number; bottoms: number; earlier: number; at: number; limit: number; from: Resume; waiting: readonly string[]; page: number; band: Columns; floated: Env["floated"] } | null = null;
   for (;;) {
     // The screen's floating objects are chosen first; every setting of the screen below keeps them.
-    if (compose) waiting = [...waiting, ...compose.screen(page, at, limit, from, earlier, waiting, hanging(at))];
+    if (compose) {
+      // Objects that fall back join those already waiting in story order, so earlier ones open the band first.
+      const extra = compose.screen(page, at, limit, from, earlier, waiting, hanging(at));
+      const block = (id: string) => (env.v.objects[id]!.placement as AnchoredPlacement).block;
+      if (extra.length) waiting = [...waiting, ...extra].sort((a, b) => block(a) - block(b));
+    }
     let full = run(limit, at, from, earlier, waiting);
     // Rule 3 (2026-09-30): a band that ends the text with objects still waiting would leave the next
     // page to them alone. It sets a line less at a time until some of the text goes over with them.

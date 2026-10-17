@@ -12,7 +12,7 @@ import { parse, type Document } from "@wmxdsl/parser";
 import { type AssetHost, resolve } from "@wmxdsl/resolver";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
 import { layout, type PositionedDocument, type PositionedObject } from "../src/index.js";
-import { layoutInvariants } from "./invariants.js";
+import { layoutInvariants, windowBreaks } from "./invariants.js";
 
 const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
@@ -191,5 +191,25 @@ describe("floating in screen pages", () => {
         if (n && n.frame === l.frame && v.styles[l.style]?.keepWithNext && n.block !== l.block) expect(n.column, `"${l.text}" ends a column`).toBe(l.column);
       }
     }
+  });
+
+  it("the window yields only to overflow", () => {
+    // Seven pictures anchored together on screen 2: three on screen 2, four on screen 3.
+    const seven = Array.from({ length: 7 }, () => fig("ratio=3:2")).join("\n\n");
+    const { doc, pd } = lay(page(`${para(62, "a")}\n\n${seven}\n\n${para(80, "b")}`));
+    const moved = (shift: Record<string, number>): PositionedDocument => {
+      const copy = structuredClone(pd);
+      for (const o of copy.scenes[0]!.objects) if (shift[o.name]) o.box.y += shift[o.name]! * copy.viewport.height;
+      return copy;
+    };
+    const s = (name: string) => screenOf(pd, objects(pd).find((o) => o.name === name)!.box.y);
+    expect(windowBreaks(doc, pd)).toEqual([]);
+    // Figure 7 a screen later: every screen from its anchor's on holds an earlier picture, so it may.
+    expect([s("figure-1"), s("figure-4"), s("figure-7")]).toEqual([1, 2, 2]);
+    expect(windowBreaks(doc, moved({ "figure-7": 1 }))).toEqual([]);
+    // With figures 4 to 6 moved back to screen 2, screen 3 holds no earlier picture: no excuse.
+    expect(windowBreaks(doc, moved({ "figure-7": 1, "figure-4": -1, "figure-5": -1, "figure-6": -1 }))).toEqual(["figure-7 window: screen 4, anchor on 2"]);
+    // Two screens on, past the last screen an earlier picture fills: no excuse.
+    expect(windowBreaks(doc, moved({ "figure-7": 2 }))).toEqual(["figure-7 window: screen 5, anchor on 2"]);
   });
 });
