@@ -6,7 +6,7 @@
  * an estimate, close to a browser's for Vanilla; other faces run a few characters either way.
  */
 
-import { activeVariant, layout } from "@wmxdsl/layout";
+import { activeVariant, layout, type PositionedDocument } from "@wmxdsl/layout";
 import type { ResolvedDocument } from "@wmxdsl/resolved-document";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
 
@@ -19,13 +19,44 @@ export type LineLength = { width: number; variant: string; chars: number };
 export function lineLengths(rd: ResolvedDocument, widths = TEST_WIDTHS): LineLength[] {
   const cache = new PrepareCache(createFixedEngine(CHAR));
   return widths.flatMap((width) => {
-    const pd = layout(rd, { width, height: 900 }, cache);
-    const lines = pd.scenes.flatMap((s) => s.lines).filter((l) => l.style === "body");
-    if (!lines.length) return [];
-    const full = Math.max(...lines.map((l) => l.width));
-    const filled = lines.filter((l) => l.width > full * 0.97);
-    const chars = filled.reduce((n, l) => n + l.text.replaceAll("­", "").trim().length, 0) / filled.length;
-    return [{ width, variant: activeVariant(rd, width), chars: Math.round(chars) }];
+    const chars = bodyChars(layout(rd, { width, height: 900 }, cache));
+    return chars === null ? [] : [{ width, variant: activeVariant(rd, width), chars: Math.round(chars) }];
+  });
+}
+
+/** The average characters in a full line of body text, or null with no body text. */
+function bodyChars(pd: PositionedDocument): number | null {
+  const lines = pd.scenes.flatMap((s) => s.lines).filter((l) => l.style === "body");
+  if (!lines.length) return null;
+  const full = Math.max(...lines.map((l) => l.width));
+  const filled = lines.filter((l) => l.width > full * 0.97);
+  return filled.reduce((n, l) => n + l.text.replaceAll("­", "").trim().length, 0) / filled.length;
+}
+
+/**
+ * The copyfitting report (design 2026-10-17): at each test width, the screens of page scenes that
+ * need a content change the engine cannot make, two lines each. A scene that scrolls has none.
+ */
+export function copyfit(rd: ResolvedDocument, widths = TEST_WIDTHS): string[] {
+  const cache = new PrepareCache(createFixedEngine(CHAR));
+  return widths.flatMap((w) => {
+    const pd = layout(rd, { width: w, height: 900 }, cache);
+    const reports = pd.scenes.flatMap((s) => s.screens ?? []);
+    const perLine = bodyChars(pd) ?? 0;
+    const objects = rd.variants[pd.breakpoint]!.objects;
+    const lines = (k: number): string => `${k} line${k === 1 ? "" : "s"}`;
+    return reports.flatMap((r) => [
+      ...(r.short >= 1
+        ? [
+            `screen ${r.screen} at ${w}px: ${lines(r.short)} short of the bottom line.`,
+            `  Add about ${Math.round((r.short * perLine) / 10) * 10} characters to "${r.lastParagraph}…"${r.photo ? `, or let ${r.photo} grow by ${lines(r.short)} (size=wide)` : ""}.`,
+          ]
+        : []),
+      ...r.far.flatMap((f) => [
+        `screen ${r.screen} at ${w}px: ${f.object} is ${f.screens} screens from its paragraph; it had no room nearer.`,
+        `  Make it size=column, or move \\${objects[f.object]?.kind ?? "figure"} later in the story.`,
+      ]),
+    ]);
   });
 }
 

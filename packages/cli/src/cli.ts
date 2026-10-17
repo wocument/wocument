@@ -18,7 +18,7 @@ import { parseArgs } from "node:util";
 import { createAssetHost } from "@wmxdsl/assets";
 import { format, parse, type Diagnostic, type Document, type ParseResult, type Theme } from "@wmxdsl/parser";
 import { resolve, type ResolveResult } from "@wmxdsl/resolver";
-import { lineLengths, tooShortOrLong } from "./measure.js";
+import { copyfit, lineLengths, tooShortOrLong } from "./measure.js";
 
 const USAGE = `usage: wmxdsl <command> [options] <file...>
 
@@ -27,7 +27,8 @@ const USAGE = `usage: wmxdsl <command> [options] <file...>
   format <file...>   print canonical source (grammar §09)
       --write        rewrite the files in place instead
       --check        print nothing; exit 1 if any file is not canonical
-  check <file...>    parse and resolve, report every diagnostic
+  check <file...>    parse and resolve, report every diagnostic and the
+                     content changes that would fill each screen
 
   --public <dir>     where site-absolute paths (/img/a.png) live (default: ./public)
 
@@ -72,7 +73,11 @@ export function main(argv: string[]): number {
       return each(files, (file) => {
         if (file.endsWith(".wmxt")) return parseFile(file).ok;
         const r = resolveFile(file, opts);
-        if (r) checkLineLength(file, r);
+        if (r) {
+          checkLineLength(file, r);
+          // The copyfitting report: advice after the diagnostics, never an error.
+          for (const line of copyfit(r.doc)) console.error(line);
+        }
         return r !== null;
       });
     default:

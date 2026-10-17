@@ -45,6 +45,7 @@ import type {
   PositionedRule,
   PositionedScene,
   Rect,
+  ScreenReport,
 } from "./positioned.js";
 
 export * from "./positioned.js";
@@ -120,6 +121,8 @@ type Env = {
    * their anchors; one with a box is set at it on this screen (`fixed`: at the box's height, a crop).
    */
   floated?: ReadonlyMap<string, Floated | null>;
+  /** The copyfitting report: each banded frame adds its screens. */
+  reports: ScreenReport[];
 };
 type Floated = { box: Rect; fixed: boolean };
 
@@ -137,7 +140,7 @@ export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareC
   const scenes: PositionedScene[] = [];
   let y = 0;
   for (const scene of v.scenes) {
-    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut });
+    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut, reports: [] });
     const before = new Map(cursors);
     let s = layoutScene(env(false), scene, cursors);
     // 2026-10-17: a scene set in screen pages is set again with every frame on its screen's grid (only
@@ -402,7 +405,7 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
     append(behind, r.placed);
   }
   append(behind, out);
-  return { name: scene.id, y: sceneY, height, grid, paged: env.paged, ...behind };
+  return { name: scene.id, y: sceneY, height, grid, paged: env.paged, ...behind, ...(env.paged ? { screens: env.reports } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -785,6 +788,7 @@ function fillFrame(
     const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends, lone, textAfter) : undefined;
     const r = bands(env, contentTop, cursor, (limit, at, from, earlier, deferred) => run(limit, at, from, earlier, deferred), onBand, textAfter, feet, ends, lone, compose);
     anchorsAt(env, story, cursor, frame.id, r.placed);
+    env.reports.push(...screenReports(env, frame.id, story, cursor, columns, r.placed));
     return { placed: r.placed, cursor: r.cursor, bottom: Math.max(contentTop, ...r.bottoms) + inset };
   }
 
@@ -1114,6 +1118,49 @@ function anchorsAt(env: Env, story: Story, start: Resume, frameId: string, place
     const after = lines.find((l) => l.block > at);
     o.anchoredAt = before ? before.y + before.height : after ? after.y : o.anchoredAt;
   }
+}
+
+/**
+ * The copyfitting report (design 2026-10-17) for a banded frame, one per screen it set: how many
+ * lines its columns end short of the bottom line (never on its last screen), the photograph that
+ * could grow, and the floating objects set two screens or more from their anchor.
+ */
+function screenReports(env: Env, frameId: string, story: Story, start: Resume, columns: Col[], placed: Placed): ScreenReport[] {
+  const { sceneY, grid, v, rd } = env;
+  const vh = env.viewport.height;
+  const screenOf = (y: number): number => Math.floor((y - sceneY + EPS) / vh);
+  const order = (name: string): number => {
+    const p = v.objects[name]!.placement;
+    return p.mode === "anchored" ? p.block : Number.POSITIVE_INFINITY;
+  };
+  const floating = new Set(floatingIn(env, story, start));
+  const lines = placed.lines.filter((l) => l.frame === frameId);
+  const objects = placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained").sort((a, b) => order(a.name) - order(b.name));
+  const pages = [...new Set([...lines.map((l) => screenOf(l.y)), ...objects.map((o) => screenOf(o.box.y))])].sort((a, b) => a - b);
+  return pages.map((p) => {
+    const top = sceneY + p * vh;
+    const foot = top + vh - grid.marginY;
+    const on = lines.filter((l) => screenOf(l.y) === p);
+    const here = objects.filter((o) => screenOf(o.box.y) === p);
+    const ends = columns.flatMap((col, c) => {
+      const last = on.filter((l) => l.column === c).at(-1);
+      if (!last) return [];
+      const boxes = objects.filter((o) => o.box.y < top + vh && o.box.y + o.box.height > top && o.box.x < col.x + col.width - EPS && o.box.x + o.box.width > col.x + EPS);
+      return [Math.max(last.y + last.height, ...boxes.map((o) => o.box.y + o.box.height))];
+    });
+    const short = p !== pages.at(-1) && ends.length ? Math.max(0, Math.round((foot - Math.max(...ends)) / grid.baseline)) : 0;
+    const para = [...on].reverse().map((l) => story.blocks[l.block]).find((b) => b?.kind === "paragraph");
+    const words = para?.kind === "paragraph" ? para.runs.map((r) => (r.kind === "text" ? rd.strings[r.s]! : " ")).join("").replace(SHY, "").split(/\s+/).filter(Boolean).slice(0, 5).join(" ") : "";
+    const photo = here.find((o) => {
+      const r = v.objects[o.name];
+      return r?.kind === "figure" && r.media.shape.kind === "rect" && r.media.fit === "cover" && o.media !== null;
+    });
+    const far = here.flatMap((o) => {
+      const screens = o.anchoredAt === null ? 0 : p - screenOf(o.anchoredAt);
+      return floating.has(o.name) && screens >= 2 ? [{ object: o.name, screens }] : [];
+    });
+    return { screen: Math.floor((top + EPS) / vh) + 1, short, lastParagraph: words, photo: photo?.name ?? null, far };
+  });
 }
 
 /**

@@ -34,6 +34,22 @@ export type PositionedScene = {
   continues: PositionedContinue[];
   /** Design 2026-09-29: a page scene with column bands, so its height is whole screens and scrolling settles on each. */
   paged: boolean;
+  /** Design 2026-10-17, the copyfitting report: one per screen a banded frame sets, for page scenes only (absent when the scene scrolls). */
+  screens?: ScreenReport[];
+};
+
+/** What a content change could fix on one screen of a page scene; the engine never changes the words. */
+export type ScreenReport = {
+  /** The screen, from 1, counted in viewport heights from the top of the document. */
+  screen: number;
+  /** Whole baseline steps between the bottom line and where the screen's lowest text column ends (its last line, or a box at its foot); 0 on the frame's last screen. */
+  short: number;
+  /** The first five words of the last paragraph with a line on the screen. */
+  lastParagraph: string;
+  /** A photograph on the screen that crops (`fit=cover`, rect), which could grow to fill it; the first in story order, or null. */
+  photo: string | null;
+  /** Floating objects set two screens or more from their anchor: it had no room nearer. */
+  far: { object: string; screens: number }[];
 };
 
 export type PositionedContinue = { frame: string; x: number; y: number };

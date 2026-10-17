@@ -210,6 +210,19 @@ describe("floating in screen pages", () => {
     }
   });
 
+  it("the screen report names the pictures overflow set two screens from their paragraph (copyfitting)", () => {
+    const ten = Array.from({ length: 10 }, () => fig("size=wide, ratio=3:2")).join("\n\n");
+    const { pd } = lay(`\\story[name=s]{${para(50, "a")}\n\n${ten}\n\n\\framebreak\n\n${para(60, "b")}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}`);
+    const far = pd.scenes[0]!.screens!.flatMap((r) => r.far.map((f) => ({ ...f, screen: r.screen })));
+    expect(far.length).toBeGreaterThan(0);
+    for (const f of far) {
+      const o = pd.scenes[0]!.objects.find((x) => x.name === f.object)!;
+      expect(screenOf(pd, o.box.y) + 1).toBe(f.screen);
+      expect(f.screens).toBe(screenOf(pd, o.box.y) - screenOf(pd, o.anchoredAt!));
+      expect(f.screens).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it("the window yields only to overflow", () => {
     // Seven pictures anchored together on screen 2: three on screen 2, four on screen 3.
     const seven = Array.from({ length: 7 }, () => fig("ratio=3:2")).join("\n\n");

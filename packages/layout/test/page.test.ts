@@ -113,6 +113,17 @@ describe("column bands (§09.7)", () => {
   });
 });
 
+describe("screen reports (copyfitting, design 2026-10-17)", () => {
+  it("a paged scene carries one per screen; a scrolling scene has none", () => {
+    const paged = lay(`\\story[name=s]{${LONG}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}`).scenes[0]!;
+    expect(paged.paged).toBe(true);
+    expect(paged.screens?.map((r) => r.screen)).toEqual(Array.from({ length: paged.height / 800 }, (_, i) => i + 1));
+    expect(paged.screens![0]!.lastParagraph).toBe("Stone endures where nearly everything");
+    const scrolling = lay(`\\story[name=s]{${LONG}}\n\\scene[grid=page]{\\frame[story=s, cols=1-12, columns=3]}`).scenes[0]!;
+    expect(scrolling.screens).toBeUndefined();
+  });
+});
+
 describe("column rules (design §4)", () => {
   const src = (rule: string, text: string) =>
     `\\story[name=s]{${text}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3, ${rule}]}`;

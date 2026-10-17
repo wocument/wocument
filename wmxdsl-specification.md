@@ -1163,6 +1163,22 @@ wmxdsl: resolve warning [W031] at castle.wmx:52:3
 
 Test widths for build-time layout checks default to 360, 768, 1280, 1470 and 2560px. The last is wider than the default grid `max`, so it exercises the centering and growing-margin path in §07.5.
 
+**The copyfitting report** (2026-10-17). After the diagnostics, `wmx check` prints the content
+changes that would fill each screen of a page scene (§09.7) at the test widths. The engine never
+changes the words; it says which to change and by how much. A screen that is not its frame's last,
+whose columns end one line or more above the bottom line, gets the first form; `characters` is the
+lines short times the average characters in a full body line at that width (as `W064` counts them),
+to the nearest ten, and the second clause shows only when a photograph that crops (`fit=cover`) is
+on the screen. A floating object set two screens or more from its paragraph gets the second form.
+The report is advice: it never fails the check.
+
+```
+screen 2 at 1470px: 3 lines short of the bottom line.
+  Add about 120 characters to "The entries are short…", or let figure-2 grow by 3 lines (size=wide).
+screen 4 at 2560px: figure-5 is 2 screens from its paragraph; it had no room nearer.
+  Make it size=column, or move \figure later in the story.
+```
+
 ---
 
 ## 16 Built-in default theme
