@@ -172,7 +172,7 @@ describe.skipIf(!cutouts)("the continuation arrow beside a cut-out (design 2026-
   it.each([840, 860, 900])("sits at the column's right edge, below the picture, at 1440x%i", (height) => {
     const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 1000)}\n\n\\figure[src=/img/right.png, alt="A lighthouse", shape=alpha, wrap=contour]{\\caption{Rubha Glas, the last station on the coast to be automated.}}\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
     const s = layout(resolve(parse(src).ast as Document, { assets }).doc, { width: 1440, height }, new PrepareCache(createFixedEngine())).scenes[0]!;
-    const right = 1440 - 128; // the last column's right edge
+    const right = s.grid.originX + s.grid.content; // the last column's right edge
     for (const c of s.continues) {
       expect(c.x).toBeCloseTo(right, 6);
       const screen = Math.floor(c.y / height);

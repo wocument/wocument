@@ -18,7 +18,8 @@ export const DEFAULT_THEME_SOURCE = String.raw`
 \breakpoint[name=wide, min=1800px]
 %% 2026-10-07: text a little smaller on a 13-inch laptop, 1024 to 1419px wide; 2026-10-09 to 1419
 %% (from 1439), so a 1440px screen with a visible scroll bar (1425px of page) is still a laptop.
-\breakpoint[name=compact, min=1024px, max=1419px]
+%% 2026-10-11: every laptop, to 1799px; the base sizes are now for monitors 1800px and wider.
+\breakpoint[name=compact, min=1024px, max=1799px]
 
 %% The page frame, 2026-09-28 less white space: top and bottom margins of two lines (64px on a
 %% laptop).
@@ -28,7 +29,8 @@ export const DEFAULT_THEME_SOURCE = String.raw`
 %% 2026-10-07: wider side margins, 128px, 72px on tablets, 28px on phones.
 \grid[name=default, cols=12, gutter=24px, margin-x=128px, margin-y=2bl, max=1440px, baseline=33px, rows=6, body=4-9]
 \grid[name=default, at=wide, max=1760px, outdent=25%]
-\grid[name=default, at=compact, baseline=31px]
+%% 2026-10-11: on laptops the whole page at 85% of the base sizes (the base page at 85% zoom).
+\grid[name=default, at=compact, gutter=20px, margin-x=108px, max=1224px, baseline=28px]
 \grid[name=default, at=tablet, cols=8, gutter=20px, margin-x=72px, margin-y=2bl, baseline=30px, body=2-7]
 \grid[name=default, at=phone, cols=4, gutter=16px, margin-x=28px, margin-y=1.5bl, baseline=28px, body=all]
 
@@ -45,7 +47,7 @@ export const DEFAULT_THEME_SOURCE = String.raw`
 %% capitalised word; lines under 12em (strips beside pictures) ragged right; quotes, hyphens, full
 %% stops and commas hang outside the column.
 \style[name=body, family="Georgia, serif", size=21px, leading=1bl, space-after=0, indent=2em, align=justify, min-slot=9em, composer=paragraph, hyphenate-min=6, hyphenate-caps=false, justify-min=12em, hang=punctuation]
-\style[name=body, at=compact, size=20px]
+\style[name=body, at=compact, size=18px]
 \style[name=body, at=tablet, size=19px]
 \style[name=body, at=phone, size=18px]
 %% 2026-09-28: the intro one step smaller, 22px (a half step up from the body).
@@ -53,7 +55,7 @@ export const DEFAULT_THEME_SOURCE = String.raw`
 \style[name=lede, at=phone, size=20px]
 %% 2026-10-07: the intro opens the story (not the heading), on the grid like the body.
 \style[name=lede, size=22px, leading=1bl, snap=baseline, space-after=1bl, balance=false, composer=paragraph]
-\style[name=lede, at=compact, size=21px]
+\style[name=lede, at=compact, size=19px]
 \style[name=blockquote, family="Georgia, serif", italic, size=20px, leading=1bl, hang=punctuation]
 %% 2026-09-28: headline, deck, intro and pull quote break into even lines ("balance"); the pull
 %% quote is two steps smaller and opens with a large bold mark in the accent ("mark").
@@ -104,6 +106,22 @@ export const DEFAULT_THEME_SOURCE = String.raw`
 \style[name=deck, bind-short]
 \style[name=lede, bind-short=false]
 \style[name=pullquote, bind-short]
+%% 2026-10-11: laptops at 85% of the base sizes, like the grid above.
+\style[name=blockquote, at=compact, size=17px]
+\style[name=headline, at=compact, size=fluid(34px, 61px)]
+\style[name=deck, at=compact, size=fluid(18px, 21px)]
+\style[name=pullquote, at=compact, size=fluid(19px, 24px)]
+\style[name=cite, at=compact, size=14px]
+\style[name=kicker, at=compact, size=10px]
+\style[name=byline, at=compact, size=12px]
+\style[name=meta, at=compact, size=11px]
+\style[name=subhead, at=compact, size=15px]
+\style[name=subhead-2, at=compact, size=17px]
+\style[name=caption, at=compact, size=13px]
+\style[name=credit, at=compact, size=11px]
+\style[name=sidebar, at=compact, size=14px]
+\style[name=bio, at=compact, size=14px]
+\style[name=folio, at=compact, size=10px]
 \style[name=link, color=accent]
 \style[name=code, family="monospace", size=0.9em]
 `;

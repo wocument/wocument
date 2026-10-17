@@ -12,7 +12,8 @@ import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
 import { layout, type PositionedScene } from "../src/index.js";
 
 const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
-const LONG = Array.from({ length: 60 }, () => "Stone endures where nearly everything else decays.").join(" ");
+// Paragraphs of five sentences: balancing keeps each whole (2026-10-17), so the text needs several to spread.
+const LONG = Array.from({ length: 12 }, () => Array.from({ length: 5 }, () => "Stone endures where nearly everything else decays.").join(" ")).join("\n\n");
 
 function scene(body: string, width = 1470): PositionedScene {
   const { doc } = resolve(parse(FM + body).ast as Document);

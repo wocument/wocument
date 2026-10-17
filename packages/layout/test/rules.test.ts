@@ -79,7 +79,8 @@ describe("hang", () => {
   it("with punctuation (the built-in body's), a justified line ending in a full stop or comma hangs it right", () => {
     const { pd } = lay("", QUOTED);
     const groups = byBlock(pd);
-    const ends = groups.flatMap((p) => p.slice(0, -1)).filter((l) => /[.,]\s*$/.test(l.text));
+    // The mark may close a quotation: `comes.”` hangs too.
+    const ends = groups.flatMap((p) => p.slice(0, -1)).filter((l) => /[.,][”’]?\s*$/.test(l.text));
     expect(ends.length).toBeGreaterThan(0);
     for (const l of ends) expect(l.hang?.right).toBeGreaterThan(0);
   });

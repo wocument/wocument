@@ -322,7 +322,7 @@ Styles refer to roles (`color=accent`), not hex values, so switching a scene's p
 | `min` | length (px) | optional |
 | `max` | length (px) | optional |
 
-Breakpoint ranges MUST NOT overlap (resolve error). Any viewport width not covered by a named breakpoint is the **base** range. Built-in: `phone` (max 639px), `tablet` (640px to 1023px), `compact` (1024px to 1419px: small laptops, added 2026-10-07; to 1419px from 1439px on 2026-10-09, so a 1440px screen showing a 15px scroll bar is still base), `wide` (1800px and up, added 2026-10-07). Base is therefore 1420px to 1799px. Redefining a built-in name replaces it.
+Breakpoint ranges MUST NOT overlap (resolve error). Any viewport width not covered by a named breakpoint is the **base** range. Built-in: `phone` (max 639px), `tablet` (640px to 1023px), `compact` (1024px to 1799px: laptops, added 2026-10-07; to 1799px from 1419px on 2026-10-11), `wide` (1800px and up, added 2026-10-07). The built-in cover therefore leaves no base range; base values apply through `wide`, which inherits them. Redefining a built-in name replaces it.
 
 ### 07.5 `\grid`
 
@@ -555,9 +555,15 @@ An inline frame is an anonymous story with exactly one frame.
 
 ### 09.4 Column balancing
 
-A frame with `columns>1`, `height=auto` and `balance=true` is set to the height that **minimizes the difference between its tallest and shortest column** (text that ends exactly at the last column's foot fits that height; 2026-10-07), with the smaller height as the tie-break. Level columns are the goal; a shorter frame is only a tie-break, because the two objectives disagree and a designer reads a two-line step as a defect.
+A frame with `columns>1`, `height=auto` and `balance=true` is balanced by **whole blocks** (2026-10-17). A block is a paragraph (the lines of a paragraph carried over from the previous band count as one), a subhead together with the paragraph after it, or an anchored object. Blocks are never split across columns.
 
-The engine finds the height by search (lay out, measure, adjust). The search stops when the imbalance is within one baseline step, or when no trial improves on the best so far. Widows, orphans and wrap exclusions apply on every pass, and an anchored object's pin-and-reflow (§11.3) runs inside each trial, so a trial can cost up to four placements.
+1. Blocks keep reading order and fill from the left: column 1 top to bottom, then column 2, up to the last column.
+2. The frame takes the **smallest height**, in baseline steps, at which every block fits. Columns that height does not need stay empty, so one block alone stays in column 1 and is not balanced.
+3. When the blocks do not fit whole in the space there is (a band is only one screen tall), the columns fill in order as on any other band, and a paragraph may then cross from one column to the next.
+
+Columns often end at different heights; that is accepted. Examples, with blocks of equal height: 2 blocks in 2 or 3 columns set one in column 1 and one in column 2; 3 in 2 set two and one; 3 in 3 set one in each; 4 in 3 set two and two, leaving column 3 empty.
+
+The engine finds the height by search (lay out, measure, adjust); fitting only gets easier as the height grows, so it halves. Widows, orphans and wrap exclusions apply on every pass, and an anchored object's pin-and-reflow (§11.3) runs inside each trial, so a trial can cost up to four placements.
 
 ### 09.5 Overset
 
@@ -594,14 +600,14 @@ Bands are **screen pages** (reading-flow design, 2026-09-29): each band is read 
 1. The first band starts at the frame's content top and ends at the bottom of the screen the frame's content top is on. If that leaves less than a quarter of a band (a screen less its margins; a third until 2026-09-30), it starts at the top of the next screen instead.
 2. Text left over after a band starts a new band on the next screen, `margin-y` below its top. Every later band is one screen tall: the viewport height less twice `margin-y`. A page scene with column bands is a whole number of screens tall; one without (every frame a single column, as on a phone) is as tall as its content, at least one screen.
 3. Bands continue until the story ends, or until a `\framebreak`, which sends the rest of the story to the next frame of its thread.
-4. The last band is balanced (§09.4) within its band height, so an article does not end with one full column beside empty ones. No column of a balanced band holds a single line.
+4. The last band is balanced (§09.4) within its band height: its paragraphs stay whole, and the smallest height that holds them wins. Bands before it are full and are left as they are.
 5. Widows, orphans and keep-with-next work within each band as they do within a frame; a block kept with the next one moves with it when orphan control moves it. Pin and reflow (§11.3) applies to one band at a time.
 6. **Objects never interrupt a column.** An anchored object whose anchor falls below a column's top waits for the top of the next column, or the next band's first column. Several waiting objects open columns one each, in order; one that does not fit waits again. A pull quote or fact box with no text after it (before the story's end or a frame break) interrupts nothing, so it sets after the text where it fits; and once the text has ended, waiting pull quotes and fact boxes open columns before pictures, since a page of pictures alone is allowed and a page holding only a quote is not (2026-10-07). A frame break is an end of text like the story's end: objects still waiting there open the next column or band before the break sends the story on. No page holds objects alone (2026-09-30): when the text ends part-way down a band's last column with an object waiting, the object opens that column instead, the text below it, where the rest still fits; where it does not, the band sets a line less at a time until some text goes over with the object. In a band shorter than a full one (the first, under a heading) an object that does not fit waits for a full band rather than hang off the page. An anchored object taller than a full band is set at a band's top and overflows it (layout warning `W043`).
 7. **Outlines wrap, gaps do not.** Where an object covers only part of a column, that column's text wraps its outline; a column it spans fully sets its text below its box (§12.1). No line is set in a gap narrower than 6em of its style.
 8. **A little bleed.** A cut-out (`shape=alpha`) in a band is 150% of its column wide, reaching into the column read next, whose text wraps its outline; in the last column it stays one column wide. `max-width` caps it. No picture in the flow, cut-out or not, is taller than 85% of a full band (a screen less its margins): a taller one narrows, keeping its left edge (2026-09-30; a `cols=` picture is the author's to size).
 9. **No hyphen at a turn.** The last line of a band's last column, and of any frame's last column whose story carries on, never ends in a hyphenated break: the line breaks earlier and the word carries on whole. Where a band's text ends before its last column (a later column holds only a picture), the page turns after the last column with text, and its last line is the one kept whole (2026-09-30).
 10. **Where the text continues.** Where a band's last column, or any frame, ends with its story carrying on, the renderer draws a small arrow at the column's foot, against its right edge: under its last line, or under a picture that ends the column below a short line set beside it.
-11. **Columns end together** (2026-09-30). Text is set on the grid's baseline, one body line a step, so lines in neighbouring columns share baselines. On a page scene the grid counts from each page's top, so every page's lines sit at the same heights (2026-10-07). In every band but the last, every column with text ends on the same line: where keep-with-next, orphans or widows would leave a column short, the band is set a line shorter at a time, up to six lines, and the setting whose columns end closest together wins (the first that ends them level; ties to the longer band). In a test of 171 pages of subheads and paragraphs of every length nine in ten end level and none more than a line apart (without the search, 66 level and 37 two lines apart or more); short of editing the copy, as a magazine would, that line is what remains.
+11. **Columns end together** (2026-09-30). Text is set on the grid's baseline, one body line a step, so lines in neighbouring columns share baselines. On a page scene set in screen pages the grid counts **up from each screen's bottom line** (the screen's foot less `margin-y`), so a full column's last line of body text ends exactly on that line, at the same place on every page and every screen size; what a screen holds beyond whole lines goes to the top margin (2026-10-17; from each page's top since 2026-10-07). Every frame of such a scene snaps to the grid of the screen a line is on. A page scene that is not set in screen pages (one column, on phones and tablets) keeps one grid, counted from the scene's top. In every band but the last, every column with text ends on the same line: where keep-with-next, orphans or widows would leave a column short, the band is set a line shorter at a time, up to six lines, and the setting whose columns end closest together wins (the first that ends them level; ties to the longer band). In a test of 171 pages of subheads and paragraphs of every length nine in ten end level and none more than a line apart (without the search, 66 level and 37 two lines apart or more); short of editing the copy, as a magazine would, that line is what remains.
 12. **Pages end full** (2026-10-07). A page whose columns end short of its foot, level or not, has a photograph on it (a rectangular figure, not a cut-out, gallery or group member) take the difference: a line at a time taller, or up to three lines shorter, cropped by its `fit`, never under 60% of its own height or over 85% of a band. The first height that ends every column, text or picture, on the page's last line wins, the smallest change first. A page with no photograph, and a section's last page (rule 4), can still end short.
 13. **No stub under a picture** (2026-10-07). A picture as wide as its column that leaves room for only one or two lines under it ends the column; the text goes on to the next column, and rule 12 may crop the picture down to the foot. A line that would end a page on a hyphen beside a narrow strip, where no shorter break exists, goes over to the next page whole.
 14. **Figures take whole lines** (2026-10-08). A rectangular figure in a story, its caption included, is a whole number of baseline steps tall, so the text after it resumes exactly one standoff below and every column keeps the same rhythm. A photograph that crops (`fit=cover`) takes the nearest whole number of lines; one that must show whole is scaled down to the line above, centred in its space (letterboxed to the line below if that would shrink it by more than a sixth). Cut-outs keep their size: text wraps their outline line by line, already on the grid. A section's last page never holds three lines or fewer and nothing else: the page before is set again at full height to take them, where they fit.
@@ -1134,31 +1140,33 @@ theme is **Vanilla**, set value by value from 2026-09-27 to
 2026-10-07; it replaced the first placeholder theme on
 2026-10-07.
 
-**Breakpoints**: `phone` max 639px, `tablet` 640 to 1023px, `compact` 1024 to 1419px, base 1420 to 1799px, `wide` 1800px and up. `compact` is base with the body a pixel smaller on a 31px grid (2026-10-07).
+**Breakpoints**: `phone` max 639px, `tablet` 640 to 1023px, `compact` 1024 to 1799px, `wide` 1800px and up. `compact` is the whole page at 85% of the base sizes, rounded to the pixel: the base page at 85% zoom (2026-10-11).
 
 **Grid `default`**: a baseline grid of one body line, so every line of text in side-by-side columns
 shares its baseline.
 
-| | base | wide | tablet | phone |
-| :---- | :---- | :---- | :---- | :---- |
-| `cols` | 12 | 12 | 8 | 4 |
-| `gutter` | 24px | 24px | 20px | 16px |
-| `margin-x` | 128px | 128px | 72px | 28px |
-| `margin-y` | 2bl | 2bl | 2bl | 1.5bl |
-| `baseline` | 33px (compact 31px) | 33px | 30px | 28px |
-| `body` | 4-9 | 4-9 | 2-7 | all |
-| `max` | 1440px | 1760px | 1440px | 1440px |
-| `outdent` | 0 | 25% | 0 | 0 |
-| `rows` | 6 | 6 | 6 | 6 |
+| | base | wide | compact | tablet | phone |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| `cols` | 12 | 12 | 12 | 8 | 4 |
+| `gutter` | 24px | 24px | 20px | 20px | 16px |
+| `margin-x` | 128px | 128px | 108px | 72px | 28px |
+| `margin-y` | 2bl | 2bl | 2bl | 2bl | 1.5bl |
+| `baseline` | 33px | 33px | 28px | 30px | 28px |
+| `body` | 4-9 | 4-9 | 4-9 | 2-7 | all |
+| `max` | 1440px | 1760px | 1224px | 1440px | 1440px |
+| `outdent` | 0 | 25% | 0 | 0 | 0 |
+| `rows` | 6 | 6 | 6 | 6 | 6 |
 
 **Palette `default`**: paper `#f6f7f8`, ink `#16181d`, muted `#5f6570`, accent `#1f5fbf`, rule `#dde1e6`.
 
 **Styles**. Families: serif = `Georgia, serif`; sans = `Helvetica Neue, Helvetica, Arial, sans-serif`.
-Sizes are base and wide / tablet / phone where they differ.
+Sizes are base and wide / tablet / phone where they differ. On `compact` each size is 85% of
+base, rounded to the pixel (body 18px, lede 19px, headline fluid(34px, 61px), deck fluid(18px, 21px),
+pull quote fluid(19px, 24px), subhead 15px, caption 13px, credit 11px, folio 10px, and so on).
 
 | Style | Family | Size | Leading | Other |
 | :---- | :---- | :---- | :---- | :---- |
-| `body` | serif | 21px (compact 20px) / 19px / 18px | 1bl | align justify, justify-min 12em, indent 2em, space-after 0, min-slot 9em, composer paragraph, hyphenate (hyphenate-min 6, hyphenate-caps false), hang punctuation, widows 2, orphans 2 |
+| `body` | serif | 21px / 19px / 18px | 1bl | align justify, justify-min 12em, indent 2em, space-after 0, min-slot 9em, composer paragraph, hyphenate (hyphenate-min 6, hyphenate-caps false), hang punctuation, widows 2, orphans 2 |
 | `lede` | serif | 22px / 22px / 20px | 1.45em | space-after 0.5bl, snap none, balance, bind-short, no hyphenation |
 | `headline` | serif, weight 700 | fluid(35px, 61px) | 1.05em | tracking -0.01em, space-after 0.35bl, snap none, balance, bind-short, no hyphenation |
 | `deck` | serif, italic | fluid(21px, 26px) | 1.3em | color muted, space-after 0.5bl, snap none, balance, bind-short, no hyphenation |

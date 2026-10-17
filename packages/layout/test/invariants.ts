@@ -53,18 +53,21 @@ export function layoutInvariants(rd: ResolvedDocument, pd: PositionedDocument, {
     const h = Math.min(...ls.map((l) => l.height));
     for (let i = 1; i < bands.length; i++) expect(bands[i]! - bands[i - 1]!).toBeGreaterThanOrEqual(h - 1e-6);
   }
-  // Snapped baselines on the scene's grid; on a paged scene, on the grid of the page they are on
-  // (counted from that page's top, 2026-10-07).
-  for (const s of pd.scenes)
+  // Snapped baselines share one grid per screen. A flow scene's counts from the scene's top; a page
+  // scene's counts up from each screen's bottom line (2026-10-17), so only "one grid" is checked here.
+  for (const s of pd.scenes) {
+    const residue = (y: number) => (((y % s.grid.baseline) + s.grid.baseline) % s.grid.baseline);
+    const grids = new Map<number, number>();
     for (const l of s.lines.filter((x) => x.snapped)) {
-      // Frames that are not set in bands keep the scene's grid.
-      const off = (origin: number) => {
-        const steps = (l.baseline - origin) / s.grid.baseline;
-        return Math.abs(steps - Math.round(steps));
-      };
-      const page = s.y + Math.floor((l.y - s.y) / pd.viewport.height) * pd.viewport.height;
-      expect(Math.min(off(s.y), s.paged ? off(page) : 1)).toBeLessThan(1e-6);
+      // The screen the baseline is on: a line a plain frame runs over a screen's edge snaps there.
+      const page = Math.floor((l.baseline - s.y) / pd.viewport.height);
+      const r = residue(l.baseline);
+      const first = grids.get(page) ?? r;
+      grids.set(page, first);
+      const d = Math.abs(r - first);
+      expect(Math.min(d, s.grid.baseline - d), `${s.name} page ${page + 1}: ${l.text}`).toBeLessThan(1e-6);
     }
+  }
   // No frame line inside a wrapping object's shape.
   for (const s of pd.scenes)
     for (const o of s.objects.filter((o) => o.exclusion && !o.exclusion.jump && o.anchoredAt !== null))

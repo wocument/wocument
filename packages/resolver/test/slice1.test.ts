@@ -83,7 +83,6 @@ describe("breakpoint cover", () => {
       { minWidth: 800, variant: "tablet" },
       { minWidth: 1001, variant: "base" },
       { minWidth: 1024, variant: "compact" }, // the built-in theme's compact and wide breakpoints stay
-      { minWidth: 1420, variant: "base" },
       { minWidth: 1800, variant: "wide" },
     ]);
   });

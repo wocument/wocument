@@ -107,7 +107,7 @@ describe("found by the stress-test articles", () => {
   const quote = "\\pullquote[cols=5-8, wrap=rect, wrap-side=both]{Across both columns.}";
 
   it("pin and reflow (§11.3): an object anchored in column 2 that reaches back into column 1 is pinned and the frame set again", () => {
-    const { pd } = lay(`\\story[name=s]{${LONG}\n\n${LONG}\n\n${quote}\n\n${LONG}}\n\\scene{\\frame[story=s, cols=1-12, columns=2, balance=true]}`);
+    const { pd } = lay(`\\story[name=s]{${LONG}\n\n${LONG}\n\n${LONG}\n\n${quote}\n\n${LONG}}\n\\scene{\\frame[story=s, cols=1-12, columns=2, balance=true]}`);
     expect(pd.scenes[0]!.lines.some((l) => l.column === 1 && l.y < pd.scenes[0]!.objects[0]!.box.y)).toBe(true); // anchored in column 2
     expect(intrusions(pd)).toEqual([]);
   });
@@ -163,7 +163,7 @@ describe("side=center (2026-10-09)", () => {
   });
 
   it("in a frame of two columns, it sits across the middle gutter and both columns wrap it", () => {
-    const s = scene(`\\story[name=s]{\\pullquote[side=center, width=60%]{Quoted.}\n\n${LONG} ${LONG}}\n\\scene{\\frame[story=s, cols=1-12, columns=2]}`);
+    const s = scene(`\\story[name=s]{\\pullquote[side=center, width=60%]{Quoted.}\n\n${LONG}\n\n${LONG}\n\n${LONG}\n\n${LONG}}\n\\scene{\\frame[story=s, cols=1-12, columns=2]}`);
     const pq = s.objects.find((o) => o.name === "pullquote-1")!;
     const text = s.lines.filter((l) => l.story === "s");
     const left = Math.min(...text.map((l) => l.x));

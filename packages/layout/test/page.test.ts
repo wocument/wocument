@@ -50,12 +50,13 @@ describe("column bands (§09.7)", () => {
     expect(Math.min(...band2.map((l) => l.y))).toBeGreaterThanOrEqual(768 - 1e-6);
   });
 
-  it("the last band is balanced", () => {
+  it("the last band holds one paragraph, so it is not balanced: columns fill in order (2026-10-17)", () => {
     const page = Math.floor(lines.at(-1)!.y / 800);
     const last = lines.filter((l) => Math.floor(l.y / 800) === page);
-    const used = [...new Set(last.map((l) => l.column))];
-    const bottoms = used.map((c) => Math.max(...last.filter((l) => l.column === c).map((l) => l.y + l.height)));
-    expect(Math.max(...bottoms) - Math.min(...bottoms)).toBeLessThanOrEqual(28 + 1e-6);
+    const used = [...new Set(last.map((l) => l.column))].sort();
+    expect(used).toEqual(used.map((_, i) => i)); // from column 1, none skipped
+    const foot = page * 800 + 800 - 56;
+    for (const c of used.slice(0, -1)) expect(Math.max(...last.filter((l) => l.column === c).map((l) => l.y + l.height))).toBeGreaterThan(foot - 28 - 1e-6);
   });
 
   it("sets every word once, in order", () => {
@@ -141,7 +142,8 @@ describe("column rules (design §4)", () => {
     // fillColumn discovers there is no text left only after its epilogue (space-after) has already
     // moved its bottom, so that column reports a bottom with zero lines in it. A large space-after
     // makes that phantom bottom taller than the real text above it, so the rule must ignore it.
-    const text = "Stone endures where nearly everything else decays. ".repeat(6).trim();
+    // Several paragraphs, so balancing spreads them over the columns (2026-10-17: one stays in column 1).
+    const text = Array.from({ length: 6 }, () => "Stone endures where nearly everything else decays.").join("\n\n");
     const withBigSpaceAfter = `\\style[name=body, space-after=3bl]\n${src("column-rule=rule", text)}`;
     const s = lay(withBigSpaceAfter).scenes[0]!;
     expect(s.columnRules.length).toBeGreaterThan(0);
@@ -494,7 +496,7 @@ describe("an anchored object taller than a band (§09.7 rule 5, W043)", () => {
   // of the story, with enough text, is taller than that -- layout has no diagnostics channel, so
   // there is no W043 to assert (see the limit note at the band code); what must hold is that
   // layout still terminates, places the sidebar once, and sets every word of the story once.
-  const SIDEBAR = "Sidebar filler sentence that takes some room. ".repeat(30).trim();
+  const SIDEBAR = "Sidebar filler sentence that takes some room. ".repeat(40).trim();
 
   it("terminates, places the object once at the band's top, and sets every word once", () => {
     const src =

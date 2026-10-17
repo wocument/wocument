@@ -85,13 +85,16 @@ describe.each([360, 768, 1280, 1470, 2560])("showcase at %ipx", (width) => {
 describe("balanced columns (§09.4)", () => {
   // Text-only, so balance is always reachable. (Part one of the showcase holds a 400px figure
   // that cannot split, and there the best split leaves the columns uneven, as §09.4 allows.)
-  it("two columns of plain text end within one baseline step of each other", () => {
+  it("two columns of plain text: whole paragraphs, the second column no taller than the first needs (2026-10-17)", () => {
     const text = Array.from({ length: 9 }, (_, i) => `Paragraph ${i} ${"words that wrap across lines ".repeat(6)}`).join("\n\n");
     const { doc } = resolve(parse(`---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{${text}}\n\\scene{\\frame[story=s, cols=1-8, columns=2]}`).ast as Document);
     const s = layout(doc, { width: 1470, height: 900 }, new PrepareCache(createFixedEngine())).scenes[0]!;
     const bottoms = [0, 1].map((c) => Math.max(...s.lines.filter((l) => l.column === c).map((l) => l.y + l.height)));
     expect(bottoms.every(Number.isFinite)).toBe(true);
-    expect(Math.abs(bottoms[0]! - bottoms[1]!)).toBeLessThanOrEqual(s.grid.baseline + 1e-6);
+    // No paragraph split; equal paragraphs, nine of them: five in column 1, four in column 2.
+    for (const b of new Set(s.lines.map((l) => l.block))) expect(new Set(s.lines.filter((l) => l.block === b).map((l) => l.column)).size).toBe(1);
+    expect(new Set(s.lines.filter((l) => l.column === 0).map((l) => l.block)).size).toBe(5);
+    expect(bottoms[1]!).toBeLessThanOrEqual(bottoms[0]! + 1e-6);
   });
 
   it("phone lays part one out in one column", () => {

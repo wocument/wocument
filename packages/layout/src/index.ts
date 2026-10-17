@@ -103,6 +103,10 @@ type Env = {
   origin?: number;
   /** §09.7 rule 12: extra height, in px (negative to crop), a photograph takes so that its page ends full. */
   grow?: ReadonlyMap<string, number>;
+  /** 2026-10-17: set while columns are balanced. A paragraph, picture or box is never split across columns. */
+  whole?: boolean;
+  /** 2026-10-17: the scene is set in screen pages, so every frame snaps to the grid of the screen a line is on. */
+  pageGrids?: boolean;
 };
 
 /** The active variant: the last breakpoint range starting at or below the width. */
@@ -119,7 +123,16 @@ export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareC
   const scenes: PositionedScene[] = [];
   let y = 0;
   for (const scene of v.scenes) {
-    const s = layoutScene({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false }, scene, cursors);
+    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids });
+    const before = new Map(cursors);
+    let s = layoutScene(env(false), scene, cursors);
+    // 2026-10-17: a scene set in screen pages is set again with every frame on its screen's grid (only
+    // known once a frame has been set in bands); one that scrolls keeps a single grid.
+    if (s.paged) {
+      cursors.clear();
+      for (const [k, c] of before) cursors.set(k, c);
+      s = layoutScene(env(true), scene, cursors);
+    }
     scenes.push(s);
     y += s.height;
   }
@@ -771,44 +784,46 @@ function fillFrame(
 }
 
 /**
- * §09.4: the height, in baseline steps, that minimizes the difference between
- * the tallest and shortest column, the smaller height breaking ties. The
- * smallest height that still takes the same text is found first (fitting is
- * monotonic in height); a few steps above it are then compared for level.
+ * §09.4, 2026-10-17: columns are balanced by whole blocks. Paragraphs, pictures and boxes stay in
+ * reading order, filling from the left, and are never split across columns; a subhead goes with the
+ * paragraph after it. The height is the smallest, in baseline steps, at which every block fits in the
+ * columns; columns that height does not need stay empty, and one block alone stays in the first.
+ * Fitting is monotonic in height, so the search halves.
  */
 function balance(env: Env, run: (limit: number) => Columns): Columns {
   const bl = env.grid.baseline;
-  const natural = run(Number.POSITIVE_INFINITY);
-  // Anchored objects hang below the text they wrap; the search must reach heights that hold them too.
-  const total = Math.max(...natural.bottoms, ...natural.placed.objects.map((o) => o.box.y + o.box.height)) - Math.min(...natural.tops);
-  // A height that leaves a column holding one lone line is no good, whatever it does for level:
-  // splitting a short remainder 1 + 1 breaks the widow and orphan rules (§07.6) the fill could not.
-  // Limit: 2 is the default widows and orphans, not the story's own; per-style minimums if one sets more.
-  const lone = (r: Columns): boolean => {
-    const per = new Map<number, number>();
-    for (const l of r.placed.lines) per.set(l.column, (per.get(l.column) ?? 0) + 1);
-    return per.size > 1 && [...per.values()].some((n) => n < 2);
-  };
-  // Text that ends exactly at the last column's foot reports the column full, yet takes it all: that
-  // fit counts (2026-10-07: two columns stayed 28 and 26 lines where 27 and 27 fit exactly).
-  const same = (r: Columns): boolean => r.cursor.block === natural.cursor.block && (r.stop !== "full" || r.deferred.length === 0) && !r.collides && !lone(r);
-  let lo = 1;
-  let hi = Math.max(1, Math.ceil(total / bl));
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (same(run(mid * bl))) hi = mid;
-    else lo = mid + 1;
+  const before = env.whole;
+  // The columns filled as on any other page, splitting paragraphs: always takes what the caller gave.
+  env.whole = false;
+  const lines = run(Number.POSITIVE_INFINITY);
+  env.whole = true;
+  try {
+    const natural = run(Number.POSITIVE_INFINITY);
+    // Text that ends exactly at the last column's foot reports the column full, yet takes it all: that
+    // fit counts (2026-10-07: two columns stayed 28 and 26 lines where 27 and 27 fit exactly).
+    const same = (r: Columns): boolean => r.cursor.block === lines.cursor.block && (r.stop !== "full" || r.deferred.length === 0) && !r.collides;
+    // Whole blocks that do not fit at all (a page's last band is only so tall, and the gaps they leave
+    // take room): the columns stay filled in order, so nothing is left out.
+    if (!same(natural)) return lines;
+    // Anchored objects hang below the text they wrap; the search must reach heights that hold them too.
+    const total = Math.max(...natural.bottoms, ...natural.placed.objects.map((o) => o.box.y + o.box.height)) - Math.min(...natural.tops);
+    let lo = 1;
+    let hi = Math.max(1, Math.ceil(total / bl));
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (same(run(mid * bl))) hi = mid;
+      else lo = mid + 1;
+    }
+    // The upper bound is measured, not tried: when even it does not take the text (lines snapping to a
+    // page's grid can need a line more), the natural setting stands.
+    const tried = run(lo * bl);
+    const best = same(tried) ? tried : natural;
+    // Such a fit took all the text: it ends where the line setting does, not "full" (2026-10-11: a
+    // last page whose columns ended exactly at the balanced foot got a continuation arrow).
+    return best.stop === "full" ? { ...best, stop: lines.stop } : best;
+  } finally {
+    env.whole = before;
   }
-  // The upper bound is measured, not tried: when even it does not take the text (lines snapping to a
-  // page's grid can need a line more), the natural setting stands, so nothing is left behind.
-  let best = run(lo * bl);
-  if (!same(best)) return natural;
-  const spread = (r: Columns): number => Math.max(...r.bottoms) - Math.min(...r.bottoms);
-  for (let k = 1; k <= 3 && spread(best) > bl + EPS; k++) {
-    const trial = run((lo + k) * bl);
-    if (same(trial) && spread(trial) < spread(best) - EPS) best = trial;
-  }
-  return best;
 }
 
 /** Design §4 column-rule: a line mid-gap between two adjacent columns that both hold text, from the band's first line's top to its tallest column's bottom. */
@@ -872,9 +887,9 @@ function bands(
   const earlier: Exclusion[] = [];
   /** Objects that did not fit in a band's last column (§11.3): they open the next band. */
   let waiting: readonly string[] = [];
-  // 2026-10-07: every page's lines sit on the same grid, counted from that page's top, so the
-  // columns of every page line up alike (a screen is rarely a whole number of lines).
-  env.origin = sceneY + page * viewport.height;
+  // 2026-10-07: every page's lines sit on the same grid, so the columns of every page line up alike.
+  const originOf = (p: number): number => pageOrigin(env, p);
+  env.origin = originOf(page);
   /** The last band set, to set again when the section's last page would be a stub. */
   let prev: { mark: ReturnType<typeof mark>; tops: number; bottoms: number; earlier: number; at: number; limit: number; from: Resume; waiting: readonly string[]; page: number; band: Columns } | null = null;
   for (;;) {
@@ -961,7 +976,7 @@ function bands(
       tops.length = prev.tops;
       bottoms.length = prev.bottoms;
       earlier.length = prev.earlier;
-      env.origin = sceneY + prev.page * viewport.height;
+      env.origin = originOf(prev.page);
       const t = run(prev.limit, prev.at, prev.from, earlier, prev.waiting);
       if (t.stop !== "full" && !t.collides) {
         band = balance(env, (l) => run(Math.min(l, prev!.limit), prev!.at, prev!.from, earlier, prev!.waiting));
@@ -969,7 +984,7 @@ function bands(
         page = prev.page;
       } else {
         // It does not fit: both pages stand as they were.
-        env.origin = sceneY + page * viewport.height;
+        env.origin = originOf(page);
         append(out, prev.band.placed);
         tops.push(...prev.band.tops);
         bottoms.push(...prev.band.bottoms);
@@ -994,9 +1009,32 @@ function bands(
     waiting = [...holdOver, ...band.deferred];
     from = band.cursor;
     at = sceneY + ++page * viewport.height + grid.marginY;
-    env.origin = sceneY + page * viewport.height;
+    env.origin = originOf(page);
     limit = screen;
   }
+}
+
+/**
+ * 2026-10-17: where a page scene's baseline grid counts from on screen `p`. It counts up from the
+ * screen's bottom line (the screen's foot less margin-y), so a full column's last line of body text
+ * ends exactly on it, at the same place on every page and every screen; what a screen holds beyond
+ * whole lines (a screen is rarely a whole number of them) goes to the top margin instead.
+ */
+function pageOrigin(env: Env, p: number): number {
+  const { grid, viewport, sceneY, v } = env;
+  const body = v.styles["body"];
+  const ctx: EvalContext = { viewport, grid, pctOf: 0 };
+  const lead = body ? px(body.leading, ctx) : grid.baseline;
+  let drop = lead;
+  if (body) {
+    const font = engineFont(body, ctx);
+    const m = env.cache.get([{ text: "x", font }], font);
+    // From a line's top to its baseline, as fillColumn sets body text.
+    drop = (lead - (m.ascent + m.descent)) / 2 + m.ascent;
+  }
+  const top = sceneY + p * viewport.height;
+  const lastBaseline = top + viewport.height - grid.marginY - lead + drop;
+  return lastBaseline - Math.floor((lastBaseline - top) / grid.baseline) * grid.baseline;
 }
 
 const sameResume = (a: Resume, b: Resume): boolean =>
@@ -1392,8 +1430,18 @@ function fillColumn(
 ): { placed: Placed; cursor: Resume; bottom: number; stop: Stop | "column" } {
   const { v, rd, grid, sceneY, cache } = env;
   const ctx: EvalContext = { viewport: env.viewport, grid, pctOf: col.width };
-  const origin = env.origin ?? sceneY;
-  const snapUp = (y: number): number => origin + Math.ceil((y - origin - EPS) / grid.baseline) * grid.baseline;
+  // In a scene of screen pages, a frame not set in bands snaps to the grid of the screen each line is on.
+  const pageGrid = new Map<number, number>();
+  const originAt = (y: number): number => {
+    if (env.origin !== undefined || !env.pageGrids) return env.origin ?? sceneY;
+    const p = Math.max(0, Math.floor((y - sceneY + EPS) / env.viewport.height));
+    if (!pageGrid.has(p)) pageGrid.set(p, pageOrigin(env, p));
+    return pageGrid.get(p)!;
+  };
+  const snapUp = (y: number): number => {
+    const origin = originAt(y);
+    return origin + Math.ceil((y - origin - EPS) / grid.baseline) * grid.baseline;
+  };
   const exclusions = [...inherited];
   const out = empty();
   let cursor = start;
@@ -1439,7 +1487,7 @@ function fillColumn(
     // Rule 8 (2026-09-30: every picture in the flow, not only cut-outs; a `cols=` picture is the
     // author's to size): in a band, no picture is taller than 85% of a full band; a taller one
     // narrows, keeping its left edge. A few rounds, since its caption does not shrink with it.
-    for (let k = 0; defer.banded && "media" in o && !slot && k < 3 && r.box.height > 0.85 * fullBand + 0.5; k++) {
+    for (let k = 0; defer.banded && "media" in o && !slot && k < 8 && r.box.height > 0.85 * fullBand + 0.5; k++) {
       width = Math.max(col.width / 2, Math.floor((width * 0.85 * fullBand) / r.box.height));
       r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop);
     }
@@ -1568,7 +1616,7 @@ function fillColumn(
         // §11.3: it does not fit in what is left of the column. It moves to the top of the next
         // column (or band) and the text continues here without a gap -- where there is a next
         // column in this fill to take it; otherwise the column ends at the object, as before.
-        if (defer.allowed && !pins.has(o.id)) {
+        if (defer.allowed && !pins.has(o.id) && !env.whole) {
           defer.list.push(o.id);
           cursor = { ...START, block: b + 1 };
           continue;
@@ -1684,6 +1732,14 @@ function fillColumn(
           }
           return null;
         };
+        // Balancing (2026-10-17): a paragraph is one block. Text left over means it moves on whole, its
+        // kept subhead with it; one that does not fit even at a column's top leaves the column empty,
+        // so the balancing search takes a taller height.
+        if (env.whole && linesLeft(lineOf, pieces.slice(piece).map(prepare), at, Math.min(col.width, measure), 1) > 0) {
+          if (kept) return backToKept(kept);
+          rollback(out, blockMark.at);
+          return { placed: out, cursor, bottom: blockMark.y, stop: "full" };
+        }
         // Column full. Orphans: a paragraph that started here and would leave too few
         // lines behind moves whole, and a block kept with it comes along.
         if (!resuming && n > 0 && n < style.orphans && !(atTop && blockMark.at.lines === 0)) {

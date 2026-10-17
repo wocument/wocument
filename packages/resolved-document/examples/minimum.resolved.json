@@ -26,10 +26,6 @@
       "variant": "compact"
     },
     {
-      "minWidth": 1420,
-      "variant": "base"
-    },
-    {
       "minWidth": 1800,
       "variant": "wide"
     }
@@ -775,24 +771,24 @@
           "italic": false,
           "size": {
             "u": "fluid",
-            "min": 40,
-            "max": 72,
+            "min": 34,
+            "max": 61,
             "from": 360,
-            "to": 1440
+            "to": 1224
           },
           "leading": {
             "u": "fluid",
-            "min": 42.4,
-            "max": 76.32,
+            "min": 36.04,
+            "max": 64.66,
             "from": 360,
-            "to": 1440
+            "to": 1224
           },
           "tracking": {
             "u": "fluid",
-            "min": -0.6,
-            "max": -1.08,
+            "min": -0.51,
+            "max": -0.915,
             "from": 360,
-            "to": 1440
+            "to": 1224
           },
           "case": "none",
           "align": "left",
@@ -842,7 +838,7 @@
           "italic": false,
           "size": {
             "u": "px",
-            "n": 20
+            "n": 18
           },
           "leading": {
             "u": "bl",
@@ -860,7 +856,7 @@
           "underline": false,
           "indent": {
             "u": "px",
-            "n": 40
+            "n": 36
           },
           "spaceBefore": {
             "u": "px",
@@ -883,11 +879,11 @@
           "bindShort": false,
           "justifyMin": {
             "u": "px",
-            "n": 240
+            "n": 216
           },
           "minSlot": {
             "u": "px",
-            "n": 180
+            "n": 162
           },
           "mark": null,
           "features": [
@@ -971,25 +967,25 @@
             "cols": 12,
             "gutter": {
               "u": "px",
-              "n": 24
+              "n": 20
             },
             "marginX": {
               "u": "px",
-              "n": 128
+              "n": 108
             },
             "marginY": {
               "u": "px",
-              "n": 62
+              "n": 56
             },
             "max": {
               "u": "px",
-              "n": 1440
+              "n": 1224
             },
-            "baseline": 31,
+            "baseline": 28,
             "rows": 6,
             "rowGap": {
               "u": "px",
-              "n": 24
+              "n": 20
             },
             "body": {
               "from": 4,
@@ -1044,7 +1040,7 @@
           "columns": 1,
           "columnGap": {
             "u": "px",
-            "n": 24
+            "n": 20
           },
           "balance": true,
           "columnRule": "none",
@@ -1085,7 +1081,7 @@
           "columns": "auto",
           "columnGap": {
             "u": "px",
-            "n": 24
+            "n": 20
           },
           "balance": true,
           "columnRule": "none",

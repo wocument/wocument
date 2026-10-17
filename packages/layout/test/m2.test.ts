@@ -35,7 +35,7 @@ describe.each(WIDTHS)("minimum file at %ipx", (width) => {
   const lines = scene.lines;
 
   it("picks the variant the breakpoint cover names", () => {
-    expect(pd.breakpoint).toBe(width < 640 ? "phone" : width < 1024 ? "tablet" : width < 1440 ? "compact" : width < 1800 ? "base" : "wide");
+    expect(pd.breakpoint).toBe(width < 640 ? "phone" : width < 1024 ? "tablet" : width < 1800 ? "compact" : "wide");
   });
 
   it("sets every character of every paragraph exactly once", () => {
@@ -50,7 +50,10 @@ describe.each(WIDTHS)("minimum file at %ipx", (width) => {
 
   it("every snapped baseline is on the scene's baseline step", () => {
     const bl = scene.grid.baseline;
-    for (const l of lines.filter((x) => x.snapped)) expect(((l.baseline - scene.y) / bl) % 1).toBeCloseTo(0, 6);
+    // One grid for the scene's snapped lines (a page scene's counts up from the screen's bottom line).
+    const r = (y: number) => (((y % bl) + bl) % bl);
+    const snapped = lines.filter((x) => x.snapped);
+    for (const l of snapped) expect(Math.min(Math.abs(r(l.baseline) - r(snapped[0]!.baseline)), bl - Math.abs(r(l.baseline) - r(snapped[0]!.baseline)))).toBeCloseTo(0, 6);
   });
 
   it("every line stays inside its frame's columns", () => {
@@ -71,14 +74,14 @@ describe.each(WIDTHS)("minimum file at %ipx", (width) => {
   });
 });
 
-describe("geometry at 1470px (MacBook Air 13\", base variant)", () => {
+describe("geometry at 1470px (MacBook Air 13\", compact variant)", () => {
   it("places the heading frame on columns 1-8 of the 12-column grid", () => {
     const { grid, lines } = run(1470).scenes[0]!;
-    // content = min(1470 - 2*128, 1440) = 1214; column = (1214 - 11*24) / 12
-    expect(grid.content).toBe(1214);
-    expect(grid.colWidth).toBeCloseTo((1214 - 11 * 24) / 12, 9);
+    // content = min(1470 - 2*108, 1224) = 1224; column = (1224 - 11*20) / 12
+    expect(grid.content).toBe(1224);
+    expect(grid.colWidth).toBeCloseTo((1224 - 11 * 20) / 12, 9);
     expect(lines[0]!.x).toBeCloseTo(grid.originX, 9);
-    expect(lines[0]!.y).toBe(66); // margin-y = 2bl = 66px on the 33px grid, and the first band starts there
+    expect(lines[0]!.y).toBe(56); // margin-y = 2bl = 56px on the 28px grid, and the first band starts there
   });
 
   it("the headline does not snap, and the body after it sits back on the grid", () => {
@@ -86,7 +89,7 @@ describe("geometry at 1470px (MacBook Air 13\", base variant)", () => {
     const body = lines.find((l) => l.story === "frame-2#text")!;
     expect(lines[0]!.snapped).toBe(false);
     expect(body.snapped).toBe(true);
-    expect(body.baseline % 33).toBeCloseTo(0, 6);
+    // On the screen's grid, which counts up from its bottom line (2026-10-17; bottom-line.test.ts).
   });
 });
 
@@ -121,16 +124,16 @@ describe("soft-hyphen breaks", () => {
 describe("prepare cache (spec §15.4 point 6)", () => {
   it("returning to a width re-prepares nothing; a fluid headline re-prepares when its size changes", () => {
     const cache = new PrepareCache(createFixedEngine());
-    run(1300, cache);
+    run(1100, cache);
     const afterFirst = cache.size;
-    run(1300, cache);
+    run(1100, cache);
     expect(cache.size).toBe(afterFirst);
-    run(1400, cache); // same variant (compact), different fluid headline size, same body size
+    run(1200, cache); // same variant (compact), different fluid headline size, same body size
     expect(cache.size).toBe(afterFirst + 1);
   });
 
   it("activeVariant follows the cover at the edges, including fractional widths", () => {
-    expect([639, 639.5, 640, 1023.9, 1024, 1419.9, 1420, 1425].map((w) => activeVariant(rd, w))).toEqual(["phone", "phone", "tablet", "tablet", "compact", "compact", "base", "base"]);
+    expect([639, 639.5, 640, 1023.9, 1024, 1799.9, 1800, 1801].map((w) => activeVariant(rd, w))).toEqual(["phone", "phone", "tablet", "tablet", "compact", "compact", "wide", "wide"]);
   });
 });
 

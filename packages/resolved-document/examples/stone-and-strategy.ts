@@ -93,9 +93,9 @@ function styles(bp: Bp): Record<string, ResolvedStyle> {
     "headline-xl": {
       ...t.headline!,
       family: ["Tiempos Headline", "serif"],
-      size: fluid(44, 104, bp === "wide" ? 1760 : 1440),
-      leading: fluid(46.64, 110.24, bp === "wide" ? 1760 : 1440),
-      tracking: fluid(-0.88, -2.08, bp === "wide" ? 1760 : 1440),
+      size: fluid(44, 104, bp === "wide" ? 1760 : bp === "compact" ? 1224 : 1440),
+      leading: fluid(46.64, 110.24, bp === "wide" ? 1760 : bp === "compact" ? 1224 : 1440),
+      tracking: fluid(-0.88, -2.08, bp === "wide" ? 1760 : bp === "compact" ? 1224 : 1440),
     },
     // `title` is the sidebar style at weight 700; the theme also sets it unhyphenated.
     title: { ...t.sidebar!, weight: 700, hyphenate: false },
@@ -154,7 +154,7 @@ const stories = (bp: Bp): Record<string, Story> => ({
   main: story("main", "named", null, [
     para("prose", "body", S.p1, { dropcap: { lines: 3, chars: 1, s: S.cap, style: "dropcap", hang: false } }),
     // Prose after prose: indented. After a subhead or an object it is not (§07.6).
-    para("prose", "body", S.p2, { indent: px(2 * { base: 21, wide: 21, compact: 20, tablet: 19, phone: 18 }[bp]) }),
+    para("prose", "body", S.p2, { indent: px(2 * { base: 21, wide: 21, compact: 18, tablet: 19, phone: 18 }[bp]) }),
     { kind: "object", object: "pullquote-1" },
     para("subhead", "subhead", S.subhead, { level: 1 }),
     para("prose", "body", S.p3),
