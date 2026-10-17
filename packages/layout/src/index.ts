@@ -1174,7 +1174,9 @@ function floatFlow(
   if (!best) return today;
   const t = set.get(best.combo)!;
   anchorsAt(env, story, start, frameId, t.placed);
-  return t;
+  // The frame ends below its boxes and their standoff too, so a frame stacked below never runs beside one.
+  const boxes = t.placed.objects.filter((o) => best.combo.some((c) => c.id === o.name)).map((o) => (o.exclusion ? o.exclusion.box.y + o.exclusion.box.height : o.box.y + o.box.height));
+  return { ...t, bottoms: [...t.bottoms, ...boxes] };
 }
 
 /** A composition trial's summary (`TrialSummary`) for one frame, and the objects that run past a foot. */

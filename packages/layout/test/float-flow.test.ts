@@ -53,6 +53,15 @@ describe("floating in multi-column scrolling frames", () => {
     for (const l of ls) if (l.x < o.box.x + o.box.width && l.x + l.width > o.box.x) expect(l.y).toBeGreaterThanOrEqual(o.box.y + o.box.height - 1e-3);
   });
 
+  it("a frame stacked below starts below every floated box", () => {
+    const src = `\\story[name=s]{${para(2, "a")}\n\n${fig("size=wide, ratio=3:2")}\n\n${para(2, "b")}}\n\\story[name=u]{${para(6, "u")}}\n\\scene[grid=page]{\\frame[story=s, cols=1-12, columns=3]\n\\frame[story=u, cols=1-12]}`;
+    const pd = lay(src);
+    const o = figure(pd);
+    expect(o.box.y).toBeLessThan(Math.min(...lines(pd).map((l) => l.y)) + 1e-3);
+    const u = pd.scenes[0]!.lines.filter((l) => l.story === "u");
+    expect(Math.min(...u.map((l) => l.y))).toBeGreaterThanOrEqual(o.box.y + o.box.height - 1e-3);
+  });
+
   it("a single-column frame is unchanged", () => {
     const one = flow(STORY, 1);
     expect(lay(one)).toEqual(lay(one, { composeBudget: 0 }));
