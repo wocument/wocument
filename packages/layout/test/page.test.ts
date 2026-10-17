@@ -122,6 +122,14 @@ describe("screen reports (copyfitting, design 2026-10-17)", () => {
     const scrolling = lay(`\\story[name=s]{${LONG}}\n\\scene[grid=page]{\\frame[story=s, cols=1-12, columns=3]}`).scenes[0]!;
     expect(scrolling.screens).toBeUndefined();
   });
+
+  it("a frame a row group sets more than once reports each screen once (regression)", () => {
+    const s = lay(`\\story[name=s]{${LONG}}\n\\scene[height=page, grid=page]{\\group[layout=row, valign=center, cols=1-12]{\\frame[story=s, columns=3]}}`).scenes[0]!;
+    expect(s.paged).toBe(true);
+    const screens = s.screens!.map((r) => r.screen);
+    expect(screens.length).toBeGreaterThan(1);
+    expect(screens).toEqual([...new Set(screens)]);
+  });
 });
 
 describe("column rules (design §4)", () => {

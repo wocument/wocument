@@ -279,12 +279,13 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
     const fitted = (c: GroupChild, i: number): number => {
       const room = Math.max(1, n - kids.reduce((sum, k, j) => (j === i ? sum : sum + least(k)), 0));
       if (c.kind !== "frame" || pitch <= EPS) return room;
-      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors) };
+      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors), reports: env.reports.length };
       const box = span(grid, from, from + room - 1);
       setFrame(v.frames[c.id]!, box, top, null);
       const widest = Math.max(0, ...out.lines.slice(before.out.lines).filter((l) => l.frame === c.id).map((l) => l.x + l.measured - box.x));
       rollback(out, before.out);
       exclusions.length = before.exclusions;
+      env.reports.length = before.reports;
       cursors.clear();
       for (const [k, x] of before.cursors) cursors.set(k, x);
       return Math.max(1, Math.min(room, Math.ceil((widest + grid.gutter) / pitch - EPS)));
@@ -310,7 +311,7 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
         return slot;
       });
       // Set at the top first, to learn each child's height; anything else sets the row again.
-      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors) };
+      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors), reports: env.reports.length };
       const bottoms = slots.map((s) => kid(s.c, s.a, s.b, y, null));
       // valign=text (2026-09-30): the row is as tall as its tallest text frame; media are cropped to it.
       const texts = slots.flatMap((s, i) => (s.c.kind === "frame" ? [bottoms[i]!] : []));
@@ -318,6 +319,7 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
       if (g.valign !== "top") {
         rollback(out, before.out);
         exclusions.length = before.exclusions;
+        env.reports.length = before.reports;
         cursors.clear();
         for (const [k, c] of before.cursors) cursors.set(k, c);
         const H = rowBottom - y;

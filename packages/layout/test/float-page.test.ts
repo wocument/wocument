@@ -210,17 +210,23 @@ describe("floating in screen pages", () => {
     }
   });
 
-  it("the screen report names the pictures overflow set two screens from their paragraph (copyfitting)", () => {
+  it("the screen report names exactly the floating objects set two screens or more from their anchor (copyfitting)", () => {
     const ten = Array.from({ length: 10 }, () => fig("size=wide, ratio=3:2")).join("\n\n");
-    const { pd } = lay(`\\story[name=s]{${para(50, "a")}\n\n${ten}\n\n\\framebreak\n\n${para(60, "b")}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}`);
-    const far = pd.scenes[0]!.screens!.flatMap((r) => r.far.map((f) => ({ ...f, screen: r.screen })));
-    expect(far.length).toBeGreaterThan(0);
-    for (const f of far) {
-      const o = pd.scenes[0]!.objects.find((x) => x.name === f.object)!;
-      expect(screenOf(pd, o.box.y) + 1).toBe(f.screen);
-      expect(f.screens).toBe(screenOf(pd, o.box.y) - screenOf(pd, o.anchoredAt!));
-      expect(f.screens).toBeGreaterThanOrEqual(2);
+    const { doc, pd } = lay(`\\story[name=s]{${para(50, "a")}\n\n${ten}\n\n\\framebreak\n\n${para(60, "b")}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}`);
+    const objects = doc.variants[pd.breakpoint]!.objects;
+    const floats = (name: string): boolean => {
+      const o = objects[name];
+      return !!o && !o.hidden && o.placement.mode === "anchored" && o.placement.place !== "here" && o.placement.horizontal.mode !== "cols";
+    };
+    for (const s of pd.scenes) {
+      const expected = s.objects
+        .filter((o) => floats(o.name) && o.anchoredAt !== null && screenOf(pd, o.box.y) - screenOf(pd, o.anchoredAt) >= 2)
+        .map((o) => `${o.name}@${screenOf(pd, o.box.y) + 1}:${screenOf(pd, o.box.y) - screenOf(pd, o.anchoredAt!)}`)
+        .sort();
+      const got = (s.screens ?? []).flatMap((r) => r.far.map((f) => `${f.object}@${r.screen}:${f.screens}`)).sort();
+      expect(got, s.name).toEqual(expected);
     }
+    expect(pd.scenes[0]!.screens!.some((r) => r.far.length > 0)).toBe(true);
   });
 
   it("the window yields only to overflow", () => {
