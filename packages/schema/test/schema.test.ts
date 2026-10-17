@@ -233,9 +233,20 @@ describe("size, place and \\spot (picture composition)", () => {
   });
 
   it("an unknown size is an error", async () => {
+    expect(await errors('\\figure[src=/a.jpg, alt="", size=hero]')).toEqual([]);
     const e = await errors('\\figure[src=/a.jpg, alt="", size=huge]');
     expect(e).toHaveLength(1);
-    expect(e[0]?.message).toContain("size");
+    // P015 is the invalid-value error; an unknown attribute would be P013.
+    expect(e[0]?.code).toBe("P015");
+    expect(e[0]?.message).toContain("`size` expects one of");
+  });
+
+  it("gives size and place to exactly six objects, and \\spot its own", () => {
+    // \style has its own, unrelated `size` (the type size).
+    const has = (n: string) => [...COMMANDS.values()].filter((c) => c.name !== "style" && c.attrs[n] !== undefined).map((c) => c.name).sort();
+    const six = ["figure", "gallery", "lottie", "pullquote", "sidebar", "video"];
+    expect(has("size")).toEqual([...six, "spot"].sort());
+    expect(has("place")).toEqual([...six, "spot"].sort());
   });
 
   it("\\spot is a theme definition", async () => {
@@ -247,6 +258,10 @@ describe("size, place and \\spot (picture composition)", () => {
   });
 
   it("\\spot attributes do not vary by breakpoint", async () => {
-    expect(await errors("\\spot[size=wide, place=top, span@wide=3]", "theme")).toHaveLength(1);
+    const e = await errors("\\spot[size=wide, place=top, span@wide=3]", "theme");
+    expect(e).toHaveLength(1);
+    // P013 is the cannot-vary-by-breakpoint error; an unknown command would be P012.
+    expect(e[0]?.code).toBe("P013");
+    expect(e[0]?.message).toContain("cannot vary by breakpoint");
   });
 });

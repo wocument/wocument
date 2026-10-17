@@ -195,7 +195,6 @@ export const GROUP: CommandSchema = {
   maxOnce: [],
   attrs: {
     ...OBJECT_BASE,
-    ...FLOAT,
     ...STAGGER,
     layout: { types: ["enum"], enum: ["stack", "row"], default: "stack", note: "row: children pack into rows that wrap (design 2026-09-26)" },
     gap: { types: ["length"], default: "1bl", note: "between children in a stack, between rows in a row group" },
