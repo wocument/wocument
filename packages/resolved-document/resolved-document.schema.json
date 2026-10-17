@@ -585,6 +585,13 @@
             "description": "Story id: the `\\story` name, or `<ownerId>#text` for an inline frame, pull quote or sidebar, `<ownerId>#caption` for a caption and credit, `folio#text` for the document's folio, `<parentName>#folio` for a parent's."
           },
           "description": "For each story shown in frames, its visible frames in thread order: scene order, then source order in the scene, hidden frames removed (spec §09.3). Stories laid out by an object, such as captions, are not listed."
+        },
+        "spots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Spot"
+          },
+          "description": "The spot menu: where a picture of each size may go on a wide page, sizes in the order hero, wide, column, small, rows in source order (spec §07.7)."
         }
       },
       "required": [
@@ -594,7 +601,8 @@
         "scenes",
         "frames",
         "objects",
-        "threads"
+        "threads",
+        "spots"
       ],
       "additionalProperties": false,
       "description": "Everything layout and the renderer need for one breakpoint, fully valued."
@@ -2513,6 +2521,22 @@
             }
           ],
           "description": "Box height, or `auto` from ratio or content (spec §11.1)."
+        },
+        "size": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FloatSize"
+            },
+            {
+              "type": "string",
+              "const": "auto"
+            }
+          ],
+          "description": "Picture size the object asks for; `auto` lets the engine pick (spec §07.7, §11.3)."
+        },
+        "place": {
+          "$ref": "#/definitions/FloatPlace",
+          "description": "Where the object goes: `float` is the engine's choice (spec §11.3)."
         }
       },
       "required": [
@@ -2520,7 +2544,9 @@
         "story",
         "block",
         "horizontal",
-        "height"
+        "height",
+        "size",
+        "place"
       ],
       "additionalProperties": false,
       "description": "Anchored: written in a story, so it travels with the text (spec §11.3)."
@@ -2603,6 +2629,27 @@
       ],
       "additionalProperties": false,
       "description": "`cols=`: absolute grid columns of the scene the anchor lands in, whichever frame holds it. Text in any overlapping frame wraps."
+    },
+    "FloatSize": {
+      "type": "string",
+      "enum": [
+        "hero",
+        "wide",
+        "column",
+        "small"
+      ],
+      "description": "A picture size a floating object may take (spec §07.7)."
+    },
+    "FloatPlace": {
+      "type": "string",
+      "enum": [
+        "float",
+        "here",
+        "top",
+        "bottom",
+        "screen"
+      ],
+      "description": "Where an object goes: `float` is the engine's choice, `here` the anchor, `top` and `bottom` the screen's edges, `screen` a screen of its own (spec §11.3)."
     },
     "BackgroundPlacement": {
       "type": "object",
@@ -4018,6 +4065,101 @@
         "z"
       ],
       "description": "A `\\rule` written directly in a scene, placed like an object (spec §10.4)."
+    },
+    "Spot": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "$ref": "#/definitions/FloatSize",
+          "description": "The picture size this spot takes."
+        },
+        "place": {
+          "type": "string",
+          "enum": [
+            "top",
+            "bottom",
+            "anchor"
+          ],
+          "description": "`top` or `bottom` of the screen, or beside the `anchor`."
+        },
+        "span": {
+          "$ref": "#/definitions/Span",
+          "description": "Columns spanned."
+        },
+        "side": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "left",
+            "right",
+            "center",
+            null
+          ],
+          "description": "Side of the spot the picture takes, or `null` for none."
+        }
+      },
+      "required": [
+        "size",
+        "place",
+        "span",
+        "side"
+      ],
+      "additionalProperties": false,
+      "description": "One place a picture may go: its size, the screen edge or the anchor, the columns it spans, and the side it takes (spec §07.7)."
+    },
+    "Span": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "count"
+            },
+            "from": {
+              "type": "number"
+            },
+            "to": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "all"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "all-but-one"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "How many columns a spot spans: a count or range, the whole width, or one column less (spec §07.7). `span=2` is `{ count, 2, 2 }`."
     },
     "MusicCue": {
       "type": "object",

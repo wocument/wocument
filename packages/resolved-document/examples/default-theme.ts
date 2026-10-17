@@ -10,7 +10,7 @@
  * grows to 1760px.
  */
 
-import type { Grid, Len, Palette, Reveal, ResolvedStyle } from "../src/resolved-document.js";
+import type { Grid, Len, Palette, Reveal, ResolvedStyle, Spot } from "../src/resolved-document.js";
 
 export const px = (n: number): Len => ({ u: "px", n });
 export const bl = (n: number): Len => ({ u: "bl", n });
@@ -147,3 +147,16 @@ export type Bp = (typeof BREAKPOINTS)[number];
 export function pick(all: Record<string, ResolvedStyle>, keys: string[]): Record<string, ResolvedStyle> {
   return Object.fromEntries(keys.map((k) => [k, all[k]!]));
 }
+
+/** Vanilla's nine spots (spec §07.7), the same at every breakpoint. */
+export const DEFAULT_SPOTS: Spot[] = [
+  { size: "hero", place: "top", span: { kind: "all" }, side: null },
+  { size: "hero", place: "top", span: { kind: "all-but-one" }, side: null },
+  { size: "wide", place: "top", span: { kind: "count", from: 2, to: 3 }, side: null },
+  { size: "wide", place: "bottom", span: { kind: "count", from: 2, to: 3 }, side: null },
+  { size: "column", place: "top", span: { kind: "count", from: 1, to: 1 }, side: null },
+  { size: "column", place: "bottom", span: { kind: "count", from: 1, to: 1 }, side: null },
+  { size: "column", place: "anchor", span: { kind: "count", from: 1, to: 1 }, side: null },
+  { size: "small", place: "anchor", span: { kind: "count", from: 1, to: 1 }, side: "left" },
+  { size: "small", place: "anchor", span: { kind: "count", from: 1, to: 1 }, side: "right" },
+];

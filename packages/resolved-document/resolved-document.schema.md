@@ -432,6 +432,7 @@ Everything layout and the renderer need for one breakpoint, fully valued.
 | `frames` | Record<string, [`Frame`](#frame)> | Every frame in the document, hidden ones included, keyed by id (spec §09.2). |
 | `objects` | Record<string, [`ObjectElement`](#objectelement)> | Every object, grid-placed, anchored, background, grouped and gallery children, hidden ones included, keyed by id (spec §11). |
 | `threads` | Record<string, [`FrameId`](#frameid)[]> | For each story shown in frames, its visible frames in thread order: scene order, then source order in the scene, hidden frames removed (spec §09.3). Stories laid out by an object, such as captions, are not listed. |
+| `spots` | [`Spot`](#spot)[] | The spot menu: where a picture of each size may go on a wide page, sizes in the order hero, wide, column, small, rows in source order (spec §07.7). |
 
 ### StoryId
 
@@ -565,6 +566,17 @@ Type: [`FigureObject`](#figureobject) \| [`VideoObject`](#videoobject) \| [`Embe
 Frame id: author `name`, else `frame-<n>` in document order; `<sceneId>/<id>` for a frame instantiated from a parent; `<sceneId>/frame` for the default frame of a shorthand or implicit scene.
 
 Type: `string`
+
+### Spot
+
+One place a picture may go: its size, the screen edge or the anchor, the columns it spans, and the side it takes (spec §07.7).
+
+| Field | Type | Meaning |
+| :---- | :---- | :---- |
+| `size` | [`FloatSize`](#floatsize) | The picture size this spot takes. |
+| `place` | `"top"` \| `"bottom"` \| `"anchor"` | `top` or `bottom` of the screen, or beside the `anchor`. |
+| `span` | [`Span`](#span) | Columns spanned. |
+| `side` | `"left"` \| `"right"` \| `"center"` \| `null` | Side of the spot the picture takes, or `null` for none. |
 
 ### ImageCandidate
 
@@ -937,6 +949,18 @@ A `\rule` written directly in a scene, placed like an object (spec §10.4).
 | `reveal` | [`Reveal`](#reveal) | The object's reveal (spec §13). |
 | `hidden` | `boolean` | True when hidden at this breakpoint. An anchored hidden object is stepped over by layout (spec §09.3, §11.1). |
 
+### FloatSize
+
+A picture size a floating object may take (spec §07.7).
+
+Type: `"hero"` \| `"wide"` \| `"column"` \| `"small"`
+
+### Span
+
+How many columns a spot spans: a count or range, the whole width, or one column less (spec §07.7). `span=2` is `{ count, 2, 2 }`.
+
+Type: `object` \| `object` \| `object`
+
 ### LenPx
 
 Absolute CSS pixels.
@@ -1238,6 +1262,8 @@ Anchored: written in a story, so it travels with the text (spec §11.3).
 | `block` | `number` | Index of the anchor's `ObjectBlock` in that story's `blocks`. |
 | `horizontal` | [`AnchorHorizontal`](#anchorhorizontal) | Horizontal position (spec §11.3 table). |
 | `height` | [`Len`](#len) \| `"auto"` | Box height, or `auto` from ratio or content (spec §11.1). |
+| `size` | [`FloatSize`](#floatsize) \| `"auto"` | Picture size the object asks for; `auto` lets the engine pick (spec §07.7, §11.3). |
+| `place` | [`FloatPlace`](#floatplace) | Where the object goes: `float` is the engine's choice (spec §11.3). |
 
 ### BackgroundPlacement
 
@@ -1352,6 +1378,12 @@ A polygon: from `poly(...)`, or traced from the alpha channel at build time with
 Horizontal position of an anchored object (spec §11.3).
 
 Type: [`AnchorFull`](#anchorfull) \| [`AnchorSide`](#anchorside) \| [`AnchorCols`](#anchorcols)
+
+### FloatPlace
+
+Where an object goes: `float` is the engine's choice, `here` the anchor, `top` and `bottom` the screen's edges, `screen` a screen of its own (spec §11.3).
+
+Type: `"float"` \| `"here"` \| `"top"` \| `"bottom"` \| `"screen"`
 
 ### AnchorFull
 

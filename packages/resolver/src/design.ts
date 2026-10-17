@@ -4,7 +4,7 @@
  * and falls back to the schema's defaults, never to a table of its own.
  */
 
-import type { BreakpointRange, Grid, Len, Palette, ResolvedStyle } from "@wmxdsl/resolved-document";
+import type { BreakpointRange, FloatSize, Grid, Len, Palette, ResolvedStyle, Spot } from "@wmxdsl/resolved-document";
 import type { Value } from "@wmxdsl/schema";
 import { type Attrs, Definitions, schemaDefaults } from "./definitions.js";
 import { type LenContext, toLen, toPx } from "./units.js";
@@ -15,6 +15,11 @@ export const BASE = "base";
 const need = <T extends Value["t"]>(v: Value | undefined, t: T, what: string): Value & { t: T } => {
   if (!v || v.t !== t) throw new Error(`${what}: expected ${t}, got ${v ? v.raw : "nothing"}`);
   return v as Value & { t: T };
+};
+
+const attrId = (c: { attrs: { key: string; value: Value }[] }, key: string): string | null => {
+  const v = c.attrs.find((a) => a.key === key)?.value;
+  return v?.t === "enum" || v?.t === "ident" ? v.id : null;
 };
 
 export class Design {
@@ -100,6 +105,39 @@ export class Design {
   fluidTo(bp: string): number {
     const a = withDefaults(this.defs.attrs("grid", "default", bp), schemaDefaults("grid"));
     return toPx(a.get("max")!, { em: null, baseline: null, fluidTo: 0 });
+  }
+
+  // -------------------------------------------------------------------------
+  // Spots (spec §07.7)
+  // -------------------------------------------------------------------------
+
+  /**
+   * The spot menu. For each size, the rows of the highest level that has any
+   * row of that size. A spot has no `at=`, so every breakpoint gets the same
+   * list; `bp` stays for the interface.
+   */
+  spots(_bp: string): Spot[] {
+    const levels = this.defs.levelRows("spot");
+    const out: Spot[] = [];
+    for (const size of ["hero", "wide", "column", "small"] as FloatSize[]) {
+      const rows = levels.map((l) => l.filter((c) => attrId(c, "size") === size)).reverse().find((l) => l.length > 0) ?? [];
+      for (const c of rows) {
+        const span = c.attrs.find((a) => a.key === "span")?.value;
+        const side = attrId(c, "side");
+        out.push({
+          size,
+          place: attrId(c, "place") as Spot["place"],
+          span:
+            !span || span.t === "integer"
+              ? { kind: "count", from: span ? span.n : 1, to: span ? span.n : 1 }
+              : span.t === "range"
+                ? { kind: "count", from: span.from, to: span.to === "end" ? span.from : span.to }
+                : { kind: span.t === "enum" && span.id === "all-but-one" ? "all-but-one" : "all" },
+          side: side as Spot["side"],
+        });
+      }
+    }
+    return out;
   }
 
   // -------------------------------------------------------------------------

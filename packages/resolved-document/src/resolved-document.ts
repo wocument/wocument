@@ -280,6 +280,29 @@ export type Variant = {
   objects: Record<ObjectId, ObjectElement>;
   /** For each story shown in frames, its visible frames in thread order: scene order, then source order in the scene, hidden frames removed (spec §09.3). Stories laid out by an object, such as captions, are not listed. */
   threads: Record<StoryId, FrameId[]>;
+  /** The spot menu: where a picture of each size may go on a wide page, sizes in the order hero, wide, column, small, rows in source order (spec §07.7). */
+  spots: Spot[];
+};
+
+/** A picture size a floating object may take (spec §07.7). */
+export type FloatSize = "hero" | "wide" | "column" | "small";
+
+/** Where an object goes: `float` is the engine's choice, `here` the anchor, `top` and `bottom` the screen's edges, `screen` a screen of its own (spec §11.3). */
+export type FloatPlace = "float" | "here" | "top" | "bottom" | "screen";
+
+/** How many columns a spot spans: a count or range, the whole width, or one column less (spec §07.7). `span=2` is `{ count, 2, 2 }`. */
+export type Span = { kind: "count"; from: number; to: number } | { kind: "all" } | { kind: "all-but-one" };
+
+/** One place a picture may go: its size, the screen edge or the anchor, the columns it spans, and the side it takes (spec §07.7). */
+export type Spot = {
+  /** The picture size this spot takes. */
+  size: FloatSize;
+  /** `top` or `bottom` of the screen, or beside the `anchor`. */
+  place: "top" | "bottom" | "anchor";
+  /** Columns spanned. */
+  span: Span;
+  /** Side of the spot the picture takes, or `null` for none. */
+  side: "left" | "right" | "center" | null;
 };
 
 // ===========================================================================
@@ -790,6 +813,10 @@ export type AnchoredPlacement = {
   horizontal: AnchorHorizontal;
   /** Box height, or `auto` from ratio or content (spec §11.1). */
   height: Len | "auto";
+  /** Picture size the object asks for; `auto` lets the engine pick (spec §07.7, §11.3). */
+  size: FloatSize | "auto";
+  /** Where the object goes: `float` is the engine's choice (spec §11.3). */
+  place: FloatPlace;
 };
 
 /** Horizontal position of an anchored object (spec §11.3). */

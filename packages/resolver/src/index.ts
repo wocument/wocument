@@ -24,6 +24,8 @@ import type {
   Placement,
   Wrap,
   Folio,
+  FloatPlace,
+  FloatSize,
   Frame,
   GroupObject,
   Meta,
@@ -390,7 +392,14 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
             ? // Limit: §11.3 states no default width for a side object; §11.10's "typical" 50%.
               { mode: "side", side, width: oa.has("width") ? len(oa.get("width")!) : { u: "pct", n: 50 } }
             : { mode: "full" };
-        placement = { mode: "anchored", story: where.story, block: where.block, horizontal, height: lenOrAuto(oa.get("height")) };
+        // §11.3: an explicit size or place wins; otherwise side= or a width keeps today's beside-the-text placement, and a cut-out keeps its reach.
+        const own = elementAttrs(cmd, bp, cmd.name, deref);
+        const set = (k: string): boolean => own.has(k);
+        const sized = side !== "full" || set("width");
+        const asked = enumId(oa.get("size")) as FloatSize | "auto";
+        const size = set("size") ? asked : sized ? "small" : "auto";
+        const place = set("place") ? (enumId(oa.get("place")) as FloatPlace) : sized || enumId(oa.get("shape")) === "alpha" ? "here" : "float";
+        placement = { mode: "anchored", story: where.story, block: where.block, horizontal, height: lenOrAuto(oa.get("height")), size, place };
       } else if (layer === "background") placement = { mode: "background", scene: where.scene };
       else
         placement = {
@@ -732,7 +741,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
 
     const styleAt = (k: string): ResolvedStyle => design.styleKey(k, bp);
     const storyTable = Object.fromEntries([...stories.values()].map((s) => [s.id, withIndents(s, styleAt)]));
-    return { name: bp, styles: styleTable([...stories.values()], styleAt), stories: storyTable, scenes, frames, objects, threads };
+    return { name: bp, styles: styleTable([...stories.values()], styleAt), stories: storyTable, scenes, frames, objects, threads, spots: design.spots(bp) };
   };
 
   /** The folio over a scene: its parent's if the parent declares one, else the document's (§10.5). */

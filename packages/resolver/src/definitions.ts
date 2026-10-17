@@ -40,6 +40,11 @@ export class Definitions {
     return out;
   }
 
+  /** The definitions of a command, one list per cascade level (lowest first), in source order. */
+  levelRows(command: string): Command[][] {
+    return this.levels.map((level) => level.filter((c) => c.name === command));
+  }
+
   /** Every definition of a command, in cascade order. */
   all(command: string): Command[] {
     return this.levels.flat().filter((c) => c.name === command);

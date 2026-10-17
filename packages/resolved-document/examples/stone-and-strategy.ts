@@ -20,7 +20,7 @@
  */
 
 import type { Block, FigureObject, Frame, ObjectElement, ResolvedDocument, ResolvedStyle, Scene, Story, Variant } from "../src/resolved-document.js";
-import { type Bp, DEFAULT_BREAKPOINTS, DEFAULT_PALETTE, NO_REVEAL, bl, fluid, pct, pick, px, themeStyles } from "./default-theme.js";
+import { type Bp, DEFAULT_BREAKPOINTS, DEFAULT_SPOTS, DEFAULT_PALETTE, NO_REVEAL, bl, fluid, pct, pick, px, themeStyles } from "./default-theme.js";
 
 // ---------------------------------------------------------------------------
 // strings: every piece of text once
@@ -310,6 +310,8 @@ function variant(bp: Bp): Variant {
       block: 6,
       horizontal: figureLinearized ? { mode: "full" } : { mode: "cols", cols: bp === "tablet" ? { from: 5, to: 8 } : { from: 7, to: 12 } },
       height: "auto",
+      size: "auto",
+      place: "here",
     },
     wrap: figureLinearized ? { mode: "jump", offset: px(16) } : { mode: "contour", side: "left", offset: px(16) },
     reveal: reveal("fade"),
@@ -333,7 +335,7 @@ function variant(bp: Bp): Variant {
       ...common,
       id: "pullquote-1",
       kind: "pullquote",
-      placement: { mode: "anchored", story: "main", block: 2, horizontal: { mode: "side", side: "right", width: pct(50) }, height: "auto" },
+      placement: { mode: "anchored", story: "main", block: 2, horizontal: { mode: "side", side: "right", width: pct(50) }, height: "auto", size: "small", place: "here" },
       wrap: { mode: "rect", side: "largest", offset: bl(1) },
       reveal: reveal("rise"),
       story: "pullquote-1#text",
@@ -399,7 +401,7 @@ function variant(bp: Bp): Variant {
       ...common,
       id: "pullquote-2",
       kind: "pullquote",
-      placement: { mode: "anchored", story: "frame-3#text", block: 0, horizontal: { mode: "full" }, height: "auto" },
+      placement: { mode: "anchored", story: "frame-3#text", block: 0, horizontal: { mode: "full" }, height: "auto", size: "auto", place: "float" },
       wrap: { mode: "jump", offset: bl(1) },
       story: "pullquote-2#text",
     },
@@ -470,6 +472,7 @@ function variant(bp: Bp): Variant {
       "frame-3#text": ["frame-3"],
       "frame-5#text": ["frame-5"],
     },
+    spots: DEFAULT_SPOTS,
   };
 }
 

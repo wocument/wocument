@@ -396,7 +396,95 @@
         "frame-2#text": [
           "frame-2"
         ]
-      }
+      },
+      "spots": [
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all"
+          },
+          "side": null
+        },
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all-but-one"
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "left"
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "right"
+        }
+      ]
     },
     "wide": {
       "name": "wide",
@@ -757,7 +845,95 @@
         "frame-2#text": [
           "frame-2"
         ]
-      }
+      },
+      "spots": [
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all"
+          },
+          "side": null
+        },
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all-but-one"
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "left"
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "right"
+        }
+      ]
     },
     "compact": {
       "name": "compact",
@@ -1118,7 +1294,95 @@
         "frame-2#text": [
           "frame-2"
         ]
-      }
+      },
+      "spots": [
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all"
+          },
+          "side": null
+        },
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all-but-one"
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "left"
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "right"
+        }
+      ]
     },
     "tablet": {
       "name": "tablet",
@@ -1479,7 +1743,95 @@
         "frame-2#text": [
           "frame-2"
         ]
-      }
+      },
+      "spots": [
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all"
+          },
+          "side": null
+        },
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all-but-one"
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "left"
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "right"
+        }
+      ]
     },
     "phone": {
       "name": "phone",
@@ -1840,7 +2192,95 @@
         "frame-2#text": [
           "frame-2"
         ]
-      }
+      },
+      "spots": [
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all"
+          },
+          "side": null
+        },
+        {
+          "size": "hero",
+          "place": "top",
+          "span": {
+            "kind": "all-but-one"
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "wide",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 2,
+            "to": 3
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "top",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "bottom",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "column",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": null
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "left"
+        },
+        {
+          "size": "small",
+          "place": "anchor",
+          "span": {
+            "kind": "count",
+            "from": 1,
+            "to": 1
+          },
+          "side": "right"
+        }
+      ]
     }
   },
   "music": [],

@@ -18,7 +18,7 @@
  */
 
 import type { Frame, ResolvedDocument, Variant } from "../src/resolved-document.js";
-import { type Bp, DEFAULT_BREAKPOINTS, DEFAULT_PALETTE, NO_REVEAL, defaultGrid, pick, px, themeStyles } from "./default-theme.js";
+import { type Bp, DEFAULT_BREAKPOINTS, DEFAULT_SPOTS, DEFAULT_PALETTE, NO_REVEAL, defaultGrid, pick, px, themeStyles } from "./default-theme.js";
 
 const SCENE = "scene-1";
 const HEADING = "frame-1";
@@ -91,6 +91,7 @@ function variant(bp: Bp): Variant {
     },
     objects: {},
     threads: { [`${HEADING}#text`]: [HEADING], [`${STORY}#text`]: [STORY] },
+    spots: DEFAULT_SPOTS,
   };
 }
 

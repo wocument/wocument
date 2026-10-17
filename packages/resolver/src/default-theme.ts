@@ -122,6 +122,19 @@ export const DEFAULT_THEME_SOURCE = String.raw`
 \style[name=sidebar, at=compact, size=14px]
 \style[name=bio, at=compact, size=14px]
 \style[name=folio, at=compact, size=10px]
+%% 2026-10-17: where a picture may float on a wide page, by size. Position is place=, because at=
+%% is a breakpoint. A hero spans the screen or all but one column, at the top; a wide picture
+%% two or three columns, top or bottom; a column picture one column, top, bottom or at its anchor;
+%% a small picture sits at its anchor, on either side.
+\spot[size=hero, place=top, span=all]
+\spot[size=hero, place=top, span=all-but-one]
+\spot[size=wide, place=top, span=2-3]
+\spot[size=wide, place=bottom, span=2-3]
+\spot[size=column, place=top]
+\spot[size=column, place=bottom]
+\spot[size=column, place=anchor]
+\spot[size=small, place=anchor, side=left]
+\spot[size=small, place=anchor, side=right]
 \style[name=link, color=accent]
 \style[name=code, family="monospace", size=0.9em]
 `;
