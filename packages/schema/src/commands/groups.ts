@@ -48,6 +48,15 @@ export const ROW_SIZING: Attrs = {
   "max-width": { types: ["fluid", "length"], note: "row groups only: the widest it may grow, rounded down to whole columns" },
 };
 
+/**
+ * What an author says about a picture's size and where it may go (spec §11.1, §11.3).
+ * Only the objects that can float take these.
+ */
+export const FLOAT: Attrs = {
+  size: { types: ["enum"], enum: ["hero", "wide", "column", "small", "auto"], default: "auto", note: "how big the object is on a wide page; auto: the engine chooses" },
+  place: { types: ["enum"], enum: ["float", "here", "top", "bottom", "screen"], default: "float", note: "float: the best spot near the text; here: where it stands in the text" },
+};
+
 /** Text wrap, spec §12.1. Every object pushes text away. */
 export const WRAP: Attrs = {
   wrap: {

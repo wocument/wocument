@@ -19,7 +19,7 @@ const def = (
   spec,
 });
 
-/** Every attribute of \font, \token and \breakpoint is non-responsive (grammar §06.1). */
+/** Every attribute of \font, \token, \breakpoint and \spot is non-responsive (grammar §06.1). */
 const FIXED = { responsive: false } as const;
 
 export const FONT = def("font", "§07.1", {
@@ -103,7 +103,18 @@ export const STYLE = def("style", "§07.6", {
   "fit-height": { types: ["length"], note: "tallest the fitted paragraph may be" },
 });
 
-export const DEFINITIONS: readonly CommandSchema[] = [FONT, TOKEN, PALETTE, BREAKPOINT, GRID, STYLE];
+/**
+ * Where a picture of one size may go on a wide page (spec §07.7). The position
+ * is `place`, not `at`: the cascade reads `at=` on a definition as a breakpoint.
+ */
+export const SPOT = def("spot", "§07.7", {
+  size: { types: ["enum"], enum: ["hero", "wide", "column", "small"], required: true, ...FIXED },
+  place: { types: ["enum"], enum: ["top", "bottom", "anchor"], required: true, ...FIXED },
+  span: { types: ["integer", "range", "enum"], enum: ["all", "all-but-one"], default: "1", ...FIXED },
+  side: { types: ["enum"], enum: ["left", "right", "center"], ...FIXED },
+});
+
+export const DEFINITIONS: readonly CommandSchema[] = [FONT, TOKEN, PALETTE, BREAKPOINT, GRID, STYLE, SPOT];
 
 /** Names that may only appear in the design head or a theme file (grammar §07). */
 export const DEFINITION_NAMES: readonly string[] = [...DEFINITIONS.map((d) => d.name), "parent"];

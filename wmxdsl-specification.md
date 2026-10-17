@@ -412,13 +412,40 @@ A named paragraph or character style.
 
 **`fit`**: `width` sets each paragraph in this style at the largest font size, from the style's `size` up to `fit-max` (default three times `size`), at which no word is split across lines and, if `fit-height` is set, the paragraph is no taller than it. Leading scales with the size. For a style that snaps to the baseline grid, the leading is rounded up to whole baseline steps. It is searched in whole pixels at layout, per width, like everything else layout does. Default `none`. Typical: the headline style, `\style[name=headline, fit=width, fit-max=120px, fit-height=25vh]`.
 
-### 07.7 Units of reuse: what is and is not allowed
+### 07.7 `\spot`
 
-Allowed: tokens, palettes, styles, grids, parent scenes, one theme file. Not allowed: user-defined commands, parameters, includes of content, anything that computes.
+One spot a picture of a given size may take on a wide page (laptops and larger). A theme lists its spots with one `\spot` per row; the layout engine tries them for each floating object (§11.3) and keeps the best. The attributes never vary by breakpoint, and the position is `place`, not `at`: `at=` on a definition means "redefine this for one breakpoint" (§06).
+
+| Attribute | Type | Default | Notes |
+| :---- | :---- | :---- | :---- |
+| `size` | `hero` `wide` `column` `small` | required | The size of picture this spot is for. `auto` is not a spot size: the engine picks one of the four first. |
+| `place` | `top` `bottom` `anchor` | required | `top` or `bottom` of the screen's band, or `anchor`: in the text, at the anchor. |
+| `span` | integer, range, `all` or `all-but-one` | `1` | How many columns wide, counted in the screen's grid columns: `3`, `2-3`, `all` (every column of the band) or `all-but-one`. |
+| `side` | `left` `right` `center` | none | For `place=anchor`: the side of the column the picture takes, with text wrapping beside it. |
+
+Vanilla ships these spots:
+
+```
+\spot[size=hero, place=top, span=all]
+\spot[size=hero, place=top, span=all-but-one]
+\spot[size=wide, place=top, span=2-3]
+\spot[size=wide, place=bottom, span=2-3]
+\spot[size=column, place=top]
+\spot[size=column, place=bottom]
+\spot[size=column, place=anchor]
+\spot[size=small, place=anchor, side=left]
+\spot[size=small, place=anchor, side=right]
+```
+
+A theme's `\spot` rows replace the built-in rows for each size they name; a size the theme does not name keeps Vanilla's rows. A document may also write `\spot` rows, which replace the theme's the same way. A cut-out (`shape=alpha`) keeps its reach into the next column (§09.7), and `side=center` across the gutter of a two-column frame (§11.3) is a `small` spot.
 
 ### 07.8 Theme files
 
 A `.wmxt` file contains only definition commands (no frontmatter, no stories, no scenes). A document loads at most one through frontmatter `theme:`. Document-level definitions override theme definitions by name. This is how a whole magazine shares one design.
+
+### 07.9 Units of reuse: what is and is not allowed
+
+Allowed: tokens, palettes, styles, grids, parent scenes, one theme file. Not allowed: user-defined commands, parameters, includes of content, anything that computes.
 
 ---
 
@@ -726,6 +753,8 @@ Every object accepts these.
 | `wrap` and wrap params | | | §12 |
 | `enter` `exit` and reveal params | | | §13 |
 | `hide` | boolean | `false` | |
+| `size` | `hero` `wide` `column` `small` `auto` | `auto` | `\figure` `\video` `\lottie` `\gallery` `\pullquote` `\sidebar` only, on a wide page. How big and how important the object is. `hero`: the one the screen is about, at most one per screen. `wide`: two or more columns. `column`: one column. `small`: part of a column, with text beside it. `auto`: the engine chooses from the object's shape and surroundings: a landscape picture leans to `wide`, a portrait to `column`, a cut-out keeps its reach. §11.3 |
+| `place` | `float` `here` `top` `bottom` `screen` | `float` | Same six commands. `float`: the engine picks the spot. `here`: exactly at the anchor. `top`, `bottom`: the top or bottom of the anchor's screen. `screen`: a screen of its own. §11.3 |
 
 **Box and caption.** `cols`, `rows` and `height` size the whole object, caption and credit included. The media area is the box minus the caption and credit. Captions with `caption-side=overlay` take no space.
 
@@ -751,6 +780,8 @@ Anchored objects position horizontally in one of two ways:
 | `cols=<range>` | Absolute grid columns of the scene, regardless of which frame holds the anchor. Used for objects that hang in a margin column or straddle two frames. Text in any overlapping frame wraps. |
 
 If an anchored object does not fit in the space left in its frame, it moves to the top of the next frame or column in the thread and the text continues without a gap.
+
+**Floating.** On a wide page (a scene set in screen pages, or a multi-column frame), an anchored `\figure`, `\video`, `\lottie`, `\gallery`, `\pullquote` or `\sidebar` with `place=float` (the default) need not stand at its anchor. The anchor is the place in the story where the command is written; the object may go to a spot (§07.7) on the anchor's screen, the screen before it or the screen after it, never two screens away. In a multi-column frame, which has no screen boundary, the same rule holds with "the same frame, close to the anchor". The engine tries the spots of the object's size (`hero` `wide` `column` `small`; `auto` is resolved first) and keeps the best: a screen holds at most one `hero` and at most three floating objects, a picture is never taller than 85% of the screen's band, and a pull quote or fact box is never alone on a page. The result depends only on the input: the same document gives the same pages, and a tie goes to story order. `place=here` keeps the object at its anchor, `top` and `bottom` fix it to that edge of the anchor's screen, and `screen` gives it a screen of its own. Captions and credits travel with their object. An object with `cols=` is pinned and never floats; pin and reflow (below) is unchanged. On a phone or tablet (one scrolling column) nothing floats: an object stays at its anchor, one column wide. `size` and `place` take breakpoint suffixes (`size@wide=hero`).
 
 **Pin and reflow.** An anchored object with `cols=` can reach into a column of the same frame that was filled before its anchor line was reached. When the anchor line is reached, the object's y is fixed. If its exclusion intersects lines already placed in this frame, the frame is laid out again from its first line with the object pinned at that y, even if the anchor line then moves. Laying out again can slide a line under a second object that cut into nothing before, so the frame is set again while a pass finds one, to a limit of three; pins accumulate, each object keeping the y of the pass that first caught it. An object still unpinned when the limit is reached stays where it is. Column balancing applies this rule inside each trial height and rejects a trial that leaves one.
 
@@ -1347,7 +1378,7 @@ This is the entire article.
 
 | Command | Body | Where allowed |
 | :---- | :---- | :---- |
-| `\font` `\token` `\palette` `\breakpoint` `\grid` `\style` | none | Design head, theme file |
+| `\font` `\token` `\palette` `\breakpoint` `\grid` `\style` `\spot` | none | Design head, theme file |
 | `\parent` | as scene | Design head, theme file |
 | `\folio` | inline text | Document level, parent |
 | `\story` | story content | Document level |
@@ -1390,5 +1421,6 @@ This is the entire article.
 - Row groups added (§11.11): `\group[layout=row]` packs its children into rows of whole grid columns that wrap, sized by `width`, `min-width` and `max-width`, with `valign` and nesting. Removed from the deferred list (§01.3).
 - `side=center` on anchored objects (§11.3, 2026-10-09): across the middle gutter of a two-column frame, text wrapping on both sides.
 - `\music` (§10.6, 2026-10-09): soundtrack cues that crossfade, stop or carry on as the reader scrolls.
+- `size` and `place` on `\figure`, `\video`, `\lottie`, `\gallery`, `\pullquote` and `\sidebar` (§11.1, §11.3) and the `\spot` definition (§07.7), 2026-10-17: a picture floats to the best spot near its text on a wide page; the position of a spot is `place`, not `at`, because `at=` on a definition means a breakpoint.
 - Comment marker changed from `%` to `%%`.
 - Removed: CMS, AI pipeline, Studio, Astro rendering contract, school-specific notes, migration tooling, format comparisons, cover layout, print and PDF references, sidebar bullet lists (lists are deferred).

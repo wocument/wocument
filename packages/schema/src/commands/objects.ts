@@ -1,7 +1,7 @@
 /** Objects and media -- spec §11. */
 
 import type { CommandSchema, CrossFieldRule } from "../types.js";
-import { CAPTION_SIDE, COLOR_VALUE, OBJECT_BASE, SHAPE, STAGGER } from "./groups.js";
+import { CAPTION_SIDE, COLOR_VALUE, FLOAT, OBJECT_BASE, SHAPE, STAGGER } from "./groups.js";
 import { OBJECT, PARAGRAPH_CHILD } from "./sets.js";
 
 const obj = (
@@ -26,6 +26,7 @@ export const FIGURE = obj(
   MEDIA_CHILDREN,
   {
     ...OBJECT_BASE,
+    ...FLOAT,
     ...SHAPE,
     ...CAPTION_SIDE,
     src: { types: ["path"], required: true, note: "give the highest resolution available" },
@@ -46,6 +47,7 @@ export const VIDEO = obj(
   MEDIA_CHILDREN,
   {
     ...OBJECT_BASE,
+    ...FLOAT,
     ...SHAPE,
     ...CAPTION_SIDE,
     src: { types: ["path"], required: true },
@@ -110,6 +112,7 @@ export const LOTTIE = obj(
   MEDIA_CHILDREN,
   {
     ...OBJECT_BASE,
+    ...FLOAT,
     ...SHAPE,
     ...CAPTION_SIDE,
     src: { types: ["path"], required: true, note: ".json or .lottie" },
@@ -145,6 +148,7 @@ export const GALLERY = obj(
   ["caption", "credit"],
   {
     ...OBJECT_BASE,
+    ...FLOAT,
     ...CAPTION_SIDE,
     layout: { types: ["enum"], enum: ["grid", "strip"], default: "grid" },
     "per-row": { types: ["integer"], default: "3", note: "grid layout only" },
@@ -160,7 +164,7 @@ export const PULLQUOTE = obj(
   "block",
   [PARAGRAPH_CHILD, "cite"],
   ["cite"],
-  { ...OBJECT_BASE, style: { types: ["ident"] } },
+  { ...OBJECT_BASE, ...FLOAT, style: { types: ["ident"] } },
 );
 
 export const SIDEBAR = obj(
@@ -172,6 +176,7 @@ export const SIDEBAR = obj(
   ["title"],
   {
     ...OBJECT_BASE,
+    ...FLOAT,
     style: { types: ["ident"] },
     bg: { types: [...COLOR_VALUE] },
     inset: { types: ["length"], default: "0" },
@@ -190,6 +195,7 @@ export const GROUP: CommandSchema = {
   maxOnce: [],
   attrs: {
     ...OBJECT_BASE,
+    ...FLOAT,
     ...STAGGER,
     layout: { types: ["enum"], enum: ["stack", "row"], default: "stack", note: "row: children pack into rows that wrap (design 2026-09-26)" },
     gap: { types: ["length"], default: "1bl", note: "between children in a stack, between rows in a row group" },

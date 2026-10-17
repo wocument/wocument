@@ -19,6 +19,7 @@ const GRAMMAR_TABLE: Record<string, { arity: string; kind: string | null }> = {
   breakpoint: { arity: "none", kind: null },
   grid: { arity: "none", kind: null },
   style: { arity: "none", kind: null },
+  spot: { arity: "none", kind: null },
   parent: { arity: "optional", kind: "scene" },
   folio: { arity: "required", kind: "inline" },
   story: { arity: "required", kind: "block" },
@@ -163,7 +164,7 @@ describe("schema integrity", () => {
         expect(a.responsive, `${c.name}.${key}`).toBe(false);
       }
     }
-    for (const name of ["font", "token", "breakpoint"]) {
+    for (const name of ["font", "token", "breakpoint", "spot"]) {
       const c = COMMANDS.get(name);
       for (const [k, a] of Object.entries(c?.attrs ?? {})) {
         expect(a.responsive, `${name}.${k}`).toBe(false);
@@ -181,7 +182,7 @@ describe("schema integrity", () => {
 
   it("treats every definition command as a definition", () => {
     expect([...DEFINITION_COMMANDS].sort()).toEqual(
-      ["breakpoint", "font", "grid", "palette", "parent", "style", "token"].sort(),
+      ["breakpoint", "font", "grid", "palette", "parent", "spot", "style", "token"].sort(),
     );
   });
 
@@ -217,5 +218,35 @@ describe("child lists", () => {
     for (const c of COMMANDS.values()) {
       expect(new Set(c.children).size, c.name).toBe(c.children.length);
     }
+  });
+});
+
+describe("size, place and \\spot (picture composition)", () => {
+  const errors = async (src: string, kind?: "theme") => {
+    const { parse } = await import("../../parser/src/index.js");
+    const text = kind ? src : `---\nwmxdsl: 1\ntitle: T\n---\n${src}`;
+    return parse(text, kind ? { kind } : {}).diagnostics.filter((d) => d.severity === "error");
+  };
+
+  it("figure takes size and place", async () => {
+    expect(await errors('\\figure[src=/a.jpg, alt="", size=hero, place=top]')).toEqual([]);
+  });
+
+  it("an unknown size is an error", async () => {
+    const e = await errors('\\figure[src=/a.jpg, alt="", size=huge]');
+    expect(e).toHaveLength(1);
+    expect(e[0]?.message).toContain("size");
+  });
+
+  it("\\spot is a theme definition", async () => {
+    expect(await errors("\\spot[size=wide, place=top, span=2-3]", "theme")).toEqual([]);
+  });
+
+  it("\\spot needs size and place", async () => {
+    expect(await errors("\\spot[span=2]", "theme")).toHaveLength(2);
+  });
+
+  it("\\spot attributes do not vary by breakpoint", async () => {
+    expect(await errors("\\spot[size=wide, place=top, span@wide=3]", "theme")).toHaveLength(1);
   });
 });
