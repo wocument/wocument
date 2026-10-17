@@ -392,13 +392,13 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
             ? // Limit: §11.3 states no default width for a side object; §11.10's "typical" 50%.
               { mode: "side", side, width: oa.has("width") ? len(oa.get("width")!) : { u: "pct", n: 50 } }
             : { mode: "full" };
-        // §11.3: an explicit size or place wins; otherwise side= or a width keeps today's beside-the-text placement, and a cut-out keeps its reach.
+        // §11.3: an explicit size or place wins; otherwise side= or a width keeps today's beside-the-text placement, a pinned cols= object never floats, and a cut-out keeps its reach.
         const own = elementAttrs(cmd, bp, cmd.name, deref);
         const set = (k: string): boolean => own.has(k);
         const sized = side !== "full" || set("width");
         const asked = enumId(oa.get("size")) as FloatSize | "auto";
         const size = set("size") ? asked : sized ? "small" : "auto";
-        const place = set("place") ? (enumId(oa.get("place")) as FloatPlace) : sized || enumId(oa.get("shape")) === "alpha" ? "here" : "float";
+        const place = set("place") ? (enumId(oa.get("place")) as FloatPlace) : sized || set("cols") || enumId(oa.get("shape")) === "alpha" ? "here" : "float";
         placement = { mode: "anchored", story: where.story, block: where.block, horizontal, height: lenOrAuto(oa.get("height")), size, place };
       } else if (layer === "background") placement = { mode: "background", scene: where.scene };
       else

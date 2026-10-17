@@ -64,6 +64,10 @@ describe("floating placement", () => {
     expect(placed(fig(run(`Text.\n\n${FIG}, shape=alpha]\n\nMore.`))).place).toBe("here");
   });
 
+  it("a cols= object never floats", () => {
+    expect(placed(fig(run(`Text.\n\n${FIG}, cols=3-6]\n\nMore.`)))).toEqual({ size: "auto", place: "here" });
+  });
+
   it("an explicit size wins over the mapping", () => {
     expect(placed(fig(run(`Text.\n\n${FIG}, side=right, size=hero, place=top]\n\nMore.`)))).toEqual({ size: "hero", place: "top" });
   });
