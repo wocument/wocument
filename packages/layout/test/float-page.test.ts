@@ -211,5 +211,9 @@ describe("floating in screen pages", () => {
     expect(windowBreaks(doc, moved({ "figure-7": 1, "figure-4": -1, "figure-5": -1, "figure-6": -1 }))).toEqual(["figure-7 window: screen 4, anchor on 2"]);
     // Two screens on, past the last screen an earlier picture fills: no excuse.
     expect(windowBreaks(doc, moved({ "figure-7": 2 }))).toEqual(["figure-7 window: screen 5, anchor on 2"]);
+    // The anchor's own screen does not count: empty, with the screen after it full, figure 7 may.
+    expect(windowBreaks(doc, moved({ "figure-7": 1, "figure-1": 1, "figure-2": 1, "figure-3": 1 }))).toEqual([]);
+    // A screen after the anchor's with no earlier picture: reported.
+    expect(windowBreaks(doc, moved({ "figure-7": 1, "figure-4": -1, "figure-5": -1, "figure-6": -1 }))).toEqual(["figure-7 window: screen 4, anchor on 2"]);
   });
 });

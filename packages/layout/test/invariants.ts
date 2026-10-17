@@ -112,9 +112,10 @@ export function layoutInvariants(rd: ResolvedDocument, pd: PositionedDocument, {
 
 /**
  * The floating objects (anchored, `place` other than `here`) of paged scenes outside their window: more
- * than one screen from their anchor. The window yields only to overflow (ruling 2026-10-17): an object
- * may land further after its anchor only when every screen from its anchor's screen to the one before
- * its own already holds a floating object set earlier in story order.
+ * than one screen from their anchor. The window yields only to overflow (rulings 2026-10-17): an object
+ * may land further after its anchor only when every screen after its anchor's screen, to the one before
+ * its own, already holds a floating object set earlier in story order. The anchor's own screen does not
+ * count (its first band can be too short to hold any picture).
  */
 export function windowBreaks(rd: ResolvedDocument, pd: PositionedDocument): string[] {
   const v = rd.variants[pd.breakpoint]!;
@@ -130,7 +131,7 @@ export function windowBreaks(rd: ResolvedDocument, pd: PositionedDocument): stri
     for (const f of floats) {
       if (Math.abs(f.at - f.anchor) <= 1) continue;
       const full = (k: number) => floats.some((e) => e.story === f.story && e.block < f.block && e.at === k);
-      const overflow = f.at > f.anchor && Array.from({ length: f.at - f.anchor }, (_, i) => f.anchor + i).every(full);
+      const overflow = f.at > f.anchor && Array.from({ length: f.at - f.anchor - 1 }, (_, i) => f.anchor + 1 + i).every(full);
       if (!overflow) out.push(`${f.name} window: screen ${f.at + 1}, anchor on ${f.anchor + 1}`);
     }
   }
