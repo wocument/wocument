@@ -258,7 +258,7 @@ describe("floating in screen pages", () => {
   // below the text beside it; refusing such settings left page 1 no picture at all. Each trial is now
   // scored on the band as rule 3 sets it: page 1 keeps a picture, and its columns end level, where
   // their text or a box at their foot does.
-  it.each([[1440, 900], [1799, 1000], [1800, 1000]] as const)("a page rule 3 sets shorter keeps a picture and level columns (stress-portraits at %ix%i)", (width, height) => {
+  it.each([[1440, 900], [1600, 900], [1799, 1000], [1800, 1000]] as const)("a page rule 3 sets shorter keeps a picture and level columns (stress-portraits at %ix%i)", (width, height) => {
     const p = portraitsPage1(width, height);
     expect(p.pictures, "page 1 holds a picture").toBeGreaterThan(0);
     expect(p.apart, "columns of page 1 end apart").toBeLessThanOrEqual(p.limit);
@@ -291,6 +291,20 @@ describe("floating in screen pages", () => {
       const first = text.filter((l) => l.column === c && l.block === text.find((x) => x.column === c)!.block);
       const height = first.at(-1)!.y + first.at(-1)!.height - first[0]!.y;
       expect(foot(cols[i - 1]!) + height, `column ${c}'s first paragraph fits in column ${cols[i - 1]}`).toBeGreaterThan(tallest + 1);
+    }
+  });
+
+  it("a trial's rule-3 cut search sets at most seven layouts", () => {
+    // 2026-10-17: the budget counts combinations; each trial's cut search is bounded as the levelling
+    // search is, six lines at most, so a trial is its own layout and up to six cuts.
+    const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
+    const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
+    for (const [width, height] of [[1440, 900], [1799, 1000], [1920, 1080]] as const) {
+      const layouts: number[] = [];
+      layout(doc, { width, height }, new PrepareCache(createFixedEngine()), { onCut: (_, n) => layouts.push(n) });
+      expect(layouts.some((n) => n > 1), `${width}: some trial cut`).toBe(true);
+      expect(Math.max(...layouts), `${width}`).toBeLessThanOrEqual(7);
     }
   });
 });

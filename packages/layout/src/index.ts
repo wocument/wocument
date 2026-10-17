@@ -113,6 +113,8 @@ type Env = {
   budget: number;
   /** Picture composition: told how many trial layouts each composed screen used (tests and reports). */
   onCompose?: (screen: number, trials: number) => void;
+  /** Test hook (2026-10-17): the layouts one composition trial set, its rule-3 cuts included. */
+  onCut?: (screen: number, layouts: number) => void;
   /**
    * Picture composition, while a screen is set: the frame's floating objects. The text steps over
    * their anchors; one with a box is set at it on this screen (`fixed`: at the box's height, a crop).
@@ -128,14 +130,14 @@ export function activeVariant(rd: ResolvedDocument, width: number): string {
   return name;
 }
 
-export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareCache, opts: { composeBudget?: number; onCompose?: (screen: number, trials: number) => void } = {}): PositionedDocument {
+export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareCache, opts: { composeBudget?: number; onCompose?: (screen: number, trials: number) => void; onCut?: (screen: number, layouts: number) => void } = {}): PositionedDocument {
   const breakpoint = activeVariant(rd, viewport.width);
   const v = rd.variants[breakpoint]!;
   const cursors = new Map<string, Resume>();
   const scenes: PositionedScene[] = [];
   let y = 0;
   for (const scene of v.scenes) {
-    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose });
+    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut });
     const before = new Map(cursors);
     let s = layoutScene(env(false), scene, cursors);
     // 2026-10-17: a scene set in screen pages is set again with every frame on its screen's grid (only
@@ -1293,16 +1295,19 @@ function composer(
       /**
        * Rule 3's cut for a setting whose text ends here with boxes set (see `tryLayout`): of those that
        * let text go on and keep the hard rules, the one whose columns end closest to level (ties to
-       * the smaller cut); else the first that lets text go on.
+       * the smaller cut; the first level one ends the search); else the first that lets text go on.
+       * Limit: up to six lines, as the levelling search in `bands` (2026-10-17: a trial is at most
+       * seven layouts; the budget counts combinations). `runs` counts the cut layouts set.
        */
-      const cutFor = (combo: Candidate[], trial: Columns): { k: number; t: Columns; as: Candidate[] } | null => {
+      const cutFor = (combo: Candidate[], trial: Columns): { k: number; t: Columns; as: Candidate[]; runs: number } | null => {
         if (!lone(trial) || !combo.some((c) => "box" in c)) return null;
+        let runs = 0;
         const ok = (s: TrialSummary): boolean => s.allSet && !s.overlaps && !s.stubs && !s.alone;
         const spread = (s: TrialSummary): number => Math.max(...s.feet) - Math.min(...s.feet);
         type Cut = { k: number; t: Columns; as: Candidate[]; spread: number };
         let first: Cut | null = null;
         let going = null as Cut | null;
-        for (let k = grid.baseline; k < limit / 2; k += grid.baseline) {
+        for (let k = grid.baseline; k <= 6 * grid.baseline + EPS && k < limit / 2; k += grid.baseline) {
           const gk = { ...g, foot: g.foot - k };
           const raised: Candidate[] = [];
           for (const c of combo) {
@@ -1313,13 +1318,17 @@ function composer(
           if (raised.length < combo.length) break;
           env.floated = floatedFor(raised);
           const t = run(limit - k, at, from, earlier, [...waiting, ...extra]);
+          runs++;
           const s = summarise(t, raised, gk, from, over, [...earlier, ...hanging]);
           if (textAfter(t.cursor)) {
             if (ok(s) && (!going || spread(s) < going.spread - EPS)) going = { k, t, as: raised, spread: spread(s) };
             first ??= { k, t, as: raised, spread: spread(s) };
+            if (going && going.spread <= EPS) break;
           }
         }
-        return going ?? first;
+        const cut = going ?? first;
+        if (cut) return { k: cut.k, t: cut.t, as: cut.as, runs };
+        return runs ? { k: 0, t: trial, as: combo, runs } : null;
       };
       const tryLayout = (combo: Candidate[]): TrialSummary => {
         left--;
@@ -1330,7 +1339,9 @@ function composer(
         // its spot against the shorter band (on the grid, cropped to it, never above the band's top),
         // so the setting scored is the one the page gets (see `cutFor`); one whose text never goes on
         // is refused below.
-        const shortAt = cutFor(combo, trial);
+        const found = cutFor(combo, trial);
+        env.onCut?.(page, 1 + (found?.runs ?? 0));
+        const shortAt = found && found.k > 0 ? found : null;
         if (!shortAt) env.floated = floatedFor(combo);
         else (trial = shortAt.t), (env.floated = floatedFor(shortAt.as));
         const cut = shortAt?.k ?? 0;
