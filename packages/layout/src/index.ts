@@ -743,7 +743,10 @@ function fillFrame(
       }
     }
   };
-  const auto = (): Columns => (count > 1 && frame.balance ? balance(env, run) : run(Number.POSITIVE_INFINITY));
+  const feet = (band: Columns): number[] => columns.map((_, c) => Math.max(Number.NEGATIVE_INFINITY, ...band.placed.lines.filter((l) => l.frame === frame.id && l.column === c).map((l) => l.y + l.height)));
+  /** Where each column's content ends, its text or a picture in it, whichever is lower. */
+  const ends = (band: Columns): number[] => columns.map((col, c) => Math.max(feet(band)[c]!, ...band.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode !== "contained" && o.box.x < col.x + col.width - EPS && o.box.x + o.box.width > col.x + EPS).map((o) => o.box.y + o.box.height)));
+  const auto = (): Columns => (count > 1 && frame.balance ? (floatFlow(env, frame.id, story, cursor, contentTop, columns, run, ends) ?? balance(env, run)) : run(Number.POSITIVE_INFINITY));
   const onBand = (at: number, band: Columns, last: boolean): void => {
     if (frame.columnRule === "rule" && count > 1) band.placed.columnRules.push(...columnRulesOf(frame, columns, at, band));
     // Rule 7: the story carries on in the next band, or in a frame after this one.
@@ -777,9 +780,6 @@ function fillFrame(
       }
       return false;
     };
-    const feet = (band: Columns): number[] => columns.map((_, c) => Math.max(Number.NEGATIVE_INFINITY, ...band.placed.lines.filter((l) => l.frame === frame.id && l.column === c).map((l) => l.y + l.height)));
-    /** Where each column's content ends, its text or a picture in it, whichever is lower. */
-    const ends = (band: Columns): number[] => columns.map((col, c) => Math.max(feet(band)[c]!, ...band.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode !== "contained" && o.box.x < col.x + col.width - EPS && o.box.x + o.box.width > col.x + EPS).map((o) => o.box.y + o.box.height)));
     /** Rule 3 (see `bands`): the text ends with objects still waiting, so the band is set shorter. */
     const lone = (r: Columns): boolean => r.stop === "full" && (r.deferred.length > 0 || objectsAfter(r.cursor)) && !textAfter(r.cursor);
     const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends, lone, textAfter) : undefined;
@@ -1117,6 +1117,136 @@ function anchorsAt(env: Env, story: Story, start: Resume, frameId: string, place
 }
 
 /**
+ * Picture composition, 2026-10-17, for a multi-column frame in a scrolling scene: the frame is one
+ * screen (index 0) from its content top, a screen's band tall. Its floating objects, at most three in
+ * story order, compete for `place=top` spots only; the rest, and every object when no combination
+ * keeps the hard rules, keep today's placement (`null` before any trial: the caller balances). The columns balance by whole blocks below
+ * and around the boxes chosen.
+ */
+function floatFlow(
+  env: Env,
+  frameId: string,
+  story: Story,
+  start: Resume,
+  top: number,
+  columns: Col[],
+  run: (limit: number) => Columns,
+  ends: (band: Columns) => number[],
+): Columns | null {
+  const { v, grid, viewport, sceneY } = env;
+  const ids = floatingIn(env, story, start);
+  if (env.page || env.budget <= 0 || ids.length === 0) return null;
+  const today = balance(env, run);
+  const lines = today.placed.lines.filter((l) => l.frame === frameId);
+  const band = viewport.height - 2 * grid.marginY;
+  const g: ScreenGeometry = { index: 0, top, foot: top + band, band, columns, baseline: grid.baseline, origin: env.origin ?? sceneY };
+  const spots = v.spots.filter((s) => s.place === "top");
+  const { floatOf } = floatMaker(env, columns, ids);
+  const { summarise } = trials(env, frameId, columns, ends);
+  const floats = ids
+    .slice(0, 3)
+    .map((id) => {
+      const at = (v.objects[id]!.placement as AnchoredPlacement).block;
+      const near = lines.filter((l) => l.block < at).at(-1) ?? lines.find((l) => l.block > at);
+      // Screen -1: there is no later screen to wait for, so `candidates` offers no `wait`.
+      return floatOf(id, { screen: -1, column: near?.column ?? 0 });
+    })
+    // A whole screen (`place=screen`) has no meaning in a scrolling frame.
+    .filter((f) => f.place !== "screen" && candidates(f, spots, g).some((c) => "box" in c));
+  if (floats.length === 0) return today;
+  /** Each combination's setting, by the array `choose` passes and returns. */
+  const set = new Map<Candidate[], Columns>();
+  const tryLayout = (combo: Candidate[]): TrialSummary => {
+    const was = env.floated;
+    // A top box is never cropped (`candidates` crops at the foot only): `fixed` stays false.
+    env.floated = new Map(combo.flatMap((c) => ("box" in c ? [[c.id, { box: c.box, fixed: false }] as const] : [])));
+    try {
+      const t = balance(env, run);
+      set.set(combo, t);
+      // The foot only bounds the boxes; the text below it scrolls on.
+      return summarise(t, combo, { ...g, foot: Number.POSITIVE_INFINITY }, start, [], []);
+    } finally {
+      env.floated = was;
+    }
+  };
+  const best = choose(floats, spots, g, tryLayout, null, env.budget);
+  env.onCompose?.(0, set.size);
+  if (!best) return today;
+  const t = set.get(best.combo)!;
+  anchorsAt(env, story, start, frameId, t.placed);
+  return t;
+}
+
+/** A composition trial's summary (`TrialSummary`) for one frame, and the objects that run past a foot. */
+function trials(env: Env, frameId: string, columns: Col[], ends: (band: Columns) => number[]) {
+  const { v } = env;
+  const overlap = (a: Rect, b: Rect): boolean => a.x < b.x + b.width - EPS && b.x < a.x + a.width - EPS && a.y < b.y + b.height - EPS && b.y < a.y + a.height - EPS;
+  /** The objects of a setting that run past the band's foot. */
+  const overflow = (t: Columns, foot: number): string[] => t.placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained" && o.box.y + o.box.height > foot + EPS).map((o) => o.name);
+  /** `over`: objects that run past the foot without any box (taller than a band): those may. */
+  const summarise = (t: Columns, combo: Candidate[], g: ScreenGeometry, from: Resume, over: readonly string[], earlier: readonly Exclusion[]): TrialSummary => {
+    const lines = t.placed.lines.filter((l) => l.frame === frameId);
+    const objects = t.placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained");
+    const boxes = combo.flatMap((c) => ("box" in c ? [{ c, p: objects.find((o) => o.name === c.id) }] : []));
+    // Every box set, and nothing pushed past the foot by them (an object waiting would hang onto the next page).
+    const allSet = !t.collides && boxes.every((b) => b.p) && overflow(t, g.foot).every((n) => over.includes(n)) && (lines.length > 0 || boxes.length > 0 || !sameResume(t.cursor, from));
+    // An object hanging from the band before (taller than its band) counts too.
+    // A subhead never ends a column (§09.7 rule 5): a box can leave its paragraph no room beside it.
+    if (keptApart(env, lines)) return { allSet: false, overlaps: false, stubs: false, feet: columns.map(() => g.foot), last: t.stop !== "full", alone: false };
+    const overlaps = boxes.some(({ c, p }) => p && (objects.some((o) => o.name !== c.id && overlap(p.box, o.box)) || earlier.some((e) => overlap(p.box, e.box)) || lines.some((l) => overlap(p.box, l))));
+    // Rule 13 as a hard rule: one or two lines alone between a box and the band's top or foot, or another box, in a column it spans.
+    const stubs = columns.some((col) => {
+      const inCol = boxes.flatMap((b) => (b.p && b.p.box.x < col.x + col.width - EPS && b.p.box.x + b.p.box.width > col.x + EPS ? [b.p.box] : [])).sort((a, b) => a.y - b.y);
+      if (inCol.length === 0) return false;
+      const edges = [g.top, ...inCol.flatMap((b) => [b.y, b.y + b.height]), g.foot];
+      const own = lines.filter((l) => l.x < col.x + col.width - EPS && l.x + l.width > col.x + EPS);
+      for (let i = 0; i < edges.length; i += 2) {
+        const n = own.filter((l) => l.y >= edges[i]! - EPS && l.y + l.height <= edges[i + 1]! + EPS).length;
+        if (n > 0 && n < 3) return true;
+      }
+      return false;
+    });
+    const screen = combo.some((c) => "box" in c && v.objects[c.id]!.placement.mode === "anchored" && (v.objects[c.id]!.placement as AnchoredPlacement).place === "screen");
+    const feet = screen ? columns.map(() => g.foot) : ends(t).map((f) => (Number.isFinite(f) ? f : g.top));
+    const alone = lines.length === 0 && combo.some((c) => "box" in c && (v.objects[c.id]!.kind === "pullquote" || v.objects[c.id]!.kind === "sidebar"));
+    return { allSet, overlaps, stubs, feet, last: t.stop !== "full", alone };
+  };
+  return { overflow, summarise };
+}
+
+/** Each floating object's box height at a width, and its `Float` for `choose` given where its anchor fell. */
+function floatMaker(env: Env, columns: Col[], ids: readonly string[]) {
+  const { v, sceneY } = env;
+  const heights = new Map<string, number>();
+  const heightAt = (o: ObjectElement, width: number): number => {
+    const key = `${o.id}|${width}`;
+    // On a grid line, as every box is, so a caption snaps as it will where it is set; off the grid's
+    // edges, so the outdent there does not count (a box on an edge keeps this height, see fillColumns).
+    if (!heights.has(key)) heights.set(key, placeObject(env, o, { x: columns[0]!.x + 1, y: env.origin ?? sceneY, width }, null).box.height);
+    return heights.get(key)!;
+  };
+  const floatOf = (id: string, a: { screen: number; column: number }): Float => {
+    const o = v.objects[id]!;
+    const p = o.placement as AnchoredPlacement;
+    const kind = o.kind === "pullquote" ? "quote" : o.kind === "sidebar" ? "box" : "picture";
+    const w = columns[0]!.width;
+    const ratio = "media" in o ? o.media.ratio.w / o.media.ratio.h : w / Math.max(1, heightAt(o, w));
+    const sizes: Float["sizes"] =
+      p.size !== "auto" ? [p.size]
+      : kind !== "picture" ? ["column", "small"]
+      : ratio >= 1.2 ? ["wide", "column"]
+      : ratio < 0.9 ? ["column", "small"]
+      : ["column", "wide"];
+    return {
+      id, order: ids.indexOf(id), sizes, place: p.place, kind, anchorScreen: a.screen, anchorColumn: a.column,
+      heightAt: (width) => heightAt(o, width),
+      crops: "media" in o && o.media.fit === "cover" && o.media.shape.kind === "rect",
+    };
+  };
+  return { heightAt, floatOf };
+}
+
+/**
  * Picture composition, 2026-10-17 (docs/superpowers/specs/2026-10-17-picture-composition-design.md,
  * "How the engine chooses"), for a frame set in screen pages. A floating object is anchored, has a
  * `place` other than `here` and no `cols=`; every other object keeps today's placement.
@@ -1156,33 +1286,8 @@ function composer(
   const band = viewport.height - 2 * grid.marginY;
   let previous: string | null = null;
 
-  const heights = new Map<string, number>();
-  const heightAt = (o: ObjectElement, width: number): number => {
-    const key = `${o.id}|${width}`;
-    // On a grid line, as every box is, so a caption snaps as it will where it is set; off the grid's
-    // edges, so the outdent there does not count (a box on an edge keeps this height, see fillColumns).
-    if (!heights.has(key)) heights.set(key, placeObject(env, o, { x: columns[0]!.x + 1, y: env.origin ?? sceneY, width }, null).box.height);
-    return heights.get(key)!;
-  };
-  const floatOf = (id: string): Float => {
-    const o = v.objects[id]!;
-    const p = o.placement as AnchoredPlacement;
-    const kind = o.kind === "pullquote" ? "quote" : o.kind === "sidebar" ? "box" : "picture";
-    const w = columns[0]!.width;
-    const ratio = "media" in o ? o.media.ratio.w / o.media.ratio.h : w / Math.max(1, heightAt(o, w));
-    const sizes: Float["sizes"] =
-      p.size !== "auto" ? [p.size]
-      : kind !== "picture" ? ["column", "small"]
-      : ratio >= 1.2 ? ["wide", "column"]
-      : ratio < 0.9 ? ["column", "small"]
-      : ["column", "wide"];
-    const a = anchors.get(id)!;
-    return {
-      id, order: ids.indexOf(id), sizes, place: p.place, kind, anchorScreen: a.screen, anchorColumn: a.column,
-      heightAt: (width) => heightAt(o, width),
-      crops: "media" in o && o.media.fit === "cover" && o.media.shape.kind === "rect",
-    };
-  };
+  const { heightAt, floatOf: floatAt } = floatMaker(env, columns, ids);
+  const floatOf = (id: string): Float => floatAt(id, anchors.get(id)!);
   /** Every floating object not fallen back is stepped over; those in `combo` are set at their boxes. */
   const floatedFor = (combo: Candidate[]): Map<string, Floated | null> => {
     const m = new Map<string, Floated | null>([...pending, ...set].map((id) => [id, null]));
@@ -1199,37 +1304,7 @@ function composer(
       anchors.set(id, { screen, column: near?.column ?? 0 });
     }
   };
-  const overlap = (a: Rect, b: Rect): boolean => a.x < b.x + b.width - EPS && b.x < a.x + a.width - EPS && a.y < b.y + b.height - EPS && b.y < a.y + a.height - EPS;
-  /** The objects of a setting that run past the band's foot. */
-  const overflow = (t: Columns, foot: number): string[] => t.placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained" && o.box.y + o.box.height > foot + EPS).map((o) => o.name);
-  /** `over`: objects that run past the foot without any box (taller than a band): those may. */
-  const summarise = (t: Columns, combo: Candidate[], g: ScreenGeometry, from: Resume, over: readonly string[], earlier: readonly Exclusion[]): TrialSummary => {
-    const lines = t.placed.lines.filter((l) => l.frame === frameId);
-    const objects = t.placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained");
-    const boxes = combo.flatMap((c) => ("box" in c ? [{ c, p: objects.find((o) => o.name === c.id) }] : []));
-    // Every box set, and nothing pushed past the foot by them (an object waiting would hang onto the next page).
-    const allSet = !t.collides && boxes.every((b) => b.p) && overflow(t, g.foot).every((n) => over.includes(n)) && (lines.length > 0 || boxes.length > 0 || !sameResume(t.cursor, from));
-    // An object hanging from the band before (taller than its band) counts too.
-    // A subhead never ends a column (§09.7 rule 5): a box can leave its paragraph no room beside it.
-    if (keptApart(env, lines)) return { allSet: false, overlaps: false, stubs: false, feet: columns.map(() => g.foot), last: t.stop !== "full", alone: false };
-    const overlaps = boxes.some(({ c, p }) => p && (objects.some((o) => o.name !== c.id && overlap(p.box, o.box)) || earlier.some((e) => overlap(p.box, e.box)) || lines.some((l) => overlap(p.box, l))));
-    // Rule 13 as a hard rule: one or two lines alone between a box and the band's top or foot, or another box, in a column it spans.
-    const stubs = columns.some((col) => {
-      const inCol = boxes.flatMap((b) => (b.p && b.p.box.x < col.x + col.width - EPS && b.p.box.x + b.p.box.width > col.x + EPS ? [b.p.box] : [])).sort((a, b) => a.y - b.y);
-      if (inCol.length === 0) return false;
-      const edges = [g.top, ...inCol.flatMap((b) => [b.y, b.y + b.height]), g.foot];
-      const own = lines.filter((l) => l.x < col.x + col.width - EPS && l.x + l.width > col.x + EPS);
-      for (let i = 0; i < edges.length; i += 2) {
-        const n = own.filter((l) => l.y >= edges[i]! - EPS && l.y + l.height <= edges[i + 1]! + EPS).length;
-        if (n > 0 && n < 3) return true;
-      }
-      return false;
-    });
-    const screen = combo.some((c) => "box" in c && v.objects[c.id]!.placement.mode === "anchored" && (v.objects[c.id]!.placement as AnchoredPlacement).place === "screen");
-    const feet = screen ? columns.map(() => g.foot) : ends(t).map((f) => (Number.isFinite(f) ? f : g.top));
-    const alone = lines.length === 0 && combo.some((c) => "box" in c && (v.objects[c.id]!.kind === "pullquote" || v.objects[c.id]!.kind === "sidebar"));
-    return { allSet, overlaps, stubs, feet, last: t.stop !== "full", alone };
-  };
+  const { overflow, summarise } = trials(env, frameId, columns, ends);
 
   return {
     left: () => pending.size > 0,
