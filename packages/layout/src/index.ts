@@ -32,7 +32,7 @@ import type {
 import { CURSOR_START, type EngineRun, type LineBox, type PrepareCache, type Prepared, type TextCursor, type TextEngine } from "@wmxdsl/text-engine";
 import { type EvalContext, type Viewport, engineFont, gridGeometry, px, span } from "./evaluate.js";
 import { type RowItem, packRows } from "./rows.js";
-import { type Candidate, type Float, type ScreenGeometry, type TrialSummary, candidates, choose, signature } from "./compose.js";
+import { type Candidate, type Float, type ScreenGeometry, type TrialSummary, candidates, choose, hardOk, signature } from "./compose.js";
 import type {
   Exclusion,
   GridGeometry,
@@ -904,11 +904,14 @@ function bands(
   // 2026-10-07: every page's lines sit on the same grid, so the columns of every page line up alike.
   const originOf = (p: number): number => pageOrigin(env, p);
   env.origin = originOf(page);
+  /** Objects set in earlier bands that run on below `y` (one taller than what was left of its band), as boxes to keep clear of. */
+  const hanging = (y: number): Exclusion[] =>
+    out.objects.filter((o) => o.box.y + o.box.height > y + EPS && env.v.objects[o.name]?.placement.mode !== "contained").map((o) => ({ id: o.name, box: o.box, shape: { kind: "rect" }, offset: 0, side: "both", jump: true }));
   /** The last band set, to set again when the section's last page would be a stub. */
   let prev: { mark: ReturnType<typeof mark>; tops: number; bottoms: number; earlier: number; at: number; limit: number; from: Resume; waiting: readonly string[]; page: number; band: Columns; floated: Env["floated"] } | null = null;
   for (;;) {
     // The screen's floating objects are chosen first; every setting of the screen below keeps them.
-    if (compose) waiting = [...waiting, ...compose.screen(page, at, limit, from, earlier, waiting)];
+    if (compose) waiting = [...waiting, ...compose.screen(page, at, limit, from, earlier, waiting, hanging(at))];
     let full = run(limit, at, from, earlier, waiting);
     // Rule 3 (2026-09-30): a band that ends the text with objects still waiting would leave the next
     // page to them alone. It sets a line less at a time until some of the text goes over with them.
@@ -1031,7 +1034,9 @@ function bands(
       return { placed: out, cursor: band.cursor, stop: band.stop, tops, bottoms, carried: earlier, deferred: band.deferred };
     }
     waiting = [...holdOver, ...band.deferred];
-    from = band.cursor;
+    // Going on after a frame break (an object still to place) starts at the break, never past it: the
+    // text after it is the next frame's.
+    from = done && band.stop === "frame" ? { ...START, block: band.cursor.block - 1 } : band.cursor;
     at = sceneY + ++page * viewport.height + grid.marginY;
     env.origin = originOf(page);
     limit = screen;
@@ -1041,7 +1046,7 @@ function bands(
 /** Picture composition (2026-10-17) for one banded frame; see `composer`. */
 type Composer = {
   /** Before screen `page` is set: chooses its floating objects (into `env.floated`) and returns those that fall back to today's rule and open the band (§11.3). */
-  screen: (page: number, at: number, limit: number, from: Resume, earlier: readonly Exclusion[], waiting: readonly string[]) => string[];
+  screen: (page: number, at: number, limit: number, from: Resume, earlier: readonly Exclusion[], waiting: readonly string[], hanging: readonly Exclusion[]) => string[];
   /** Floating objects still to place: the frame does not end before they are set. */
   left: () => boolean;
   /** After the last screen: each floating object's `anchoredAt` becomes its anchor's y in the text. */
@@ -1083,6 +1088,8 @@ function composer(
   }
   if (ids.length === 0) return undefined;
   const block = (id: string): number => (v.objects[id]!.placement as AnchoredPlacement).block;
+  /** Text resuming at `c` has set everything before an object's anchor: only objects lie between. */
+  const beyond = (c: Resume, id: string): boolean => story.blocks.slice(c.block, block(id)).every((b) => b.kind === "object");
   const pending = new Set(ids);
   const set = new Set<string>();
   /**
@@ -1096,8 +1103,9 @@ function composer(
   const heights = new Map<string, number>();
   const heightAt = (o: ObjectElement, width: number): number => {
     const key = `${o.id}|${width}`;
-    // On a grid line, as every box is, so a caption snaps as it will where it is set.
-    if (!heights.has(key)) heights.set(key, placeObject(env, o, { x: columns[0]!.x, y: env.origin ?? sceneY, width }, null).box.height);
+    // On a grid line, as every box is, so a caption snaps as it will where it is set; off the grid's
+    // edges, so the outdent there does not count (a box on an edge keeps this height, see fillColumns).
+    if (!heights.has(key)) heights.set(key, placeObject(env, o, { x: columns[0]!.x + 1, y: env.origin ?? sceneY, width }, null).box.height);
     return heights.get(key)!;
   };
   const floatOf = (id: string): Float => {
@@ -1130,7 +1138,7 @@ function composer(
     const lines = t.placed.lines.filter((l) => l.frame === frameId);
     for (const id of pending) {
       const at = block(id);
-      if (anchors.has(id) || t.cursor.block <= at) continue;
+      if (anchors.has(id) || !beyond(t.cursor, id)) continue;
       const near = lines.filter((l) => l.block < at).at(-1) ?? lines.find((l) => l.block > at);
       anchors.set(id, { screen, column: near?.column ?? 0 });
     }
@@ -1167,21 +1175,27 @@ function composer(
 
   return {
     left: () => pending.size > 0,
-    screen(page, at, limit, from, earlier, waiting) {
+    screen(page, at, limit, from, earlier, waiting, hanging) {
       env.floated = floatedFor([]);
       if (pending.size === 0) return [];
-      const passed = (id: string): boolean => from.block > block(id);
+      const passed = (id: string): boolean => beyond(from, id);
       for (const id of pending) if (!passed(id)) anchors.delete(id);
       const t = run(limit, at, from, earlier, waiting);
       meet(t, page);
-      /** One full band of text on the next screen from `c`, every floating object stepped over. */
+      /**
+       * One full band of text on the next screen from `c`, every floating object stepped over except
+       * `inline`, which take today's placement there (as they would if that screen fell back), with
+       * `deferred` opening it.
+       */
       const reached = new Map<string, Columns>();
-      const ahead = (c: Resume): Columns => {
-        const key = `${c.block}:${c.piece}:${c.offset}`;
+      const ahead = (c: Resume, inline: readonly string[] = [], deferred: readonly string[] = []): Columns => {
+        const key = `${c.block}:${c.piece}:${c.offset}:${inline.join(",")}:${deferred.join(",")}`;
         if (!reached.has(key)) {
           const [origin, floated] = [env.origin, env.floated];
-          (env.origin = pageOrigin(env, page + 1)), (env.floated = floatedFor([]));
-          reached.set(key, run(band, sceneY + (page + 1) * viewport.height + grid.marginY, c, [], []));
+          const m = floatedFor([]);
+          for (const id of inline) m.delete(id);
+          (env.origin = pageOrigin(env, page + 1)), (env.floated = m);
+          reached.set(key, run(band, sceneY + (page + 1) * viewport.height + grid.marginY, c, [], deferred));
           (env.origin = origin), (env.floated = floated);
         }
         return reached.get(key)!;
@@ -1191,40 +1205,49 @@ function composer(
       const extra: string[] = [];
       const fall = (id: string): void => {
         pending.delete(id);
-        if (passed(id)) extra.push(id);
+        if (from.block > block(id)) extra.push(id);
       };
       // Past its window already (one that waited behind three others): today's placement.
       for (const id of [...pending]) if (passed(id) && (anchors.get(id)?.screen ?? page) < page - 1) fall(id);
       const g: ScreenGeometry = { index: page, top: at, foot: at + limit, band, columns, baseline: grid.baseline, origin: env.origin ?? sceneY };
       // Objects set before their text owe this screen their anchors: a setting that pushes one on is
       // refused, so none lands two screens from its picture.
-      const owed = [...set].filter((id) => !passed(id) && t.cursor.block > block(id));
+      const owed = [...set].filter((id) => !passed(id) && beyond(t.cursor, id));
       const over = overflow(t, at + limit);
       const floats: Float[] = [];
       // From the next screen only those anchored early on it, in its first column: the rest of its
       // text can still move on a screen when pictures take room.
       const near = (id: string): boolean => anchors.has(id) && (anchors.get(id)!.screen <= page || anchors.get(id)!.column === 0);
-      for (const id of [...pending].filter(near).slice(0, 3)) {
+      const competing = [...pending].filter(near).slice(0, 3);
+      // A leftover at the end of its window that is not among them falls back now, on this screen.
+      for (const id of [...pending]) if (passed(id) && !competing.includes(id) && (anchors.get(id)?.screen ?? page) <= page - 1) fall(id);
+      for (const id of competing) {
         const f = floatOf(id);
         if (candidates(f, v.spots, g).some((c) => "box" in c)) floats.push(f);
         else if (f.anchorScreen <= page) fall(id);
       }
-      const best = floats.length
-        ? choose(floats, v.spots, g, (combo) => {
-            env.floated = floatedFor(combo);
-            const trial = run(limit, at, from, earlier, [...waiting, ...extra]);
-            const sum = summarise(trial, combo, g, from, over, earlier);
-            // A box set before its text: the text must still reach its anchor on the next screen.
-            const early = combo.filter((c) => "box" in c && trial.cursor.block <= block(c.id));
-            const reach = early.length && trial.stop === "full" ? ahead(trial.cursor).cursor.block : Number.POSITIVE_INFINITY;
-            const kept = owed.every((id) => trial.cursor.block > block(id)) && early.every((c) => reach > block(c.id));
-            return kept ? sum : { ...sum, allSet: false };
-          }, previous, env.budget)
-        : null;
+      const tryLayout = (combo: Candidate[]): TrialSummary => {
+        env.floated = floatedFor(combo);
+        const trial = run(limit, at, from, earlier, [...waiting, ...extra]);
+        const sum = summarise(trial, combo, g, from, over, [...earlier, ...hanging]);
+        // A box set before its text: the text must still reach its anchor on the next screen, even
+        // with the objects still to place set there by today's rule.
+        const early = combo.filter((c) => "box" in c && !beyond(trial.cursor, c.id));
+        const rest = [...pending].filter((id) => !combo.some((c) => c.id === id && "box" in c));
+        const reach = early.length && trial.stop === "full" ? ahead(trial.cursor, rest, trial.deferred).cursor : null;
+        const kept = owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id));
+        return kept ? sum : { ...sum, allSet: false };
+      };
+      let best = floats.length ? choose(floats, v.spots, g, tryLayout, previous, env.budget) : null;
+      // When the budget runs out, waiting for the next screen comes before today's rule, inside the
+      // window: setting the screen's pictures here by rule 6 can push its last lines, and the anchors
+      // of pictures set before them, a screen further.
+      const waits: Candidate[] = floats.map((f) => ({ id: f.id, wait: true }));
+      if (!best && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits))) best = { combo: waits, cost: 0 };
       if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
       const combo = best?.combo ?? [];
-      env.floated = floatedFor(combo);
       for (const c of combo) if ("box" in c) (pending.delete(c.id), set.add(c.id));
+      env.floated = floatedFor(combo);
       // An empty arrangement earns no rhythm penalty on the next screen.
       previous = signature(combo) || null;
       return extra;
@@ -1386,7 +1409,12 @@ function fillColumns(
   for (const [id, f] of env.floated ?? []) {
     if (!f) continue;
     const o = env.v.objects[id]!;
-    const r = placeObject(env, o, f.box, f.fixed ? f.box.height : null);
+    let r = placeObject(env, o, f.box, f.fixed ? f.box.height : null);
+    // On the grid's outer edge a box reaches into the margin (outdent), wider and so taller than it was
+    // scored: it keeps its scored height, which is within 85% of the band, cropped to it (with what
+    // rule 12 gives it).
+    const scored = f.box.height + (f.fixed ? 0 : (env.grow?.get(id) ?? 0));
+    if (r.box.height > scored + EPS) r = placeObject(env, o, f.box, scored);
     const off = o.wrap.mode === "none" ? 0 : px(o.wrap.offset, { viewport: env.viewport, grid: env.grid, pctOf: r.box.width });
     const whole = o.placement.mode === "anchored" && o.placement.place === "screen";
     // The standoff above stays inside the band: above it is another frame's text, or the screen before.
@@ -1758,7 +1786,8 @@ function fillColumn(
     // it moves on too, even from a column's top.
     // In a band shorter than a full one (the first, under a heading) it waits for a full band rather
     // than hang past this one's foot onto the next page.
-    if (!force && !pin && r.box.y + r.box.height > limitY + EPS && (!atTop || objTop > anchorTop + EPS || short)) return false;
+    // Forced (it opens a column), it is still pushed on when another object pushed it past the foot.
+    if ((!force || objTop > anchorTop + EPS) && !pin && r.box.y + r.box.height > limitY + EPS && (!atTop || objTop > anchorTop + EPS || short)) return false;
     append(out, r.placed);
     const jump = r.exclusions.find((e) => e.jump);
     if (jump || (r.exclusions.length === 0 && h.mode === "full")) y = r.box.y + r.box.height + (jump?.offset ?? 0);

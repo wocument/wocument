@@ -115,6 +115,26 @@ describe("floating in screen pages", () => {
     for (const o of os) expect(Math.abs(screenOf(pd, o.box.y) - screenOf(pd, o.anchoredAt!))).toBeLessThanOrEqual(1);
   });
 
+  it("seven floats close together: each within a screen of its anchor", () => {
+    const seven = Array.from({ length: 7 }, () => fig("ratio=3:2")).join("\n\n");
+    const { pd } = lay(page(`${para(62, "a")}\n\n${seven}\n\n${para(80, "b")}`));
+    const os = objects(pd);
+    expect(os).toHaveLength(7);
+    for (const o of os) expect(Math.abs(screenOf(pd, o.box.y) - screenOf(pd, o.anchoredAt!)), o.name).toBeLessThanOrEqual(1);
+  });
+
+  it("a hero on a wide screen keeps within 85% of the band", () => {
+    // Wide screens: what sits on the grid's outer edge reaches into the margin (outdent), so a box on
+    // both edges is wider, and taller, than its columns.
+    // One hero spot, across every column: on both edges.
+    const src = `\\grid[name=page, at=wide, margin-x=200px, outdent=50%]\n\\spot[size=hero, place=top, span=all]\n${page(`${para(70, "a")}\n\n${fig("size=hero, ratio=2:1")}\n\n${para(80, "b")}\n\n${para(80, "c")}`)}`;
+    const view = { width: 1920, height: 1080 };
+    const { pd } = lay(src, view);
+    const [o] = objects(pd);
+    expect(o!.box.width).toBeGreaterThan(pd.scenes[0]!.grid.content + pd.scenes[0]!.grid.outdent + 1); // both outdents apply
+    expect(o!.box.height).toBeLessThanOrEqual(0.85 * (1080 - 2 * 56) + 1e-6);
+  });
+
   it("a float in the last paragraph", () => {
     const { pd } = lay(page(`${para(60, "a")}\n\n${para(10, "b")}\n\n${fig("ratio=3:2")}\n\n${para(8, "c")}`));
     const lines = pd.scenes[0]!.lines.filter((l) => l.story === "s");
@@ -126,10 +146,14 @@ describe("floating in screen pages", () => {
   });
 
   it("a float stays in its anchor's frame", () => {
+    // Seven pictures just before the break: some are still to place when the frame's text ends.
+    const seven = Array.from({ length: 7 }, () => fig("ratio=3:2")).join("\n\n");
     const src =
-      `\\story[name=s]{${para(60, "a")}\n\n${fig("ratio=3:2")}\n\n\\framebreak\n\n${para(60, "b")}}\n` +
+      `\\story[name=s]{${para(62, "a")}\n\n${seven}\n\n\\framebreak\n\n${para(60, "b")}}\n` +
       "\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}";
     const { pd } = lay(src);
-    expect(objects({ ...pd, scenes: [pd.scenes[0]!] })).toHaveLength(1);
+    expect(objects({ ...pd, scenes: [pd.scenes[0]!] })).toHaveLength(7);
+    expect(pd.scenes[0]!.lines.filter((l) => /Stone b\d/.test(l.text))).toEqual([]);
+    expect(pd.scenes[1]!.lines.some((l) => /Stone b\d/.test(l.text))).toBe(true);
   });
 });
