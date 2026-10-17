@@ -193,6 +193,23 @@ describe("floating in screen pages", () => {
     }
   });
 
+  it("a screen tries at most its budget of trial layouts", () => {
+    // Ten pictures before a frame break: screens where no combination keeps the rules retry with
+    // fewer competitors and then all waiting; every try counts against the one budget of the screen.
+    const ten = Array.from({ length: 10 }, () => fig("ratio=3:2")).join("\n\n");
+    const src =
+      `\\story[name=s]{${para(50, "a")}\n\n${ten}\n\n\\framebreak\n\n${para(60, "b")}}\n` +
+      "\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}";
+    for (const budget of [5, 40]) {
+      const trials: number[] = [];
+      const { doc } = resolve(parse(FM + GRID + src).ast as Document, { assets: fake });
+      const pd = layout(doc, VIEW, new PrepareCache(createFixedEngine()), { composeBudget: budget, onCompose: (_, n) => trials.push(n) });
+      layoutInvariants(doc, pd, { standoff: false });
+      expect(trials.length, `budget ${budget}`).toBeGreaterThan(0);
+      expect(Math.max(...trials), `budget ${budget}`).toBeLessThanOrEqual(budget);
+    }
+  });
+
   it("the window yields only to overflow", () => {
     // Seven pictures anchored together on screen 2: three on screen 2, four on screen 3.
     const seven = Array.from({ length: 7 }, () => fig("ratio=3:2")).join("\n\n");

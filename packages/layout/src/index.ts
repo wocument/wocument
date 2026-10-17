@@ -111,6 +111,8 @@ type Env = {
   pageGrids?: boolean;
   /** Picture composition (2026-10-17): how many combinations a screen may try; 0 keeps today's placement. */
   budget: number;
+  /** Picture composition: told how many trial layouts each composed screen used (tests and reports). */
+  onCompose?: (screen: number, trials: number) => void;
   /**
    * Picture composition, while a screen is set: the frame's floating objects. The text steps over
    * their anchors; one with a box is set at it on this screen (`fixed`: at the box's height, a crop).
@@ -126,14 +128,14 @@ export function activeVariant(rd: ResolvedDocument, width: number): string {
   return name;
 }
 
-export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareCache, opts: { composeBudget?: number } = {}): PositionedDocument {
+export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareCache, opts: { composeBudget?: number; onCompose?: (screen: number, trials: number) => void } = {}): PositionedDocument {
   const breakpoint = activeVariant(rd, viewport.width);
   const v = rd.variants[breakpoint]!;
   const cursors = new Map<string, Resume>();
   const scenes: PositionedScene[] = [];
   let y = 0;
   for (const scene of v.scenes) {
-    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40 });
+    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose });
     const before = new Map(cursors);
     let s = layoutScene(env(false), scene, cursors);
     // 2026-10-17: a scene set in screen pages is set again with every frame on its screen's grid (only
@@ -1268,7 +1270,10 @@ function composer(
         if (candidates(f, v.spots, g).some((c) => "box" in c)) floats.push(f);
         else if (f.anchorScreen <= page) fall(id);
       }
+      /** Trial layouts left on this screen: every search and fallback below shares the one budget. */
+      let left = env.budget;
       const tryLayout = (combo: Candidate[]): TrialSummary => {
+        left--;
         env.floated = floatedFor(combo);
         const trial = run(limit, at, from, earlier, [...waiting, ...extra]);
         const sum = summarise(trial, combo, g, from, over, [...earlier, ...hanging]);
@@ -1281,17 +1286,19 @@ function composer(
         const kept = owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && !due.some((id) => trial.deferred.includes(id));
         return kept ? sum : { ...sum, allSet: false };
       };
-      let best = floats.length ? choose(floats, v.spots, g, tryLayout, previous, env.budget) : null;
+      // The first search keeps back one trial for each fallback below.
+      let best = floats.length ? choose(floats, v.spots, g, tryLayout, previous, Math.max(0, left - floats.length)) : null;
       // When the budget runs out, the later objects wait for the next screen, inside their window, and
       // the earlier ones are chosen again; at last all wait. Setting them here by rule 6 instead can
       // push the screen's last lines, and the anchors of pictures set before them, a screen further.
-      for (let k = floats.length - 1; !best && k >= 1 && floats.slice(k).every((f) => f.anchorScreen >= page); k--) {
+      for (let k = floats.length - 1; !best && k >= 1 && left > k && floats.slice(k).every((f) => f.anchorScreen >= page); k--) {
         const rest: Candidate[] = floats.slice(k).map((f) => ({ id: f.id, wait: true }));
-        const r = choose(floats.slice(0, k), v.spots, g, (c) => tryLayout([...c, ...rest]), previous, env.budget);
+        const r = choose(floats.slice(0, k), v.spots, g, (c) => tryLayout([...c, ...rest]), previous, left - k);
         if (r) best = { combo: [...r.combo, ...rest], cost: r.cost };
       }
       const waits: Candidate[] = floats.map((f) => ({ id: f.id, wait: true }));
-      if (!best && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits))) best = { combo: waits, cost: 0 };
+      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits))) best = { combo: waits, cost: 0 };
+      if (floats.length) env.onCompose?.(page, env.budget - left);
       if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
       const combo = best?.combo ?? [];
       for (const c of combo) if ("box" in c) (pending.delete(c.id), set.add(c.id));
