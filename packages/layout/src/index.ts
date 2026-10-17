@@ -778,7 +778,9 @@ function fillFrame(
     const feet = (band: Columns): number[] => columns.map((_, c) => Math.max(Number.NEGATIVE_INFINITY, ...band.placed.lines.filter((l) => l.frame === frame.id && l.column === c).map((l) => l.y + l.height)));
     /** Where each column's content ends, its text or a picture in it, whichever is lower. */
     const ends = (band: Columns): number[] => columns.map((col, c) => Math.max(feet(band)[c]!, ...band.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode !== "contained" && o.box.x < col.x + col.width - EPS && o.box.x + o.box.width > col.x + EPS).map((o) => o.box.y + o.box.height)));
-    const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends) : undefined;
+    /** Rule 3 (see `bands`): the text ends with objects still waiting, so the band is set shorter. */
+    const lone = (r: Columns): boolean => r.stop === "full" && (r.deferred.length > 0 || objectsAfter(r.cursor)) && !textAfter(r.cursor);
+    const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends, lone) : undefined;
     const r = bands(env, contentTop, cursor, (limit, at, from, earlier, deferred) => run(limit, at, from, earlier, deferred), onBand, textAfter, feet, ends, objectsAfter, compose);
     anchorsAt(env, story, cursor, frame.id, r.placed);
     return { placed: r.placed, cursor: r.cursor, bottom: Math.max(contentTop, ...r.bottoms) + inset };
@@ -1121,6 +1123,7 @@ function composer(
   columns: Col[],
   run: (limit: number, at: number, from: Resume, earlier: readonly Exclusion[], deferred: readonly string[]) => Columns,
   ends: (band: Columns) => number[],
+  lone: (band: Columns) => boolean,
 ): Composer | undefined {
   const { v, grid, viewport, sceneY } = env;
   /** The frame's floating objects in story order: from its first block to a frame break. */
@@ -1283,7 +1286,11 @@ function composer(
         const rest = [...pending].filter((id) => !combo.some((c) => c.id === id && "box" in c));
         const reach = early.length && trial.stop === "full" ? ahead(trial.cursor, rest, trial.deferred).cursor : null;
         // Objects fallen back at the end of their window are set on this screen, not sent on.
-        const kept = owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && !due.some((id) => trial.deferred.includes(id));
+        // A setting whose text ends here with objects still waiting is set shorter by rule 3 (see
+        // `bands`), with its boxes still at the full band's foot, so the columns end apart: refused
+        // (2026-10-17, stress-portraits page 1).
+        const short = lone(trial) && combo.some((c) => "box" in c);
+        const kept = !short && owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && !due.some((id) => trial.deferred.includes(id));
         return kept ? sum : { ...sum, allSet: false };
       };
       // The first search keeps back one trial for each fallback below.
