@@ -806,7 +806,7 @@ function fillFrame(
  * columns; columns that height does not need stay empty, and one block alone stays in the first.
  * Fitting is monotonic in height, so the search halves.
  */
-function balance(env: Env, run: (limit: number) => Columns): Columns {
+function balance(env: Env, run: (limit: number) => Columns, rest = false): Columns {
   const bl = env.grid.baseline;
   const before = env.whole;
   // The columns filled as on any other page, splitting paragraphs: always takes what the caller gave.
@@ -819,7 +819,10 @@ function balance(env: Env, run: (limit: number) => Columns): Columns {
     // fit counts (2026-10-07: two columns stayed 28 and 26 lines where 27 and 27 fit exactly).
     // §09.7 rule 5: a block kept with the next one never ends a column (a box over two columns can leave
     // a subhead's paragraph no room beside it).
-    const same = (r: Columns): boolean => r.cursor.block === lines.cursor.block && (r.stop !== "full" || r.deferred.length === 0) && !r.collides && !keptApart(env, r.placed.lines);
+    // `rest`: the text's last page with objects still to come after it (2026-10-17): those wait for
+    // the next page as they do in the line setting, so a fit leaves the same ones waiting.
+    const waits = (r: Columns): boolean => (rest ? r.deferred.join() === lines.deferred.join() : r.deferred.length === 0);
+    const same = (r: Columns): boolean => r.cursor.block === lines.cursor.block && (r.stop !== "full" || waits(r)) && !r.collides && !keptApart(env, r.placed.lines);
     // Whole blocks that do not fit at all (a page's last band is only so tall, and the gaps they leave
     // take room): the columns stay filled in order, so nothing is left out.
     if (!same(natural)) return lines;
@@ -1013,7 +1016,11 @@ function bands(
         }
     }
     const done = full.stop !== "full";
-    let band = done ? balance(env, (l) => run(Math.min(l, limit), at, from, earlier, waiting)) : full;
+    // 2026-10-17: every floating object waits on this screen and the text still ends here (rule 3
+    // could not carry any on): this is the text's last page. It is balanced by whole blocks, as the
+    // story's end is; the pictures follow on the pages after it.
+    const last = !done && compose !== undefined && compose.left() && ![...(env.floated?.values() ?? [])].some((f) => f !== null) && lone(full);
+    let band = done || last ? balance(env, (l) => run(Math.min(l, limit), at, from, earlier, waiting), last) : full;
     // 2026-10-08: a section's last page never holds a stub of three lines or fewer and nothing
     // else. The page before is set again at its full height; when the rest of the text fits there,
     // that page ends the section (balanced) and the stub page goes.
@@ -1339,7 +1346,10 @@ function composer(
         // Still alone after it: no cut lets the text go on, and the boxes would stand beside ragged
         // columns, neither full nor balanced. Refused, so a setting that lets it go on wins.
         const stuck = lone(trial) && combo.some((c) => "box" in c);
-        const kept = !stuck && owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && !due.some((id) => trial.deferred.includes(id));
+        // Objects waiting from the screen before whose window ends here are set here too, not sent on
+        // by boxes that take their room (2026-10-17: three pictures two screens past their anchors).
+        const ending = waiting.filter((id) => (anchors.get(id)?.screen ?? page) <= page - 1);
+        const kept = !stuck && owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && ![...due, ...ending].some((id) => trial.deferred.includes(id));
         return kept ? sum : { ...sum, allSet: false };
       };
       // The first search keeps back one trial for each fallback below.

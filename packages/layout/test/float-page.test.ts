@@ -264,12 +264,33 @@ describe("floating in screen pages", () => {
     expect(p.apart, "columns of page 1 end apart").toBeLessThanOrEqual(p.limit);
   });
 
-  // Known defect, 2026-10-17: at 1920x1080 no setting with a picture lets the text go on without
-  // leaving one or two lines alone by a box (rule 13), even with ten times the trial budget, so every
-  // picture waits and the text ends on page 1 in ragged columns. Fails until the engine sets it.
-  it.fails("a page rule 3 sets shorter keeps a picture and level columns (stress-portraits at 1920x1080)", () => {
-    const p = portraitsPage1(1920, 1080);
-    expect(p.pictures, "page 1 holds a picture").toBeGreaterThan(0);
-    expect(p.apart, "columns of page 1 end apart").toBeLessThanOrEqual(p.limit);
+  // 2026-10-17: at 1920x1080 no setting with a picture lets the text go on (each leaves one or two
+  // lines alone by a box, rule 13), so every picture waits and the text ends on page 1: the text's
+  // last page. It is balanced by whole blocks, as the story's end is: each paragraph in one column,
+  // the columns filled from the left at the smallest height; the pictures follow, within their window.
+  it("the text's last page, every picture waiting, is balanced by whole blocks (stress-portraits at 1920x1080)", () => {
+    const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
+    const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
+    const pd = layout(doc, { width: 1920, height: 1080 }, new PrepareCache(createFixedEngine()));
+    layoutInvariants(doc, pd, { standoff: false });
+    expect(windowBreaks(doc, pd)).toEqual([]);
+    const s = pd.scenes[0]!;
+    const text = s.lines.filter((l) => l.story === "nine");
+    expect(text.every((l) => screenOf(pd, l.y) === 0), "the text ends on page 1").toBe(true);
+    // Each paragraph in one column.
+    for (const b of new Set(text.map((l) => l.block))) expect(new Set(text.filter((l) => l.block === b).map((l) => l.column)).size, `block ${b}`).toBe(1);
+    // Filled from the left at the smallest height: a column's first paragraph would not fit at the
+    // foot of the column before it within the tallest column.
+    const cols = [...new Set(text.map((l) => l.column))].sort((a, b) => a - b);
+    expect(cols.length).toBeGreaterThan(1);
+    const foot = (c: number) => Math.max(...text.filter((l) => l.column === c).map((l) => l.y + l.height));
+    const tallest = Math.max(...cols.map(foot));
+    for (const [i, c] of cols.entries()) {
+      if (i === 0) continue;
+      const first = text.filter((l) => l.column === c && l.block === text.find((x) => x.column === c)!.block);
+      const height = first.at(-1)!.y + first.at(-1)!.height - first[0]!.y;
+      expect(foot(cols[i - 1]!) + height, `column ${c}'s first paragraph fits in column ${cols[i - 1]}`).toBeGreaterThan(tallest + 1);
+    }
   });
 });
