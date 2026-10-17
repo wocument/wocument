@@ -4,7 +4,10 @@
  * or the screen after; `place=here`, the fallback and the budget keep today's placement.
  */
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { createAssetHost } from "@wmxdsl/assets";
 import { parse, type Document } from "@wmxdsl/parser";
 import { type AssetHost, resolve } from "@wmxdsl/resolver";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
@@ -34,6 +37,13 @@ function lay(src: string, viewport = VIEW, opts?: { composeBudget?: number }) {
 
 const objects = (pd: PositionedDocument): PositionedObject[] => pd.scenes.flatMap((s) => s.objects).filter((o) => o.name.startsWith("figure") || o.name.startsWith("gallery"));
 const screenOf = (pd: PositionedDocument, y: number): number => Math.floor(y / pd.viewport.height);
+/** The screen of an object's real anchor: the last line of its story set before its block. */
+function anchorScreen(doc: ReturnType<typeof resolve>["doc"], pd: PositionedDocument, o: PositionedObject): number {
+  const p = doc.variants[pd.breakpoint]!.objects[o.name]!.placement;
+  const block = p.mode === "anchored" ? p.block : -1;
+  const before = pd.scenes[0]!.lines.filter((l) => l.story === "s" && l.block < block).at(-1)!;
+  return screenOf(pd, before.y);
+}
 /** Each column's left edge and width, from the story's lines. */
 function columnsOf(pd: PositionedDocument): { x: number; width: number }[] {
   const lines = pd.scenes[0]!.lines.filter((l) => l.story === "s");
@@ -117,10 +127,10 @@ describe("floating in screen pages", () => {
 
   it("seven floats close together: each within a screen of its anchor", () => {
     const seven = Array.from({ length: 7 }, () => fig("ratio=3:2")).join("\n\n");
-    const { pd } = lay(page(`${para(62, "a")}\n\n${seven}\n\n${para(80, "b")}`));
+    const { doc, pd } = lay(page(`${para(62, "a")}\n\n${seven}\n\n${para(80, "b")}`));
     const os = objects(pd);
     expect(os).toHaveLength(7);
-    for (const o of os) expect(Math.abs(screenOf(pd, o.box.y) - screenOf(pd, o.anchoredAt!)), o.name).toBeLessThanOrEqual(1);
+    for (const o of os) expect(Math.abs(screenOf(pd, o.box.y) - anchorScreen(doc, pd, o)), o.name).toBeLessThanOrEqual(1);
   });
 
   it("a hero on a wide screen keeps within 85% of the band", () => {
@@ -155,5 +165,31 @@ describe("floating in screen pages", () => {
     expect(objects({ ...pd, scenes: [pd.scenes[0]!] })).toHaveLength(7);
     expect(pd.scenes[0]!.lines.filter((l) => /Stone b\d/.test(l.text))).toEqual([]);
     expect(pd.scenes[1]!.lines.some((l) => /Stone b\d/.test(l.text))).toBe(true);
+  });
+
+  it("a frame not set in bands keeps every object at its text's end", () => {
+    // A frame of fixed height in a scrolling scene: objects still waiting at its last column's end are
+    // set there, even past its foot; none is dropped.
+    const side = fig("side=left, width=50%, place=here");
+    const { pd } = lay(`\\story[name=s]{${para(3, "a")}\n\n${[side, side, side].join("\n\n")}\n\n${para(1, "b")}}\n\\scene[grid=page]{\\frame[story=s, cols=1-12, columns=2, height=300px]}`);
+    expect(objects(pd)).toHaveLength(3);
+  });
+
+  it("a subhead never ends a column beside a floating box", () => {
+    // stress-salt at 2560x1440 (2026-10-17): on the balanced last page of a scene, a wide box over two
+    // columns left the subhead "The first rain" at a column's foot and its paragraph in the next.
+    const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
+    const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-salt.wmx"), "utf8")).ast as Document, { assets });
+    const pd = layout(doc, { width: 2560, height: 1440 }, new PrepareCache(createFixedEngine()));
+    layoutInvariants(doc, pd, { standoff: false });
+    const v = doc.variants[pd.breakpoint]!;
+    for (const s of pd.scenes) {
+      const lines = s.lines.filter((l) => v.frames[l.frame]);
+      for (const [i, l] of lines.entries()) {
+        const n = lines[i + 1];
+        if (n && n.frame === l.frame && v.styles[l.style]?.keepWithNext && n.block !== l.block) expect(n.column, `"${l.text}" ends a column`).toBe(l.column);
+      }
+    }
   });
 });

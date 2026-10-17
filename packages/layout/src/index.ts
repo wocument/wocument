@@ -778,7 +778,7 @@ function fillFrame(
     const ends = (band: Columns): number[] => columns.map((col, c) => Math.max(feet(band)[c]!, ...band.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode !== "contained" && o.box.x < col.x + col.width - EPS && o.box.x + o.box.width > col.x + EPS).map((o) => o.box.y + o.box.height)));
     const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends) : undefined;
     const r = bands(env, contentTop, cursor, (limit, at, from, earlier, deferred) => run(limit, at, from, earlier, deferred), onBand, textAfter, feet, ends, objectsAfter, compose);
-    compose?.finish(r.placed);
+    anchorsAt(env, story, cursor, frame.id, r.placed);
     return { placed: r.placed, cursor: r.cursor, bottom: Math.max(contentTop, ...r.bottoms) + inset };
   }
 
@@ -813,7 +813,9 @@ function balance(env: Env, run: (limit: number) => Columns): Columns {
     const natural = run(Number.POSITIVE_INFINITY);
     // Text that ends exactly at the last column's foot reports the column full, yet takes it all: that
     // fit counts (2026-10-07: two columns stayed 28 and 26 lines where 27 and 27 fit exactly).
-    const same = (r: Columns): boolean => r.cursor.block === lines.cursor.block && (r.stop !== "full" || r.deferred.length === 0) && !r.collides;
+    // §09.7 rule 5: a block kept with the next one never ends a column (a box over two columns can leave
+    // a subhead's paragraph no room beside it).
+    const same = (r: Columns): boolean => r.cursor.block === lines.cursor.block && (r.stop !== "full" || r.deferred.length === 0) && !r.collides && !keptApart(env, r.placed.lines);
     // Whole blocks that do not fit at all (a page's last band is only so tall, and the gaps they leave
     // take room): the columns stay filled in order, so nothing is left out.
     if (!same(natural)) return lines;
@@ -836,6 +838,15 @@ function balance(env: Env, run: (limit: number) => Columns): Columns {
   } finally {
     env.whole = before;
   }
+}
+
+/** A keep-with-next block's last line ends a column while the text after it starts another (§07.6, §09.7 rule 5). */
+function keptApart(env: Env, lines: readonly PositionedLine[]): boolean {
+  const text = lines.filter((l) => env.v.frames[l.frame]);
+  return text.some((l, i) => {
+    const n = text[i + 1];
+    return n !== undefined && n.frame === l.frame && n.block !== l.block && n.column !== l.column && env.v.styles[l.style]?.keepWithNext === true;
+  });
 }
 
 /** Design §4 column-rule: a line mid-gap between two adjacent columns that both hold text, from the band's first line's top to its tallest column's bottom. */
@@ -1049,12 +1060,39 @@ type Composer = {
   screen: (page: number, at: number, limit: number, from: Resume, earlier: readonly Exclusion[], waiting: readonly string[], hanging: readonly Exclusion[]) => string[];
   /** Floating objects still to place: the frame does not end before they are set. */
   left: () => boolean;
-  /** After the last screen: each floating object's `anchoredAt` becomes its anchor's y in the text. */
-  finish: (placed: Placed) => void;
 };
 
 /** The objects that float (design 2026-10-17, "The author's words"). */
 const FLOATING = new Set<ObjectElement["kind"]>(["figure", "video", "lottie", "gallery", "pullquote", "sidebar"]);
+
+/** A banded frame's floating objects in story order: from `start` to a frame break. */
+function floatingIn(env: Env, story: Story, start: Resume): string[] {
+  const ids: string[] = [];
+  for (const b of story.blocks.slice(start.block)) {
+    if (b.kind === "framebreak" && b.scope === "frame") break;
+    if (b.kind !== "object") continue;
+    const o = env.v.objects[b.object]!;
+    if (!o.hidden && o.placement.mode === "anchored" && o.placement.place !== "here" && o.placement.horizontal.mode !== "cols" && FLOATING.has(o.kind)) ids.push(o.id);
+  }
+  return ids;
+}
+
+/**
+ * The `anchoredAt` of each object that may float in a banded frame, whether composition set it or
+ * today's rule did: its anchor's y in the text set, below the last line before it (the window rule
+ * measures from here).
+ */
+function anchorsAt(env: Env, story: Story, start: Resume, frameId: string, placed: Placed): void {
+  const ids = new Set(floatingIn(env, story, start));
+  const lines = placed.lines.filter((l) => l.frame === frameId);
+  for (const o of placed.objects) {
+    if (!ids.has(o.name)) continue;
+    const at = (env.v.objects[o.name]!.placement as AnchoredPlacement).block;
+    const before = lines.filter((l) => l.block < at).at(-1);
+    const after = lines.find((l) => l.block > at);
+    o.anchoredAt = before ? before.y + before.height : after ? after.y : o.anchoredAt;
+  }
+}
 
 /**
  * Picture composition, 2026-10-17 (docs/superpowers/specs/2026-10-17-picture-composition-design.md,
@@ -1079,13 +1117,7 @@ function composer(
 ): Composer | undefined {
   const { v, grid, viewport, sceneY } = env;
   /** The frame's floating objects in story order: from its first block to a frame break. */
-  const ids: string[] = [];
-  for (const b of story.blocks.slice(start.block)) {
-    if (b.kind === "framebreak" && b.scope === "frame") break;
-    if (b.kind !== "object") continue;
-    const o = v.objects[b.object]!;
-    if (!o.hidden && o.placement.mode === "anchored" && o.placement.place !== "here" && o.placement.horizontal.mode !== "cols" && FLOATING.has(o.kind)) ids.push(o.id);
-  }
+  const ids = floatingIn(env, story, start);
   if (ids.length === 0) return undefined;
   const block = (id: string): number => (v.objects[id]!.placement as AnchoredPlacement).block;
   /** Text resuming at `c` has set everything before an object's anchor: only objects lie between. */
@@ -1154,6 +1186,8 @@ function composer(
     // Every box set, and nothing pushed past the foot by them (an object waiting would hang onto the next page).
     const allSet = !t.collides && boxes.every((b) => b.p) && overflow(t, g.foot).every((n) => over.includes(n)) && (lines.length > 0 || boxes.length > 0 || !sameResume(t.cursor, from));
     // An object hanging from the band before (taller than its band) counts too.
+    // A subhead never ends a column (§09.7 rule 5): a box can leave its paragraph no room beside it.
+    if (keptApart(env, lines)) return { allSet: false, overlaps: false, stubs: false, feet: columns.map(() => g.foot), last: t.stop !== "full", alone: false };
     const overlaps = boxes.some(({ c, p }) => p && (objects.some((o) => o.name !== c.id && overlap(p.box, o.box)) || earlier.some((e) => overlap(p.box, e.box)) || lines.some((l) => overlap(p.box, l))));
     // Rule 13 as a hard rule: one or two lines alone between a box and the band's top or foot, or another box, in a column it spans.
     const stubs = columns.some((col) => {
@@ -1203,8 +1237,11 @@ function composer(
       if (t.stop === "full" && [...pending].some((id) => !anchors.has(id))) meet(ahead(t.cursor), page + 1);
       /** Fallen back to today's rule: one whose anchor the text has passed opens this band; any other meets its anchor. */
       const extra: string[] = [];
+      /** Fallen back with its anchor's text already set: it is set on this screen, never sent on. */
+      const due: string[] = [];
       const fall = (id: string): void => {
         pending.delete(id);
+        if (passed(id)) due.push(id);
         if (from.block > block(id)) extra.push(id);
       };
       // Past its window already (one that waited behind three others): today's placement.
@@ -1235,13 +1272,19 @@ function composer(
         const early = combo.filter((c) => "box" in c && !beyond(trial.cursor, c.id));
         const rest = [...pending].filter((id) => !combo.some((c) => c.id === id && "box" in c));
         const reach = early.length && trial.stop === "full" ? ahead(trial.cursor, rest, trial.deferred).cursor : null;
-        const kept = owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id));
+        // Objects fallen back at the end of their window are set on this screen, not sent on.
+        const kept = owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && !due.some((id) => trial.deferred.includes(id));
         return kept ? sum : { ...sum, allSet: false };
       };
       let best = floats.length ? choose(floats, v.spots, g, tryLayout, previous, env.budget) : null;
-      // When the budget runs out, waiting for the next screen comes before today's rule, inside the
-      // window: setting the screen's pictures here by rule 6 can push its last lines, and the anchors
-      // of pictures set before them, a screen further.
+      // When the budget runs out, the later objects wait for the next screen, inside their window, and
+      // the earlier ones are chosen again; at last all wait. Setting them here by rule 6 instead can
+      // push the screen's last lines, and the anchors of pictures set before them, a screen further.
+      for (let k = floats.length - 1; !best && k >= 1 && floats.slice(k).every((f) => f.anchorScreen >= page); k--) {
+        const rest: Candidate[] = floats.slice(k).map((f) => ({ id: f.id, wait: true }));
+        const r = choose(floats.slice(0, k), v.spots, g, (c) => tryLayout([...c, ...rest]), previous, env.budget);
+        if (r) best = { combo: [...r.combo, ...rest], cost: r.cost };
+      }
       const waits: Candidate[] = floats.map((f) => ({ id: f.id, wait: true }));
       if (!best && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits))) best = { combo: waits, cost: 0 };
       if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
@@ -1251,16 +1294,6 @@ function composer(
       // An empty arrangement earns no rhythm penalty on the next screen.
       previous = signature(combo) || null;
       return extra;
-    },
-    finish(placed) {
-      const lines = placed.lines.filter((l) => l.frame === frameId);
-      for (const o of placed.objects) {
-        if (!set.has(o.name)) continue;
-        const at = block(o.name);
-        const before = lines.filter((l) => l.block < at).at(-1);
-        const after = lines.find((l) => l.block > at);
-        o.anchoredAt = before ? before.y + before.height : after ? after.y : o.anchoredAt;
-      }
     },
   };
 }
@@ -1786,8 +1819,9 @@ function fillColumn(
     // it moves on too, even from a column's top.
     // In a band shorter than a full one (the first, under a heading) it waits for a full band rather
     // than hang past this one's foot onto the next page.
-    // Forced (it opens a column), it is still pushed on when another object pushed it past the foot.
-    if ((!force || objTop > anchorTop + EPS) && !pin && r.box.y + r.box.height > limitY + EPS && (!atTop || objTop > anchorTop + EPS || short)) return false;
+    // Forced (it opens a band's column), it is still pushed on when another object pushed it past the
+    // foot: a later column or band takes it. Elsewhere forced means set (nowhere else is left).
+    if ((!force || (defer.banded && objTop > anchorTop + EPS)) && !pin && r.box.y + r.box.height > limitY + EPS && (!atTop || objTop > anchorTop + EPS || short)) return false;
     append(out, r.placed);
     const jump = r.exclusions.find((e) => e.jump);
     if (jump || (r.exclusions.length === 0 && h.mode === "full")) y = r.box.y + r.box.height + (jump?.offset ?? 0);
