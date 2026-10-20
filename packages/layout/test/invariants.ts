@@ -82,7 +82,9 @@ export function layoutInvariants(rd: ResolvedDocument, pd: PositionedDocument, {
   for (const s of pd.scenes)
     for (const o of s.objects.filter((o) => o.exclusion && !o.exclusion.jump))
       for (const l of s.lines.filter((l) => (v.frames[l.frame] || v.objects[l.frame]) && !inside(l, o))) {
-        const ext = bandExtent(standoff ? o.exclusion! : { ...o.exclusion!, offset: 0 }, l.y, l.y + l.height);
+        // Another object's line keeps off the object itself (its outline, or its box), not its standoff.
+        const e = v.frames[l.frame] ? (standoff ? o.exclusion! : { ...o.exclusion!, offset: 0 }) : { ...o.exclusion!, offset: 0, ...(o.exclusion!.shape.kind === "rect" ? { box: o.box } : {}) };
+        const ext = bandExtent(e, l.y, l.y + l.height);
         if (ext) expect(l.x + l.width <= ext[0] + 1e-6 || l.x >= ext[1] - 1e-6, `${o.name} vs "${l.text}"`).toBe(true);
       }
   // No two lines of different text frames overlap in both x and y, within one scene.
@@ -143,6 +145,45 @@ export function windowBreaks(rd: ResolvedDocument, pd: PositionedDocument): stri
       const full = (k: number) => floats.some((e) => e.story === f.story && e.block < f.block && e.at === k);
       const overflow = f.at > f.anchor && Array.from({ length: f.at - f.anchor - 1 }, (_, i) => f.anchor + 1 + i).every(full);
       if (!overflow) out.push(`${f.name} window: screen ${f.at + 1}, anchor on ${f.anchor + 1}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * 2026-10-20: empty room inside the columns of a frame set in column bands, next to a box or beside
+ * one, taller than `limit`: text that stops short of a box under it, or a strip beside a box that
+ * holds no text. A box counts with its standoff. Each as "scene screen n frame:column: height at y".
+ */
+export function columnHoles(rd: ResolvedDocument, pd: PositionedDocument, limit: number): string[] {
+  const v = rd.variants[pd.breakpoint]!;
+  const out: string[] = [];
+  for (const s of pd.scenes.filter((s) => s.paged)) {
+    const screen = (y: number) => Math.floor((y - s.y + 1e-6) / pd.viewport.height);
+    const own = s.objects.filter((o) => v.objects[o.name] && v.objects[o.name]!.placement.mode !== "contained");
+    const lines = s.lines.filter((l) => v.frames[l.frame]);
+    const groups = new Map<string, typeof lines>();
+    for (const l of lines) groups.set(`${l.frame}:${l.column}@${screen(l.y)}`, [...(groups.get(`${l.frame}:${l.column}@${screen(l.y)}`) ?? []), l]);
+    for (const [key, ls] of groups) {
+      // Frames of one column are not set in bands.
+      if (new Set(lines.filter((l) => l.frame === ls[0]!.frame).map((l) => l.column)).size < 2) continue;
+      const k = screen(ls[0]!.y);
+      const [left, right] = [Math.min(...ls.map((l) => l.x)), Math.max(...ls.map((l) => l.x + l.width))];
+      const boxes = own
+        .filter((o) => o.box.x < right - 1 && left < o.box.x + o.box.width - 1 && (screen(o.box.y) === k || screen(o.box.y + o.box.height - 1) === k))
+        .map((o) => {
+          const e = o.exclusion?.box ?? o.box;
+          const off = o.exclusion?.offset ?? 0;
+          return { top: e.y - off, bottom: e.y + e.height + off, box: true, full: e.x - off <= left + 1 && e.x + e.width + off >= right - 1 };
+        });
+      const spans = [...ls.map((l) => ({ top: l.y, bottom: l.y + l.height, box: false })), ...boxes.filter((b) => b.full)].sort((a, b) => a.top - b.top);
+      let { bottom, box } = spans[0]!;
+      for (const sp of spans.slice(1)) {
+        const gap = sp.top - bottom;
+        if (gap > limit + 1e-6 && (box || sp.box || boxes.some((b) => b.top < sp.top - 1 && b.bottom > bottom + 1)))
+          out.push(`${s.name} screen ${k + 1} ${key.split("@")[0]}: ${Math.round(gap)}px at ${Math.round(bottom - s.y - k * pd.viewport.height)}`);
+        if (sp.bottom > bottom) ({ bottom, box } = sp);
+      }
     }
   }
   return out;

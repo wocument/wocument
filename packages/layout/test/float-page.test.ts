@@ -12,7 +12,7 @@ import { parse, type Document } from "@wmxdsl/parser";
 import { type AssetHost, resolve } from "@wmxdsl/resolver";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
 import { layout, type PositionedDocument, type PositionedObject } from "../src/index.js";
-import { layoutInvariants, windowBreaks } from "./invariants.js";
+import { columnHoles, layoutInvariants, windowBreaks } from "./invariants.js";
 
 const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
@@ -325,5 +325,19 @@ describe("floating in screen pages", () => {
       expect(layouts.some((n) => n > 1), `${width}: some trial cut`).toBe(true);
       expect(Math.max(...layouts), `${width}`).toBeLessThanOrEqual(7);
     }
+  });
+
+  // 2026-10-20 (vanilla-spread at 1470x956): the fact box, a portrait box, floated at a column's top
+  // narrowed to the column's right, and the strip left of it was too narrow for body text: the
+  // subhead "After" stood there alone above some ten empty lines. A box in a band leaves room for a
+  // line of body text beside it (min-slot) or takes the column's width; and empty room inside a
+  // column costs (PENALTY.gap). Character widths of 0.45em set the page as the browser's fonts did.
+  it.each([0.45, 0.5])("no empty room inside a column (vanilla-spread at 1470x956, characters %fem)", (em) => {
+    const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
+    const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/vanilla-spread.wmx"), "utf8")).ast as Document, { assets });
+    const pd = layout(doc, { width: 1470, height: 956 }, new PrepareCache(createFixedEngine(em)));
+    layoutInvariants(doc, pd, { standoff: false });
+    expect(columnHoles(doc, pd, pd.scenes[0]!.grid.baseline)).toEqual([]);
   });
 });

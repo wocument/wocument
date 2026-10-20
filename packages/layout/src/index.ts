@@ -430,6 +430,13 @@ type Placement = { placed: Placed; box: Rect; exclusions: Exclusion[] };
  * gives back is shared by the text on both sides; `offset-x` moves it off
  * centre.
  */
+/** The narrowest strip beside a box that body text runs in: the body style's min-slot, else 6em (§09.6). */
+function minStrip(env: Env, ctx: EvalContext): number {
+  const body = env.v.styles["body"];
+  if (!body) return 0;
+  return body.minSlot ? px(body.minSlot, ctx) : 6 * px(body.size, ctx);
+}
+
 function capWidth(o: ObjectElement, at: { x: number; width: number }, ctx: EvalContext): { x: number; width: number } {
   if (o.maxWidth === null) return at;
   const width = Math.min(at.width, px(o.maxWidth, ctx));
@@ -442,6 +449,8 @@ function placeObject(
   at: { x: number; y: number; width: number },
   fixedHeight: number | null,
   anchoredAt: number | null = null,
+  /** In a column band (§09.7): a box narrower than its place leaves text room beside it, or none (rule 15). */
+  banded = false,
 ): Placement {
   const ctx: EvalContext = { viewport: env.viewport, grid: env.grid, pctOf: at.width };
   // §11.1 bleed: the box runs through the margin to the viewport edge.
@@ -484,6 +493,9 @@ function placeObject(
         }
         w = Math.floor(lo); // down: one pixel wider can take a line less
       }
+      // 2026-10-20: in a band, a strip beside it too narrow for a line of body text stays empty; the
+      // box takes the whole width instead.
+      if (banded && width - w - (o.wrap.mode === "none" ? 0 : px(o.wrap.offset, ctx)) < minStrip(env, ctx)) w = width;
       const h = o.placement.mode === "anchored" ? o.placement.horizontal : null;
       if (h?.mode === "side") x += h.side === "right" ? width - w : h.side === "center" ? (width - w) / 2 : 0;
       width = w;
@@ -1252,7 +1264,7 @@ function trials(env: Env, frameId: string, columns: Col[], ends: (band: Columns)
     // An object hanging from the band before (taller than its band) counts too, and so does a wrapping
     // object of the frame's own (a scene's cut-out, by its outline).
     // A subhead never ends a column (§09.7 rule 5): a box can leave its paragraph no room beside it.
-    if (keptApart(env, lines)) return { allSet: false, overlaps: false, stubs: false, feet: columns.map(() => g.foot), last: t.stop !== "full", alone: false };
+    if (keptApart(env, lines)) return { allSet: false, overlaps: false, stubs: false, feet: columns.map(() => g.foot), last: t.stop !== "full", alone: false, gaps: 0 };
     const overlaps = boxes.some(({ c, p }) => p && (objects.some((o) => o.name !== c.id && overlap(p.box, o.box)) || earlier.some((e) => covers(p.box, e)) || lines.some((l) => overlap(p.box, l))));
     // Rule 13 as a hard rule: one or two lines alone between a box and the band's top or foot, or another box, in a column it spans.
     const stubs = columns.some((col) => {
@@ -1269,9 +1281,35 @@ function trials(env: Env, frameId: string, columns: Col[], ends: (band: Columns)
     const screen = combo.some((c) => "box" in c && v.objects[c.id]!.placement.mode === "anchored" && (v.objects[c.id]!.placement as AnchoredPlacement).place === "screen");
     const feet = screen ? columns.map(() => g.foot) : ends(t).map((f) => (Number.isFinite(f) ? f : g.top));
     const alone = lines.length === 0 && combo.some((c) => "box" in c && (v.objects[c.id]!.kind === "pullquote" || v.objects[c.id]!.kind === "sidebar"));
-    return { allSet, overlaps, stubs, feet, last: t.stop !== "full", alone };
+    return { allSet, overlaps, stubs, feet, last: t.stop !== "full", alone, gaps: holes(t, lines, objects, g.baseline) };
   };
   return { overflow, summarise };
+}
+
+/**
+ * 2026-10-20: whole lines of empty room inside the columns, next to a box or beside one, where text
+ * stops short of a box under it, or a strip beside a box stays empty. A box counts with its standoff.
+ */
+function holes(t: Columns, lines: readonly PositionedLine[], objects: readonly PositionedObject[], bl: number): number {
+  let n = 0;
+  for (const c of new Set(lines.map((l) => l.column))) {
+    const own = lines.filter((l) => l.column === c);
+    const [left, right] = [Math.min(...own.map((l) => l.x)), Math.max(...own.map((l) => l.x + l.width))];
+    const boxes = objects.flatMap((o) => {
+      const e = o.exclusion?.box ?? o.box;
+      const off = o.exclusion?.offset ?? 0;
+      return o.box.x < right - EPS && o.box.x + o.box.width > left + EPS ? [{ top: e.y - off, bottom: e.y + e.height + off, full: e.x - off <= left + EPS && e.x + e.width + off >= right - EPS }] : [];
+    });
+    if (boxes.length === 0) continue;
+    const spans = [...own.map((l) => ({ top: l.y, bottom: l.y + l.height, box: false })), ...boxes.filter((b) => b.full).map((b) => ({ ...b, box: true }))].sort((a, b) => a.top - b.top);
+    let { bottom, box } = spans[0]!;
+    for (const s of spans.slice(1)) {
+      const gap = s.top - bottom;
+      if (gap > bl + EPS && (box || s.box || boxes.some((b) => b.top < s.top - EPS && b.bottom > bottom + EPS))) n += Math.floor(gap / bl + EPS);
+      if (s.bottom > bottom) ({ bottom, box } = s);
+    }
+  }
+  return n;
 }
 
 /** Each floating object's box height at a width, and its `Float` for `choose` given where its anchor fell. */
@@ -1282,7 +1320,7 @@ function floatMaker(env: Env, columns: Col[], ids: readonly string[]) {
     const key = `${o.id}|${width}`;
     // On a grid line, as every box is, so a caption snaps as it will where it is set; off the grid's
     // edges, so the outdent there does not count (a box on an edge keeps this height, see fillColumns).
-    if (!heights.has(key)) heights.set(key, placeObject(env, o, { x: columns[0]!.x + 1, y: env.origin ?? sceneY, width }, null).box.height);
+    if (!heights.has(key)) heights.set(key, placeObject(env, o, { x: columns[0]!.x + 1, y: env.origin ?? sceneY, width }, null, null, true).box.height);
     return heights.get(key)!;
   };
   const floatOf = (id: string, a: { screen: number; column: number }): Float => {
@@ -1669,12 +1707,12 @@ function fillColumns(
   for (const [id, f] of env.floated ?? []) {
     if (!f) continue;
     const o = env.v.objects[id]!;
-    let r = placeObject(env, o, f.box, f.fixed ? f.box.height : null);
+    let r = placeObject(env, o, f.box, f.fixed ? f.box.height : null, null, true);
     // On the grid's outer edge a box reaches into the margin (outdent), wider and so taller than it was
     // scored: it keeps its scored height, which is within 85% of the band, cropped to it (with what
     // rule 12 gives it).
     const scored = f.box.height + (f.fixed ? 0 : (env.grow?.get(id) ?? 0));
-    if (r.box.height > scored + EPS) r = placeObject(env, o, f.box, scored);
+    if (r.box.height > scored + EPS) r = placeObject(env, o, f.box, scored, null, true);
     const off = o.wrap.mode === "none" ? 0 : px(o.wrap.offset, { viewport: env.viewport, grid: env.grid, pctOf: r.box.width });
     const whole = o.placement.mode === "anchored" && o.placement.place === "screen";
     // The standoff above stays inside the band: above it is another frame's text, or the screen before.
@@ -2006,7 +2044,10 @@ function fillColumn(
     // Design 2026-09-29 rule 5, banded frames: a cut-out is 150% of its column, reaching into the
     // column read next; in the last column it stays one column wide.
     const cutout = defer.banded && h.mode === "full" && "media" in o && o.media.shape.kind === "polygon";
-    const given = slot ? slot.width : h.mode === "full" ? (cutout && !defer.last ? Math.round(col.width * 1.5) : col.width) : h.mode === "side" ? Math.min(col.width, px(h.width, ctx)) : col.width;
+    let given = slot ? slot.width : h.mode === "full" ? (cutout && !defer.last ? Math.round(col.width * 1.5) : col.width) : h.mode === "side" ? Math.min(col.width, px(h.width, ctx)) : col.width;
+    // Rule 15 (2026-10-20): in a band, an object at its anchor's side leaves a strip a line of body
+    // text fits in, or takes the column's width.
+    if (defer.banded && !slot && h.mode === "side" && col.width - given - (o.wrap.mode === "none" ? 0 : px(o.wrap.offset, ctx)) < minStrip(env, ctx)) given = col.width;
     const at = slot ? slot.x : h.mode !== "side" || h.side === "left" ? col.x : col.x + (col.width - given) * (h.side === "right" ? 1 : 0.5);
     const capped = capWidth(o, { x: at, width: given }, ctx);
     const x = capped.x;
@@ -2018,13 +2059,13 @@ function fillColumn(
     const above = !atTop && o.wrap.mode !== "none" ? px(o.wrap.offset, ctx) : 0;
     let objTop = pin?.y ?? (atTop ? y : snapUp(y + above));
     const fixed = o.placement.height === "auto" ? null : px(o.placement.height, ctx);
-    let r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop);
+    let r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop, defer.banded);
     // Rule 8 (2026-09-30: every picture in the flow, not only cut-outs; a `cols=` picture is the
     // author's to size): in a band, no picture is taller than 85% of a full band; a taller one
     // narrows, keeping its left edge. A few rounds, since its caption does not shrink with it.
     for (let k = 0; defer.banded && "media" in o && !slot && k < 8 && r.box.height > 0.85 * fullBand + 0.5; k++) {
       width = Math.max(col.width / 2, Math.floor((width * 0.85 * fullBand) / r.box.height));
-      r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop);
+      r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop, defer.banded);
     }
     const anchorTop = objTop;
     // Objects do not overlap; one that would lands below the wrapping object it hits.
@@ -2038,7 +2079,7 @@ function fillColumn(
       });
       if (!hit) break;
       objTop = snapUp(hit.box.y + hit.box.height + hit.offset);
-      r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop);
+      r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop, defer.banded);
     }
     // At the top of a column already (nowhere to move it to), it is set there and overflows -- in a
     // band (§09.7 rule 5) that is `W043`; Limit: layout has no diagnostics channel yet, so

@@ -40,10 +40,14 @@ export type Float = {
 export type Candidate = { id: string; size: FloatSize; spot: Spot; first: number; span: number; box: Box } | { id: string; wait: true };
 type Placed = Extract<Candidate, { box: Box }>;
 
-/** What a trial layout gave. `feet[i]`: the y where column i's content (lines or a bottom box) ends. */
-export type TrialSummary = { allSet: boolean; overlaps: boolean; stubs: boolean; feet: number[]; last: boolean; alone: boolean };
+/**
+ * What a trial layout gave. `feet[i]`: the y where column i's content (lines or a bottom box) ends.
+ * `gaps`: whole lines of empty room inside the columns, next to or beside a box.
+ */
+export type TrialSummary = { allSet: boolean; overlaps: boolean; stubs: boolean; feet: number[]; last: boolean; alone: boolean; gaps: number };
 
-export const PENALTY = { column: 1, screen: 6, order: 20, shortLine: 2, crowd: 4, balance: 2, rhythm: 1 };
+/** `gap` (2026-10-20): a line of empty room inside a column costs as a line short at its foot does. */
+export const PENALTY = { column: 1, screen: 6, order: 20, shortLine: 2, crowd: 4, balance: 2, rhythm: 1, gap: 2 };
 
 const SCREEN_SPOT: Spot = { size: "hero", place: "top", span: { kind: "all" }, side: null };
 
@@ -133,6 +137,7 @@ export function penalty(combo: Candidate[], floats: Float[], g: ScreenGeometry, 
     }
   if (!t.last && Number.isFinite(g.foot))
     for (const foot of t.feet) cost += PENALTY.shortLine * Math.max(0, Math.round((g.foot - foot) / g.baseline));
+  cost += PENALTY.gap * t.gaps;
   const placed = combo.filter((c): c is Placed => "box" in c);
   for (const [i, a] of placed.entries())
     for (const b of placed.slice(i + 1)) {

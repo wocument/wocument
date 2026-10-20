@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Spot } from "@wmxdsl/resolved-document";
-import { candidates, choose, hardOk, type Candidate, type Float, type ScreenGeometry, type TrialSummary } from "../src/compose.js";
+import { PENALTY, candidates, choose, hardOk, penalty, type Candidate, type Float, type ScreenGeometry, type TrialSummary } from "../src/compose.js";
 
 const geometry = (count: number, over: Partial<ScreenGeometry> = {}): ScreenGeometry => ({
   index: 1,
@@ -45,7 +45,7 @@ const VANILLA: Spot[] = [
 ];
 
 const boxes = (cs: Candidate[]) => cs.filter((c) => "box" in c);
-const fine = (over: Partial<TrialSummary> = {}): TrialSummary => ({ allSet: true, overlaps: false, stubs: false, feet: [900, 900, 900], last: false, alone: false, ...over });
+const fine = (over: Partial<TrialSummary> = {}): TrialSummary => ({ allSet: true, overlaps: false, stubs: false, feet: [900, 900, 900], last: false, alone: false, gaps: 0, ...over });
 
 describe("candidates", () => {
   it("wide at top spans 2 or 3 columns", () => {
@@ -104,6 +104,14 @@ describe("hard rules", () => {
     const floats = [float({ id: "a", sizes: ["hero"] }), float({ id: "b", order: 1, sizes: ["hero", "column"] })];
     expect(hardOk([heroLeft!, heroRight!], floats, g3, fine())).toBe(false);
     expect(hardOk([heroLeft!, col!], floats, g3, fine())).toBe(true);
+  });
+});
+
+describe("penalties", () => {
+  it("each line of empty room inside a column costs, on the last screen too", () => {
+    // 2026-10-20: text stopping lines short of a box under it, or a strip beside a box left empty.
+    const [c] = boxes(candidates(float(), [spot("column", "top")], g3));
+    for (const last of [false, true]) expect(penalty([c!], [float()], g3, fine({ last, gaps: 3 })) - penalty([c!], [float()], g3, fine({ last }))).toBe(3 * PENALTY.gap);
   });
 });
 
