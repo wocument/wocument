@@ -1543,7 +1543,14 @@ function composer(
         const cut = shortAt?.k ?? 0;
         const as = shortAt?.as ?? combo;
         setAs.set(keyOf(combo), { cut, combo: as });
-        const sum = summarise(trial, as, cut ? { ...g, foot: g.foot - cut } : g, from, over, [...exclusions, ...earlier, ...hanging]);
+        let sum = summarise(trial, as, cut ? { ...g, foot: g.foot - cut } : g, from, over, [...exclusions, ...earlier, ...hanging]);
+        // The text ends here: `bands` balances the page (rule 11's last band), so its empty room is
+        // counted on the balanced setting, where a box at the foot can stand below shorter columns
+        // (2026-10-20).
+        if (trial.stop !== "full") {
+          const even = balance(env, (l) => run(Math.min(l, limit), at, from, earlier, [...waiting, ...extra]));
+          sum = { ...sum, gaps: holes(even, even.placed.lines.filter((l) => l.frame === frameId), even.placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained"), grid.baseline) };
+        }
         // A box set before its text: the text must still reach its anchor on the next screen, even
         // with the objects still to place set there by today's rule.
         const early = combo.filter((c) => "box" in c && !beyond(trial.cursor, c.id));

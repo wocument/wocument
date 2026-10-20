@@ -154,8 +154,9 @@ export function windowBreaks(rd: ResolvedDocument, pd: PositionedDocument): stri
  * 2026-10-20: empty room inside the columns of a frame set in column bands, next to a box or beside
  * one, taller than `limit`: text that stops short of a box under it, or a strip beside a box that
  * holds no text. A box counts with its standoff. Each as "scene screen n frame:column: height at y".
+ * `last: false` leaves out each frame's last screen.
  */
-export function columnHoles(rd: ResolvedDocument, pd: PositionedDocument, limit: number): string[] {
+export function columnHoles(rd: ResolvedDocument, pd: PositionedDocument, limit: number, { last = true } = {}): string[] {
   const v = rd.variants[pd.breakpoint]!;
   const out: string[] = [];
   for (const s of pd.scenes.filter((s) => s.paged)) {
@@ -168,6 +169,7 @@ export function columnHoles(rd: ResolvedDocument, pd: PositionedDocument, limit:
       // Frames of one column are not set in bands.
       if (new Set(lines.filter((l) => l.frame === ls[0]!.frame).map((l) => l.column)).size < 2) continue;
       const k = screen(ls[0]!.y);
+      if (!last && k === Math.max(...lines.filter((l) => l.frame === ls[0]!.frame).map((l) => screen(l.y)))) continue;
       const [left, right] = [Math.min(...ls.map((l) => l.x)), Math.max(...ls.map((l) => l.x + l.width))];
       const boxes = own
         .filter((o) => o.box.x < right - 1 && left < o.box.x + o.box.width - 1 && (screen(o.box.y) === k || screen(o.box.y + o.box.height - 1) === k))

@@ -365,4 +365,34 @@ describe("floating in screen pages", () => {
         expect(lines.length === 0 || lines.length > 3, `${s.name} screen ${k + 1}: ${lines.length} lines alone`).toBe(true);
       }
   });
+
+  // 2026-10-20 (test-spread at 1470x956, the screen with the gallery): the gallery and the pull quote
+  // stood at the foot, and the text above them stopped up to four lines short. Counted by its boxes
+  // every column ended level, so the screen was scored and kept as level. Empty room above a box now
+  // costs (PENALTY.gap), on the band as it is balanced too: on every page but the last, each column
+  // ends level, and its text reaches a box under it, within rule 11's two lines.
+  it.each([0.42, 0.45, 0.47, 0.5])("every page but the last ends level, its text down to the boxes (test-spread at 1470x956, characters %fem)", (em) => {
+    const { doc, pd } = testSpread(em);
+    const v = doc.variants[pd.breakpoint]!;
+    const limit = 2 * pd.scenes[0]!.grid.baseline + 1;
+    expect(columnHoles(doc, pd, limit, { last: false })).toEqual([]);
+    for (const s of pd.scenes.filter((s) => s.paged)) {
+      const screen = (y: number) => Math.floor((y - s.y + 1e-6) / pd.viewport.height);
+      const own = s.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained");
+      for (const frame of new Set(s.lines.filter((l) => v.frames[l.frame]).map((l) => l.frame))) {
+        const lines = s.lines.filter((l) => l.frame === frame);
+        if (new Set(lines.map((l) => l.column)).size < 2) continue;
+        for (let k = 0; k < Math.max(...lines.map((l) => screen(l.y))); k++) {
+          const on = lines.filter((l) => screen(l.y) === k);
+          const feet = [...new Set(on.map((l) => l.column))].map((c) => {
+            const col = on.filter((l) => l.column === c);
+            const [left, right] = [Math.min(...col.map((l) => l.x)), Math.max(...col.map((l) => l.x + l.width))];
+            const boxes = own.filter((o) => screen(o.box.y) === k && o.box.x < right - 1 && left < o.box.x + o.box.width - 1);
+            return Math.max(...col.map((l) => l.y + l.height), ...boxes.map((o) => o.box.y + o.box.height));
+          });
+          expect(Math.max(...feet) - Math.min(...feet), `${s.name} screen ${k + 1}`).toBeLessThanOrEqual(limit);
+        }
+      }
+    }
+  });
 });
