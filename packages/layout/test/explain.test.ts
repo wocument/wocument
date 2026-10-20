@@ -8,7 +8,7 @@ import { parse, type Document } from "@wmxdsl/parser";
 import { type AssetHost, resolve } from "@wmxdsl/resolver";
 import type { ResolvedDocument } from "@wmxdsl/resolved-document";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
-import { COLUMN_END_REASONS, PICTURE_REASONS, type Decision, type PositionedDocument, layout } from "../src/index.js";
+import { COLUMN_END_REASONS, LINE_REASONS, PICTURE_REASONS, SPACE_REASONS, type Decision, type PositionedDocument, layout } from "../src/index.js";
 
 const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
@@ -256,6 +256,123 @@ describe("picture reasons", () => {
         expect(a.spot).toMatch(/^(\w+ \w+ cols \d+-\d+|wait)$/);
       }
     }
+  });
+});
+
+describe("picture reasons, waiting and no spot", () => {
+  const pictures = (pd: PositionedDocument): Decision[] => pd.explain!.scenes.flatMap((s) => s.decisions.filter((d) => d.kind === "picture"));
+  const FIVE = page(`${Array.from({ length: 5 }, (_, i) => `${para(12, `p${i}`)}\n\n${fig("size=column, ratio=4:3")}`).join("\n\n")}\n\n${para(30, "z")}`);
+
+  it("waited: with a small budget the last two pictures go to the screen after their anchors'", () => {
+    const ds = pictures(lay(FIVE, VIEW, { explain: true, composeBudget: 3 }));
+    const waited = ds.filter((d) => d.reason === "waited");
+    expect(waited.map((d) => [d.refs.objects![0], d.screen])).toEqual([["figure-4", 3], ["figure-5", 3]]);
+    for (const d of waited) expect(d.screen).toBe(d.numbers.windowTo);
+  });
+
+  it("fallback-no-spot: a scrolling frame's picture anchored more than a screen down", () => {
+    const pd = lay(`\\story[name=s]{${para(150, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(20, "b")}}\n\\scene{\\frame[story=s, cols=1-12, columns=3]}`);
+    const ds = pictures(pd);
+    expect(ds.map((d) => d.reason)).toEqual(["fallback-no-spot"]);
+    expect(ds[0]!.screen).toBeNull();
+    expect(ds[0]!.rule).toBe("§09.7 rule 6");
+  });
+});
+
+describe("space reasons", () => {
+  const spaces = (pd: PositionedDocument, reason: string): Decision[] => pd.explain!.scenes.flatMap((s) => s.decisions.filter((d) => d.kind === "space" && d.reason === reason));
+
+  it("lists every space and line code", () => {
+    expect(SPACE_REASONS).toEqual(["slot-too-narrow", "cropped", "grown", "early-end"]);
+    expect(LINE_REASONS).toEqual(["ragged", "hung", "hyphenated", "loose", "tight"]);
+  });
+
+  it("slot-too-narrow: the strip beside a side=right picture stays empty", () => {
+    const pd = lay(`\\story[name=s]{${para(4, "a")}\n\n${fig("side=right, width=450px, ratio=4:3")}\n\n${para(30, "b")}}\n\\scene{\\frame[story=s, cols=1-6]}`);
+    const ds = spaces(pd, "slot-too-narrow");
+    // Merged: one strip down the picture's side, not one a line.
+    expect(ds).toHaveLength(1);
+    const d = ds[0]!;
+    const o = pd.scenes[0]!.objects[0]!;
+    expect(d.numbers.width).toBeLessThan(d.numbers.min!);
+    expect(d.numbers.width).toBeGreaterThan(0);
+    expect(d.at.x + d.at.width).toBeLessThanOrEqual(o.box.x + 1e-6);
+    expect(d.at.height).toBeGreaterThan(28);
+    expect(d).toMatchObject({ screen: null, column: 0, rule: "§09.6 step 3", refs: { objects: [o.name] } });
+  });
+
+  it("grown: rule 12 makes a photograph a line taller so the page ends full", () => {
+    const pd = lay(page(`${para(7, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(8, "b")}\n\n${para(30, "c")}`), VIEW, { explain: true, composeBudget: 0 });
+    const ds = [...spaces(pd, "grown"), ...spaces(pd, "cropped")];
+    expect(ds).toHaveLength(1);
+    const o = pd.scenes[0]!.objects[0]!;
+    expect(ds[0]).toMatchObject({ reason: "grown", numbers: { px: 28 }, at: o.media, rule: "§09.7 rule 12", refs: { objects: [o.name] }, screen: 1 });
+  });
+
+  it("early-end: a screen whose columns all end short of the bottom line", () => {
+    const br = "\n\n\\framebreak[column]\n\n";
+    const pd = lay(page([para(6, "a"), para(6, "b"), para(6, "c"), para(60, "d")].join(br)));
+    const ds = spaces(pd, "early-end");
+    expect(ds).toHaveLength(1);
+    expect(ds[0]).toMatchObject({ screen: 1, rule: "§09.7 rule 12" });
+    expect(ds[0]!.numbers.lines).toBeGreaterThanOrEqual(1);
+    // From where the lowest column ends down to the bottom line.
+    const low = Math.max(...pd.scenes[0]!.lines.filter((l) => l.y < 800).map((l) => l.y + l.height));
+    expect(ds[0]!.at.y).toBeCloseTo(low);
+    expect(ds[0]!.at.height).toBeCloseTo(ds[0]!.numbers.lines! * 28);
+  });
+});
+
+describe("line reasons", () => {
+  const notes = (pd: PositionedDocument, reason: string): Decision[] => pd.explain!.scenes.flatMap((s) => s.decisions.filter((d) => d.kind === "line" && d.reason === reason));
+  const lineAt = (pd: PositionedDocument, d: Decision) => pd.scenes.flatMap((s) => s.lines).find((l) => l.x === d.at.x && l.y === d.at.y && l.frame === d.frame)!;
+  const JUSTIFIED = `\\style[name=body, align=justify]\n${page(LONG)}`;
+
+  it("ragged: a justified paragraph's last line (code 1)", () => {
+    const pd = lay(JUSTIFIED);
+    const ds = notes(pd, "ragged");
+    expect(ds).toHaveLength(1);
+    const last = pd.scenes[0]!.lines.at(-1)!;
+    expect(ds[0]).toMatchObject({ numbers: { reasonCode: 1 }, at: { x: last.x, y: last.y, width: last.width, height: last.height }, refs: { blocks: [last.block] }, rule: "§07.6 justify" });
+  });
+
+  it("ragged: a line narrower than justify-min (code 2)", () => {
+    const pd = lay(`\\style[name=body, align=justify, justify-min=2000px]\n${page(LONG)}`);
+    const ds = notes(pd, "ragged");
+    expect(ds).toHaveLength(pd.scenes[0]!.lines.length);
+    expect(ds.filter((d) => d.numbers.reasonCode === 2)).toHaveLength(ds.length - 1);
+    expect(notes(pd, "loose")).toEqual([]);
+  });
+
+  it("hung: a quotation mark opening a line hangs outside the column", () => {
+    const pd = lay(`\\style[name=body, hang=punctuation, indent=0]\n${page(`“${para(3, "a")}”`)}`);
+    const ds = notes(pd, "hung");
+    expect(ds.length).toBeGreaterThanOrEqual(1);
+    const l = lineAt(pd, ds[0]!);
+    expect(ds[0]!.numbers).toEqual(l.hang);
+    expect(ds[0]!.numbers.left).toBeGreaterThan(0);
+    expect(ds[0]!.rule).toBe("§07.6 hang");
+  });
+
+  it("hyphenated: a line that breaks at a soft hyphen", () => {
+    const pd = lay(HYPHEN);
+    const ds = notes(pd, "hyphenated");
+    expect(ds.length).toBeGreaterThan(0);
+    for (const d of ds) expect(lineAt(pd, d).text.endsWith("\u00ad")).toBe(true);
+  });
+
+  it("loose: a justified line whose spaces open past 1.5 of a space", () => {
+    const pd = lay(JUSTIFIED);
+    const ds = notes(pd, "loose");
+    expect(ds.length).toBeGreaterThan(0);
+    for (const d of ds) {
+      expect(d.numbers.ratio).toBeGreaterThan(1.5);
+      expect(d.rule).toBe("§07.6 justify");
+    }
+    // Not every line is loose; one decision a line a code.
+    const keys = ds.map((d) => `${d.at.x}|${d.at.y}`);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(ds.length).toBeLessThan(pd.scenes[0]!.lines.length);
   });
 });
 

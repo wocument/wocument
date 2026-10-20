@@ -47,6 +47,8 @@ import type {
   ColumnEndReason,
   Decision,
   PictureReason,
+  SpaceReason,
+  LineReason,
   Explanation,
   Rect,
   ScreenReport,
@@ -73,8 +75,9 @@ const AUTO_MEASURE_EM = 32;
 type Resume = { block: number; piece: number; at: TextCursor; offset: number };
 const START: Resume = { block: 0, piece: 0, at: CURSOR_START, offset: 0 };
 
-/** What one fill produced. */
-type Placed = { lines: PositionedLine[]; caps: PositionedCap[]; rules: PositionedRule[]; objects: PositionedObject[]; columnRules: PositionedColumnRule[]; continues: PositionedContinue[] };
+/** What one fill produced. `narrow` (the visor, only with `explain`): strips under min-slot left empty beside an object. */
+type Placed = { lines: PositionedLine[]; caps: PositionedCap[]; rules: PositionedRule[]; objects: PositionedObject[]; columnRules: PositionedColumnRule[]; continues: PositionedContinue[]; narrow?: Narrow[] };
+type Narrow = Rect & { min: number; frame: string; column: number; object?: string };
 const empty = (): Placed => ({ lines: [], caps: [], rules: [], objects: [], columnRules: [], continues: [] });
 const append = (a: Placed, b: Placed): void => {
   a.lines.push(...b.lines);
@@ -83,8 +86,9 @@ const append = (a: Placed, b: Placed): void => {
   a.objects.push(...b.objects);
   a.columnRules.push(...b.columnRules);
   a.continues.push(...b.continues);
+  if (b.narrow?.length) (a.narrow ??= []).push(...b.narrow);
 };
-const mark = (p: Placed) => ({ lines: p.lines.length, caps: p.caps.length, rules: p.rules.length, objects: p.objects.length, columnRules: p.columnRules.length, continues: p.continues.length });
+const mark = (p: Placed) => ({ lines: p.lines.length, caps: p.caps.length, rules: p.rules.length, objects: p.objects.length, columnRules: p.columnRules.length, continues: p.continues.length, narrow: p.narrow?.length ?? 0 });
 function rollback(out: Placed, to: ReturnType<typeof mark>): void {
   out.lines.length = to.lines;
   out.caps.length = to.caps;
@@ -92,6 +96,7 @@ function rollback(out: Placed, to: ReturnType<typeof mark>): void {
   out.objects.length = to.objects;
   out.columnRules.length = to.columnRules;
   out.continues.length = to.continues;
+  if (out.narrow) out.narrow.length = to.narrow;
 }
 
 /** Everything a fill needs that does not change within one scene. */
@@ -149,6 +154,7 @@ export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareC
   const cursors = new Map<string, Resume>();
   const scenes: PositionedScene[] = [];
   const explained: Explanation["scenes"] = [];
+  const kept: { env: Env; scene: PositionedScene }[] = [];
   let y = 0;
   for (const scene of v.scenes) {
     const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut, reports: [], ...(opts.explain ? { explain: [], picks: new Map() } : {}) });
@@ -162,10 +168,11 @@ export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareC
       for (const [k, c] of before) cursors.set(k, c);
       s = layoutScene((e = env(true)), scene, cursors);
     }
-    if (e.explain) explained.push({ scene: scene.id, decisions: e.explain });
+    if (e.explain) (explained.push({ scene: scene.id, decisions: e.explain }), kept.push({ env: e, scene: s }));
     scenes.push(s);
     y += s.height;
   }
+  if (opts.explain) noteLines(v, cache, viewport, kept);
   return { viewport, breakpoint, scenes, height: y, ...(opts.explain ? { explain: { version: 1 as const, scenes: explained } } : {}) };
 }
 
@@ -950,10 +957,7 @@ const PICTURE_RULE: Record<PictureReason, string> = {
  */
 function noteEnds(env: Env, set: Columns, over: Over): void {
   if (!env.explain) return;
-  const vh = env.viewport.height;
-  // In screen pages, the screen a box is on, counted from the document's top (as `ScreenReport`).
-  const screenOf = (y: number): number | null => (env.pageGrids ? Math.floor((env.sceneY + Math.floor((y - env.sceneY + EPS) / vh) * vh + EPS) / vh) + 1 : null);
-  const box = (r: Rect): Rect => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+  const screenOf = (y: number): number | null => screenAt(env, y);
   const objects = set.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode === "anchored");
   const inColumn = (o: PositionedObject, w: Columns["why"][number]): boolean => o.box.x < w.x + w.width - EPS && o.box.x + o.box.width > w.x + EPS;
   set.why.forEach((w, column) => {
@@ -994,6 +998,77 @@ function noteEnds(env: Env, set: Columns, over: Over): void {
       ...(pick.alternatives ? { alternatives: pick.alternatives } : {}),
     });
   }
+  // Space: strips under min-slot, one a run of bands down an object's side (a line apart at most).
+  const strips: Narrow[] = [];
+  for (const n of [...(set.placed.narrow ?? [])].sort((a, b) => a.frame.localeCompare(b.frame) || a.column - b.column || a.x - b.x || a.y - b.y)) {
+    const prev = strips.at(-1);
+    const joins = prev && prev.frame === n.frame && prev.column === n.column && prev.object === n.object && Math.abs(prev.x - n.x) < 1 && n.y <= prev.y + prev.height + n.height + EPS;
+    if (joins) (prev.height = Math.max(prev.height, n.y + n.height - prev.y)), (prev.width = Math.max(prev.width, n.width));
+    else strips.push({ ...n });
+  }
+  for (const n of strips)
+    space(env, "slot-too-narrow", { x: n.x, y: n.y, width: n.width, height: n.height }, n.frame, n.column, { width: n.width, min: n.min }, n.object);
+  // Rule 12: a photograph this setting holds that is taller (or shorter, cropped) so its page ends full.
+  for (const o of set.placed.objects) {
+    const k = env.grow?.get(o.name) ?? 0;
+    if (k !== 0 && o.media) space(env, k > 0 ? "grown" : "cropped", box(o.media), set.why[0]?.frame ?? null, null, { px: Math.abs(k) }, o.name);
+  }
+}
+
+/**
+ * The visor: line decisions, read from each kept line and its style once every scene is set (a
+ * paragraph's last line can be in a later scene). Justified lines follow the renderer's rules: the
+ * paragraph's last line and one under justify-min are ragged, and the rest open or close their spaces
+ * by `justifySpacing`, loose past 1.5 of a normal space and tight under 0.8.
+ */
+function noteLines(v: Variant, cache: PrepareCache, viewport: Viewport, kept: readonly { env: Env; scene: PositionedScene }[]): void {
+  const key = (l: PositionedLine): string => `${l.story}\u0000${l.block}`;
+  const last = new Map<string, PositionedLine>();
+  for (const { scene } of kept) for (const l of scene.lines) last.set(key(l), l);
+  const spaces = new Map<string, number>();
+  for (const { env, scene } of kept)
+    for (const l of scene.lines) {
+      const style = v.styles[l.style];
+      if (!style) continue;
+      const ctx: EvalContext = { viewport, grid: scene.grid, pctOf: l.width };
+      const note = (reason: LineReason, numbers: Record<string, number>, rule: string): number =>
+        env.explain!.push({ kind: "line", reason, screen: screenAt(env, l.y), frame: l.frame, column: l.column, at: box(l), numbers, refs: { blocks: [l.block] }, rule });
+      if (style.align === "justify") {
+        const end = last.get(key(l)) === l;
+        if (end || (style.justifyMin && l.width < px(style.justifyMin, ctx) - 0.5)) note("ragged", { reasonCode: end ? 1 : 2 }, end ? "§07.6 justify" : "§07.6 justify-min");
+        else {
+          const f = engineFont(style, ctx);
+          const font = l.size ? { ...f, size: l.size } : f;
+          const extra = justifySpacing(l.hang ? { ...l, width: l.width + l.hang.left + l.hang.right } : l, font.size);
+          const k = `${l.style}|${font.size}`;
+          if (!spaces.has(k)) {
+            const w = (t: string): number => cache.engine.nextLine(cache.get([{ text: t, font }], font), CURSOR_START, 1e9)?.width ?? 0;
+            spaces.set(k, w("x x") - w("xx"));
+          }
+          const normal = spaces.get(k)!;
+          const ratio = normal > 0 ? Math.round(((normal + extra) / normal) * 100) / 100 : 1;
+          if (ratio > 1.5) note("loose", { ratio }, "§07.6 justify");
+          else if (ratio < 0.8) note("tight", { ratio }, "§07.6 justify");
+        }
+      }
+      if (l.hang) note("hung", { left: l.hang.left, right: l.hang.right }, "§07.6 hang");
+      if (l.text.endsWith(SHY_CHAR)) note("hyphenated", {}, "§07.6 hyphenate");
+    }
+}
+
+const box = (r: Rect): Rect => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+
+/** In screen pages, the screen `y` is on, counted from the document's top (as `ScreenReport`); null when the scene scrolls. */
+function screenAt(env: Env, y: number): number | null {
+  const vh = env.viewport.height;
+  return env.pageGrids ? Math.floor((env.sceneY + Math.floor((y - env.sceneY + EPS) / vh) * vh + EPS) / vh) + 1 : null;
+}
+
+const SPACE_RULE: Record<SpaceReason, string> = { "slot-too-narrow": "§09.6 step 3", cropped: "§09.7 rule 12", grown: "§09.7 rule 12", "early-end": "§09.7 rule 12" };
+
+/** The visor: one space decision. */
+function space(env: Env, reason: SpaceReason, at: Rect, frame: string | null, column: number | null, numbers: Record<string, number>, object?: string): void {
+  env.explain!.push({ kind: "space", reason, screen: screenAt(env, at.y), frame, column, at, numbers, refs: object ? { objects: [object] } : {}, rule: SPACE_RULE[reason] });
 }
 
 /** The visor: each object of a chosen combination gets its score, its window and its spot in the runners-up. */
@@ -1322,6 +1397,12 @@ function screenReports(env: Env, frameId: string, story: Story, start: Resume, c
       return [Math.max(last.y + last.height, ...boxes.map((o) => o.box.y + o.box.height))];
     });
     const short = p !== pages.at(-1) && ends.length ? Math.max(0, Math.round((foot - Math.max(...ends)) / grid.baseline)) : 0;
+    // The visor: the screen ends a line or more short, from its lowest column end to the bottom line.
+    if (env.explain && short >= 1) {
+      const low = Math.max(...ends);
+      const right = columns.at(-1)!;
+      space(env, "early-end", { x: columns[0]!.x, y: low, width: right.x + right.width - columns[0]!.x, height: foot - low }, frameId, null, { lines: short });
+    }
     const para = [...on].reverse().map((l) => story.blocks[l.block]).find((b) => b?.kind === "paragraph");
     const words = para?.kind === "paragraph" ? para.runs.map((r) => (r.kind === "text" ? rd.strings[r.s]! : " ")).join("").replace(SHY, "").split(/\s+/).filter(Boolean).slice(0, 5).join(" ") : "";
     const photo = here.find((o) => {
@@ -2046,7 +2127,7 @@ function fillColumns(
  * (step 3, W042); then `wrap-side` picks which slots take text. A `jump`
  * exclusion leaves the band empty.
  */
-function slotsFor(col: Col, exclusions: readonly Exclusion[], top: number, bottom: number, minSlot: number, strict = false): Col[] {
+function slotsFor(col: Col, exclusions: readonly Exclusion[], top: number, bottom: number, minSlot: number, strict = false, dropped?: Col[]): Col[] {
   let free: { lo: number; hi: number }[] = [{ lo: col.x, hi: col.x + col.width }];
   let side: Exclusion["side"] = "both";
   for (const e of exclusions) {
@@ -2074,6 +2155,8 @@ function slotsFor(col: Col, exclusions: readonly Exclusion[], top: number, botto
   const widest = [...free].sort((a, b) => b.hi - b.lo - (a.hi - a.lo))[0];
   // `strict` (banded frames, rule 4): never a gap under minSlot, not even the widest.
   const usable = wide.length > 0 || strict ? wide : widest ? [widest] : [];
+  // The visor: the strips under minSlot that stay empty.
+  if (dropped) for (const f of free) if (!usable.includes(f) && f.hi - f.lo < minSlot) dropped.push({ x: f.lo, width: f.hi - f.lo });
   const chosen = side === "largest" ? usable.sort((a, b) => b.hi - b.lo - (a.hi - a.lo)).slice(0, 1) : usable;
   return chosen.sort((a, b) => a.lo - b.lo).map((f) => ({ x: f.lo, width: f.hi - f.lo }));
 }
@@ -2288,6 +2371,7 @@ function fillColumn(
   };
   const exclusions = [...inherited];
   const out = empty();
+  if (env.explain) out.narrow = [];
   let cursor = start;
   let y = top;
   let atTop = true;
@@ -2636,7 +2720,16 @@ function fillColumn(
       // column itself is wide enough: skipping then ends below the object (2026-09-30: slivers beside
       // pictures on phones). Only a column narrower than minSlot keeps its widest gap, or it would
       // never set a line.
-      const slots = slotsFor(col, exclusions, lineY, lineY + leading, minSlot, defer.banded || col.width >= minSlot);
+      const dropped: Col[] | undefined = out.narrow ? [] : undefined;
+      const slots = slotsFor(col, exclusions, lineY, lineY + leading, minSlot, defer.banded || col.width >= minSlot, dropped);
+      for (const d of dropped ?? []) {
+        // The object whose side the strip is on: its extent on this band meets the strip.
+        const by = exclusions.find((e) => {
+          const x = bandExtent(e, lineY, lineY + leading);
+          return x !== null && (Math.abs(x[0] - (d.x + d.width)) < 0.5 || Math.abs(x[1] - d.x) < 0.5);
+        });
+        out.narrow!.push({ x: d.x, y: lineY, width: d.width, height: leading, min: minSlot, frame: frameId, column, ...(by ? { object: by.id } : {}) });
+      }
       // A column with no width (a viewport narrower than its margins) has no slot on any band;
       // in a flow frame the bands never run out, so the column ends here as if full.
       if (!(col.width > EPS)) return { placed: out, cursor: { block: b, piece, at, offset }, bottom: n === 0 ? blockMark.y : y, stop: "full", why: "bottom-line" };

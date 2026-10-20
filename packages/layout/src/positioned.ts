@@ -22,7 +22,7 @@ export type Explanation = { version: 1; scenes: { scene: string; decisions: Deci
 
 export type Decision = {
   kind: "column-end" | "picture" | "space" | "line";
-  /** A fixed code: for `column-end`, one of `COLUMN_END_REASONS`; for `picture`, one of `PICTURE_REASONS`. */
+  /** A fixed code: one of `COLUMN_END_REASONS`, `PICTURE_REASONS`, `SPACE_REASONS` or `LINE_REASONS`, by `kind`. */
   reason: string;
   /** 1-based across the document; null in scrolling scenes. */
   screen: number | null;
@@ -45,6 +45,14 @@ export type ColumnEndReason = (typeof COLUMN_END_REASONS)[number];
 /** Why a floating object took its spot (`kind: "picture"`); `here`: it does not float. */
 export const PICTURE_REASONS = ["chosen", "fallback-budget", "fallback-no-spot", "waited", "here"] as const;
 export type PictureReason = (typeof PICTURE_REASONS)[number];
+
+/** Why space was left or changed (`kind: "space"`): a strip under min-slot left empty, a photograph rule 12 trimmed or extended, a screen ending short. */
+export const SPACE_REASONS = ["slot-too-narrow", "cropped", "grown", "early-end"] as const;
+export type SpaceReason = (typeof SPACE_REASONS)[number];
+
+/** What is notable about a line (`kind: "line"`). `short-word-kept` (bind-short) is deferred: the line breaker does not report it. */
+export const LINE_REASONS = ["ragged", "hung", "hyphenated", "loose", "tight"] as const;
+export type LineReason = (typeof LINE_REASONS)[number];
 
 export type PositionedScene = {
   /** Scene id in the Resolved Document. */
