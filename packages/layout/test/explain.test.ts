@@ -1,0 +1,205 @@
+/** The visor's reasons log (design 2026-10-21): why each column ends. */
+
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { createAssetHost } from "@wmxdsl/assets";
+import { parse, type Document } from "@wmxdsl/parser";
+import { type AssetHost, resolve } from "@wmxdsl/resolver";
+import type { ResolvedDocument } from "@wmxdsl/resolved-document";
+import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { COLUMN_END_REASONS, type Decision, type PositionedDocument, layout } from "../src/index.js";
+
+const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
+const VIEW = { width: 1280, height: 800 };
+const fake: AssetHost = {
+  image: (path) => ({ url: path, type: "image/jpeg", width: 800, height: 600, animated: false }),
+  contour: () => null,
+  file: (path) => ({ url: path, type: "video/mp4" }),
+};
+const LONG = "Stone endures where nearly everything else decays. ".repeat(100).trim();
+/** `n` sentences, numbered so that every paragraph's words differ. */
+const para = (n: number, tag: string): string => Array.from({ length: n }, (_, i) => `Stone ${tag}${i} endures where nearly everything else decays.`).join(" ");
+const fig = (attrs: string): string => `\\figure[src=/a.jpg, alt="A picture", ${attrs}]`;
+const page = (story: string): string => `\\story[name=s]{${story}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12, columns=3]}`;
+
+const doc = (src: string): ResolvedDocument => resolve(parse(FM + GRID + src).ast as Document, { assets: fake }).doc;
+function lay(src: string, viewport = VIEW, opts: { explain?: boolean; composeBudget?: number } = { explain: true }): PositionedDocument {
+  return layout(doc(src), viewport, new PrepareCache(createFixedEngine()), opts);
+}
+const ends = (pd: PositionedDocument): Decision[] => pd.explain!.scenes.flatMap((s) => s.decisions.filter((d) => d.kind === "column-end"));
+const reasons = (pd: PositionedDocument): string[] => ends(pd).map((d) => d.reason);
+const one = (pd: PositionedDocument, reason: string): Decision => {
+  const d = ends(pd).find((x) => x.reason === reason);
+  expect(d, `no ${reason} in ${reasons(pd).join(", ")}`).toBeDefined();
+  return d!;
+};
+/** Every (screen, frame, column) of a scene's frame text that holds lines. */
+function columnsWithLines(rd: ResolvedDocument, pd: PositionedDocument): string[] {
+  const v = rd.variants[pd.breakpoint]!;
+  return pd.scenes.flatMap((s) => [
+    ...new Set(s.lines.filter((l) => v.frames[l.frame]).map((l) => `${s.paged ? Math.floor((l.y + 1e-6) / pd.viewport.height) + 1 : null}|${l.frame}|${l.column}`)),
+  ]);
+}
+const keyOf = (d: Decision): string => `${d.screen}|${d.frame}|${d.column}`;
+
+const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
+const SPREAD = here("playground/docs/test-spread.wmx");
+
+describe("the reasons log", () => {
+  it("lists every column-end code", () => {
+    expect(COLUMN_END_REASONS).toEqual(["bottom-line", "levelled", "rule-3-cut", "keep-with-next", "orphans", "widows", "hyphen-avoided", "frame-break", "column-break", "story-end", "balanced-last-page", "stub-folded", "picture-at-foot"]);
+  });
+
+  const hand = [
+    page(LONG),
+    page(`${para(40, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(30, "b")}\n\n\\subhead{More}\n\n${para(20, "c")}`),
+    `\\story[name=s]{${LONG}}\n\\scene{\\frame[story=s, cols=1-12, columns=2]}`,
+  ];
+  it.each(hand.map((src, i) => [i, src]))("off by default and identical when on (document %i)", (_, src) => {
+    const rd = doc(src as string);
+    const off = layout(rd, VIEW, new PrepareCache(createFixedEngine()));
+    const on = layout(rd, VIEW, new PrepareCache(createFixedEngine()), { explain: true });
+    expect(off.explain).toBeUndefined();
+    expect(on.explain?.version).toBe(1);
+    delete on.explain;
+    expect(on).toEqual(off);
+  });
+
+  it.skipIf(!existsSync(SPREAD))("off by default and identical when on (test-spread)", () => {
+    const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
+    const rd = resolve(parse(readFileSync(SPREAD, "utf8")).ast as Document, { assets }).doc;
+    const view = { width: 1470, height: 956 };
+    const off = layout(rd, view, new PrepareCache(createFixedEngine(0.46)));
+    const on = layout(rd, view, new PrepareCache(createFixedEngine(0.46)), { explain: true });
+    expect(off.explain).toBeUndefined();
+    const keys = ends(on).map(keyOf);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect([...keys].sort()).toEqual(columnsWithLines(rd, on).sort());
+    delete on.explain;
+    expect(on).toEqual(off);
+  });
+
+  it("one column-end per column per screen", () => {
+    const src = page(LONG + " " + LONG.slice(0, 2000));
+    const rd = doc(src);
+    const pd = layout(rd, VIEW, new PrepareCache(createFixedEngine()), { explain: true });
+    expect(pd.scenes[0]!.height / 800).toBeGreaterThanOrEqual(3);
+    const keys = ends(pd).map(keyOf);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect([...keys].sort()).toEqual(columnsWithLines(rd, pd).sort());
+    for (const d of ends(pd)) expect(COLUMN_END_REASONS).toContain(d.reason);
+  });
+});
+
+describe("column-end reasons", () => {
+  it("bottom-line: a full column", () => {
+    const d = one(lay(page(LONG)), "bottom-line");
+    expect(d).toMatchObject({ kind: "column-end", screen: 1, frame: expect.any(String), column: 0, rule: expect.stringContaining("§09.7") });
+  });
+
+  it("story-end: where the text ends", () => {
+    const pd = lay(page(LONG));
+    const d = ends(pd).at(-1)!;
+    expect(d.reason).toBe("story-end");
+    expect(d.numbers).toEqual({});
+  });
+
+  it("levelled: set lines short so the columns end on one line", () => {
+    const words = LONG.split(" ");
+    const blocks = Array.from({ length: 40 }, (_, i) => (i % 5 === 4 ? `\\subhead{Part ${i}}` : words.slice(0, 20 + ((i * 37) % 60)).join(" ")));
+    const src = `\\style[name=body, space-after=0, indent=1em]\n\\style[name=subhead, leading=1bl, space-before=1bl, space-after=0]\n${page(blocks.join("\n\n"))}`;
+    const d = one(lay(src), "levelled");
+    expect(d.numbers.lines).toBeGreaterThanOrEqual(1);
+    expect(d.rule).toBe("§09.7 rule 11");
+  });
+
+  it("keep-with-next: a subhead at a column's foot moves on with its paragraph", () => {
+    const d = one(lay(KEEP), "keep-with-next");
+    expect(d.rule).toBe("§07.6 keep-with-next");
+  });
+
+  it("orphans: a paragraph's first lines move on whole", () => {
+    const d = one(lay(ORPHANS), "orphans");
+    expect(d.numbers.lines).toBeGreaterThanOrEqual(1);
+  });
+
+  it("widows: lines move over with a paragraph's last ones", () => {
+    const d = one(lay(WIDOWS), "widows");
+    expect(d.numbers.lines).toBeGreaterThanOrEqual(1);
+  });
+
+  it("hyphen-avoided: the last column's last line carries its word over whole", () => {
+    one(lay(HYPHEN), "hyphen-avoided");
+  });
+
+  it("frame-break and column-break: an author's break", () => {
+    const frame = lay(`\\story[name=s]{${para(4, "a")}\n\n\\framebreak\n\n${para(4, "b")}}\n\\scene{\\frame[story=s, cols=1-6]}\n\\scene{\\frame[story=s, cols=1-6]}`);
+    expect(one(frame, "frame-break")).toMatchObject({ screen: null, column: 0 });
+    const column = lay(page(`${para(6, "a")}\n\n\\framebreak[column]\n\n${para(60, "b")}`));
+    expect(one(column, "column-break")).toMatchObject({ screen: 1, column: 0 });
+  });
+
+  it("balanced-last-page: whole paragraphs at the smallest height", () => {
+    const pd = lay(page(Array.from({ length: 14 }, (_, i) => para(6, `p${i}`)).join("\n\n")));
+    const d = one(pd, "balanced-last-page");
+    expect(d.numbers.height).toBeGreaterThan(0);
+    expect(d.rule).toBe("§09.4");
+  });
+
+  it("stub-folded: a short last page folds back into the one before", () => {
+    one(lay(STUB), "stub-folded");
+  });
+
+  it("picture-at-foot: a picture leaving a line or two under it ends the column", () => {
+    const d = one(lay(FOOT, VIEW, { explain: true, composeBudget: 0 }), "picture-at-foot");
+    expect(d).toMatchObject({ column: 0, rule: "§09.7 rule 13", refs: { objects: [expect.stringMatching(/^figure/)] } });
+  });
+
+  it("rule-3-cut: a page with a waiting picture and little text left is set shorter", () => {
+    const d = one(lay(RULE3, VIEW, { explain: true, composeBudget: 0 }), "rule-3-cut");
+    expect(d.numbers.lines).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("only kept settings record", () => {
+  it("trials do not record", () => {
+    const figs = Array.from({ length: 5 }, (_, i) => `${para(12, `t${i}`)}\n\n${fig(`size=column, ratio=4:3`)}`).join("\n\n");
+    const src = page(`${figs}\n\n${para(30, "z")}`);
+    const rd = doc(src);
+    const pd = layout(rd, VIEW, new PrepareCache(createFixedEngine()), { explain: true });
+    expect(ends(pd).length).toBe(columnsWithLines(rd, pd).length);
+  });
+
+  it("rollbacks leave no decisions", () => {
+    const pd = lay(`\\story[name=s]{${LONG}}\n\\scene[height=page, grid=page]{\\group[layout=row, valign=center, cols=1-12]{\\frame[story=s, columns=3]}}`);
+    const keys = ends(pd).map(keyOf);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("scrolling scenes", () => {
+    const two = lay(`\\story[name=s]{${[para(8, "a"), para(8, "b"), para(8, "c")].join("\n\n")}}\n\\scene{\\frame[story=s, cols=1-12, columns=2]}`);
+    expect(ends(two).length).toBe(2);
+    for (const d of ends(two)) expect(d.screen).toBeNull();
+    const phone = lay(`\\story[name=s]{${LONG}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12]}`, { width: 390, height: 800 });
+    expect(ends(phone).map((d) => d.reason)).toEqual(["story-end"]);
+  });
+});
+
+// Minimal stories for the codes that need a setting just so (lengths found by a search at 1280x800, fixed engine).
+/** A subhead whose paragraph has no room under it at column 1's foot. */
+const KEEP = page(`${para(15, "a")}\n\n\\subhead{The keepers}\n\n${para(20, "b")}`);
+/** A paragraph whose first line alone would end column 1. */
+const ORPHANS = page(`${para(17, "a")}\n\n${para(20, "b")}`);
+/** A paragraph whose last line alone would start column 3. */
+const WIDOWS = page(`${para(16, "a")}\n\n${para(20, "b")}`);
+/** Words with soft hyphens, so the band's last line would end on one. */
+const HYPHEN = page(`${para(1, "a")} ${"extra\u00adordinarily ".repeat(200)}`);
+/** A picture that waits, and two lines of text left for the last page. */
+const STUB = page(`${para(40, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(6, "b")}`);
+/** Under a heading, a picture opening the band that leaves a line under it. */
+const FOOT = `\\story[name=s]{${fig("size=column, ratio=100:115, place=here")}\n\n${para(60, "b")}}\n\\scene[height=page, grid=page]{\\frame[cols=1-12]{\\headline{${"Stone endures ".repeat(4)}}}\\frame[story=s, cols=1-12, columns=3]}`;
+/** A picture anchored late, with too little text after it to go on alone. */
+const RULE3 = page(`${para(42, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(4, "b")}`);

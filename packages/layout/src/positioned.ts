@@ -13,7 +13,34 @@ export type PositionedDocument = {
   breakpoint: string;
   scenes: PositionedScene[];
   height: number;
+  /** The visor (design 2026-10-21): why the engine set the page as it did; only with `layout(..., { explain: true })`. */
+  explain?: Explanation;
 };
+
+/** The reasons log (design 2026-10-21): plain versioned JSON, one entry per scene in scene order. */
+export type Explanation = { version: 1; scenes: { scene: string; decisions: Decision[] }[] };
+
+export type Decision = {
+  kind: "column-end" | "picture" | "space" | "line";
+  /** A fixed code: for `column-end`, one of `COLUMN_END_REASONS`. */
+  reason: string;
+  /** 1-based across the document; null in scrolling scenes. */
+  screen: number | null;
+  frame: string | null;
+  column: number | null;
+  /** Where the overlay draws it, in document px. */
+  at: Rect;
+  numbers: Record<string, number>;
+  refs: { blocks?: number[]; objects?: string[] };
+  /** Spec reference, e.g. "§09.7 rule 11". */
+  rule: string;
+  /** Pictures: the next three spots. */
+  alternatives?: { spot: string; size: string; score: number }[];
+};
+
+/** Why a column ends (`kind: "column-end"`). */
+export const COLUMN_END_REASONS = ["bottom-line", "levelled", "rule-3-cut", "keep-with-next", "orphans", "widows", "hyphen-avoided", "frame-break", "column-break", "story-end", "balanced-last-page", "stub-folded", "picture-at-foot"] as const;
+export type ColumnEndReason = (typeof COLUMN_END_REASONS)[number];
 
 export type PositionedScene = {
   /** Scene id in the Resolved Document. */
