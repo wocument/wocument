@@ -124,6 +124,8 @@ export class Design {
       for (const c of rows) {
         const span = c.attrs.find((a) => a.key === "span")?.value;
         const side = attrId(c, "side");
+        // The Resolved Document has no value for "to the last column".
+        if (span?.t === "range" && span.to === "end") throw new Error(`\\spot[size=${size}, place=${attrId(c, "place")}] at line ${c.source.line}: span cannot run to \`end\`; give a number or a range`);
         out.push({
           size,
           place: attrId(c, "place") as Spot["place"],
@@ -131,7 +133,7 @@ export class Design {
             !span || span.t === "integer"
               ? { kind: "count", from: span ? span.n : 1, to: span ? span.n : 1 }
               : span.t === "range"
-                ? { kind: "count", from: span.from, to: span.to === "end" ? span.from : span.to }
+                ? { kind: "count", from: span.from, to: span.to as number }
                 : { kind: span.t === "enum" && span.id === "all-but-one" ? "all-but-one" : "all" },
           side: side as Spot["side"],
         });

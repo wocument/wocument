@@ -42,6 +42,10 @@ describe("the spot menu", () => {
     expect(spots[0]).toEqual({ size: "hero", place: "top", span: { kind: "all" }, side: null });
   });
 
+  it("a span cannot run to `end`", () => {
+    expect(() => run("Hello.", "\\spot[size=wide, place=top, span=2-end]")).toThrow("\\spot[size=wide, place=top] at line 1: span cannot run to `end`; give a number or a range");
+  });
+
   it("a theme's spots replace Vanilla's for the sizes they name", () => {
     const spots = run("Hello.", "\\spot[size=wide, place=top, span=3]").variants.base!.spots;
     const count = (s: string) => spots.filter((x) => x.size === s).length;

@@ -420,7 +420,7 @@ One spot a picture of a given size may take on a wide page (laptops and larger).
 | :---- | :---- | :---- | :---- |
 | `size` | `hero` `wide` `column` `small` | required | The size of picture this spot is for. `auto` is not a spot size: the engine picks one of the four first. |
 | `place` | `top` `bottom` `anchor` | required | `top` or `bottom` of the screen's band, or `anchor`: in the text, at the anchor. |
-| `span` | integer, range, `all` or `all-but-one` | `1` | How many columns wide, counted in the screen's grid columns: `3`, `2-3`, `all` (every column of the band) or `all-but-one`. |
+| `span` | integer, range, `all` or `all-but-one` | `1` | How many columns wide, counted in the screen's grid columns: `3`, `2-3`, `all` (every column of the band) or `all-but-one`. A range cannot run to `end` (`2-end` is a resolve error). |
 | `side` | `left` `right` `center` | none | For `place=anchor`: the side of the column the picture takes, with text wrapping beside it. |
 
 Vanilla ships these spots:
