@@ -366,6 +366,14 @@ describe("floating in screen pages", () => {
       }
   });
 
+  // 2026-10-21 (test-spread at 1470x956, characters 0.42 to 0.46em): on the text's last page a pull
+  // quote at the foot stood 47 to 103px below the balanced columns. The last page is no exception: a
+  // box at the foot rises with the balanced columns.
+  it.each([0.42, 0.44, 0.46, 0.47])("no page holds a hole taller than a line, the last included (test-spread at 1470x956, characters %fem)", (em) => {
+    const { doc, pd } = testSpread(em);
+    expect(columnHoles(doc, pd, pd.scenes[0]!.grid.baseline, { last: true })).toEqual([]);
+  });
+
   // 2026-10-20 (test-spread at 1470x956, the screen with the gallery): the gallery and the pull quote
   // stood at the foot, and the text above them stopped up to four lines short. Counted by its boxes
   // every column ended level, so the screen was scored and kept as level. Empty room above a box now

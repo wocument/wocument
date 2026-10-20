@@ -1040,7 +1040,7 @@ function bands(
     // could not carry any on): this is the text's last page. It is balanced by whole blocks, as the
     // story's end is; the pictures follow on the pages after it.
     const last = !done && compose !== undefined && compose.left() && ![...(env.floated?.values() ?? [])].some((f) => f !== null) && lone(full);
-    let band = done || last ? balance(env, (l) => run(Math.min(l, limit), at, from, earlier, waiting), last) : full;
+    let band = done || last ? rise(env, (l) => run(Math.min(l, limit), at, from, earlier, waiting), last, foot) : full;
     // 2026-10-08: a section's last page never holds a stub of three lines or fewer and nothing
     // else. The page before is set again at its full height; when the rest of the text fits there,
     // that page ends the section (balanced) and the stub page goes.
@@ -1070,7 +1070,7 @@ function bands(
           env.floated = prev.floated;
         }
       if (moved !== null || fits(run(prev.limit, prev.at, prev.from, earlier, prev.waiting))) {
-        band = balance(env, (l) => run(Math.min(l, prev!.limit), prev!.at, prev!.from, earlier, prev!.waiting));
+        band = rise(env, (l) => run(Math.min(l, prev!.limit), prev!.at, prev!.from, earlier, prev!.waiting), false, prev.at + prev.limit);
         at = prev.at;
         page = prev.page;
         // The next page chooses the moved picture's spot.
@@ -1195,6 +1195,37 @@ function screenReports(env: Env, frameId: string, story: Story, start: Resume, c
     });
     return { screen: Math.floor((top + EPS) / vh) + 1, short, lastParagraph: words, photo: photo?.name ?? null, far };
   });
+}
+
+/**
+ * `balance`, then (2026-10-21) the floating boxes at the band's `foot` rise into the empty room above
+ * them, by whole lines, when the balanced columns end higher: the text's last page has no hole inside
+ * a column either. Kept only when nothing collides and the text still ends here.
+ */
+function rise(env: Env, run: (limit: number) => Columns, rest: boolean, foot: number): Columns {
+  const band = balance(env, run, rest);
+  const bl = env.grid.baseline;
+  const lines = band.placed.lines.filter((l) => env.v.frames[l.frame]);
+  const up = new Map(env.floated);
+  for (const [id, f] of env.floated ?? []) {
+    const o = f && f.box.y + f.box.height > foot - bl + EPS ? band.placed.objects.find((x) => x.name === id) : undefined;
+    if (!o) continue;
+    const e = o.exclusion?.box ?? o.box;
+    const off = o.exclusion?.offset ?? 0;
+    const across = (r: Rect): boolean => r.x < e.x + e.width + off - EPS && r.x + r.width > e.x - off + EPS && r.y < e.y - EPS;
+    const above = lines.filter(across);
+    if (above.length === 0) continue;
+    const others = band.placed.objects.filter((x) => x.name !== id && across(x.exclusion?.box ?? x.box)).map((x) => (x.exclusion ? x.exclusion.box.y + x.exclusion.box.height + x.exclusion.offset : x.box.y + x.box.height));
+    const k = Math.floor((e.y - off - Math.max(...above.map((l) => l.y + l.height), ...others)) / bl + EPS);
+    if (k >= 1) up.set(id, { ...f!, box: { ...f!.box, y: f!.box.y - k * bl } });
+  }
+  if ([...up].every(([id, f]) => f === env.floated!.get(id))) return band;
+  const was = env.floated;
+  env.floated = up;
+  const t = balance(env, run, rest);
+  if (!t.collides && t.stop === band.stop) return t;
+  env.floated = was;
+  return band;
 }
 
 /**
