@@ -75,4 +75,20 @@ describe("floating in multi-column scrolling frames", () => {
     // And composed: the picture is not where today's rule sets it.
     expect(figure(pd).box).not.toEqual(figure(lay(flow(STORY), { composeBudget: 0 })).box);
   });
+  it("only a float anchored within one band of the frame top moves to the top", () => {
+    // 1280x800: the band is 800 - 2*56 = 688px. The anchors lie about 0.8, 3.4 and 5.9 bands down.
+    const story = `${para(14, "a")}\n\n${fig("ratio=3:2")}\n\n${para(38, "b")}\n\n${fig("ratio=3:2")}\n\n${para(36, "c")}\n\n${fig("ratio=3:2")}\n\n${para(200, "d")}`;
+    const { doc } = resolve(parse(FM + GRID + flow(story)).ast as Document, { assets: fake });
+    const pd = layout(doc, { width: 1280, height: 800 }, new PrepareCache(createFixedEngine()));
+    layoutInvariants(doc, pd, { standoff: false });
+    const ls = lines(pd);
+    const top = Math.min(...ls.map((l) => l.y));
+    const [a, b, c] = pd.scenes[0]!.objects.filter((o) => o.name.startsWith("figure"));
+    expect(a!.box.y).toBeLessThanOrEqual(top + 1e-3);
+    // The others stay inline at their anchors, far below the top.
+    for (const o of [b!, c!]) {
+      expect(o.box.y).toBeGreaterThan(top + 688);
+      expect(Math.abs(o.box.y - o.anchoredAt!)).toBeLessThanOrEqual(2 * 28);
+    }
+  });
 });

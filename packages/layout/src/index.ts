@@ -1199,8 +1199,8 @@ function screenReports(env: Env, frameId: string, story: Story, start: Resume, c
 
 /**
  * Picture composition, 2026-10-17, for a multi-column frame in a scrolling scene: the frame is one
- * screen (index 0) from its content top, a screen's band tall. Its floating objects, at most three in
- * story order, compete for `place=top` spots only; the rest, and every object when no combination
+ * screen (index 0) from its content top, a screen's band tall. Its floating objects anchored within
+ * that band, at most three in story order, compete for `place=top` spots only; the rest, and every object when no combination
  * keeps the hard rules, keep today's placement (`null` before any trial: the caller balances). The columns balance by whole blocks below
  * and around the boxes chosen.
  */
@@ -1227,15 +1227,17 @@ function floatFlow(
   const { floatOf } = floatMaker(env, columns, ids);
   const { summarise } = trials(env, frameId, columns, ends);
   const floats = ids
-    .slice(0, 3)
-    .map((id) => {
+    .flatMap((id) => {
       const at = (v.objects[id]!.placement as AnchoredPlacement).block;
       const near = lines.filter((l) => l.block < at).at(-1) ?? lines.find((l) => l.block > at);
+      // Near is within one band of the frame's top: an object anchored lower keeps today's placement.
+      if (near && near.y >= top + band) return [];
       // Screen -1: there is no later screen to wait for, so `candidates` offers no `wait`.
-      return floatOf(id, { screen: -1, column: near?.column ?? 0 });
+      return [floatOf(id, { screen: -1, column: near?.column ?? 0 })];
     })
     // A whole screen (`place=screen`) has no meaning in a scrolling frame.
-    .filter((f) => f.place !== "screen" && candidates(f, spots, g).some((c) => "box" in c));
+    .filter((f) => f.place !== "screen" && candidates(f, spots, g).some((c) => "box" in c))
+    .slice(0, 3);
   if (floats.length === 0) return today;
   /** Each combination's setting, by the array `choose` passes and returns. */
   const set = new Map<Candidate[], Columns>();
