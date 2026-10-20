@@ -1633,7 +1633,7 @@ function composer(
         if (r) best = { combo: [...r.combo, ...rest], cost: r.cost };
       }
       const waits: Candidate[] = floats.map((f) => ({ id: f.id, wait: true }));
-      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, () => true))) best = { combo: waits, cost: 0 };
+      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, (t) => t !== null))) best = { combo: waits, cost: 0 };
       if (floats.length) env.onCompose?.(page, env.budget - left);
       if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
       const chosen = best ? setAs.get(keyOf(best.combo)) : undefined;

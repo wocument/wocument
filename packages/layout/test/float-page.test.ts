@@ -4,7 +4,7 @@
  * or the screen after; `place=here`, the fallback and the budget keep today's placement.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createAssetHost } from "@wmxdsl/assets";
@@ -311,6 +311,17 @@ describe("floating in screen pages", () => {
       const height = first.at(-1)!.y + first.at(-1)!.height - first[0]!.y;
       expect(foot(cols[i - 1]!) + height, `column ${c}'s first paragraph fits in column ${cols[i - 1]}`).toBeGreaterThan(tallest + 1);
     }
+  });
+
+  // 2026-10-21: the all-wait setting was never laid out (the search gave it up before the first
+  // layout), so figure-1 fell back to its anchor's screen (y 374.6, screen 1) and not to the next one.
+  it.skipIf(!existsSync(fileURLToPath(new URL("../../playground/docs/stress-portraits.wmx", import.meta.url))))("the all-wait setting competes on a screen (stress-portraits at 1920x1080)", () => {
+    const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
+    const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
+    const pd = layout(doc, { width: 1920, height: 1080 }, new PrepareCache(createFixedEngine()));
+    const o = pd.scenes.flatMap((s) => s.objects).find((x) => x.name === "figure-1")!;
+    expect(screenOf(pd, o.box.y)).toBe(1);
   });
 
   it("a trial's rule-3 cut search sets at most seven layouts", () => {

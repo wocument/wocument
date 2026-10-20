@@ -64,8 +64,8 @@ describe("speed of picture composition", () => {
   }, 120_000);
 
   // Real articles, where composition costs more than the layout itself (2026-10-21: about 4.7 and 6.3
-  // times once trials share their work, from 10.4 and 7.2). The plan's bound is 4 times, which these do
-  // not reach yet: 8 times guards against a large slowdown until the owner sets the bound.
+  // times once trials share their work, from 10.4 and 7.2). The plan's bound is 4 times; the owner set
+  // the real-article bound at 8 times on 2026-10-21 (the synthetic test keeps 4 times).
   for (const [name, width, height] of [["test-spread.wmx", 2560, 1440], ["stress-portraits.wmx", 1470, 956]] as const)
     it.skipIf(!existsSync(here(`playground/docs/${name}`)))(`${name} at ${width}x${height} takes at most 8 times the layout without composition`, () => {
       expect(ratio(article(name), { width, height })).toBeLessThanOrEqual(8);
