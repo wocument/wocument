@@ -218,15 +218,25 @@ describe("picture reasons", () => {
     expect(scored.length).toBeGreaterThan(0);
     for (const d of scored) {
       const { distance, order, gaps, crowd, balance, rhythm, score, windowFrom, windowTo } = d.numbers;
-      expect(distance! + order! + gaps! + crowd! + balance! + rhythm!).toBe(score);
+      // `distance` is this object's own; the combination's distance holds it, so the rest of the score is at least it.
+      expect(distance).toBeGreaterThanOrEqual(0);
+      expect(score! - (order! + gaps! + crowd! + balance! + rhythm!)).toBeGreaterThanOrEqual(distance!);
       expect(windowFrom).toBeLessThanOrEqual(d.screen!);
       expect(windowTo).toBeGreaterThanOrEqual(d.screen!);
+      // The window is the anchor's screen and one either side: waited is the screen after the anchor's.
+      expect(d.reason === "waited").toBe(d.screen === windowTo);
+      if (d.reason === "waited") expect(distance).toBeGreaterThanOrEqual(6);
     }
   });
 
   it("fallback is explained", () => {
     const ds = pictures(lay(FIVE, VIEW, { explain: true, composeBudget: 0 }));
     expect(ds.map((d) => d.reason)).toEqual(Array(5).fill("fallback-budget"));
+  });
+
+  it("a frame where nothing floats is here, never a fallback", () => {
+    const one = `\\story[name=s]{${para(30, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(60, "b")}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12]}`;
+    expect(pictures(lay(one, VIEW, { explain: true, composeBudget: 0 })).map((d) => d.reason)).toEqual(["here"]);
   });
 
   it("here is explained", () => {

@@ -32,7 +32,7 @@ import type {
 import { CURSOR_START, type EngineRun, type LineBox, type PrepareCache, type Prepared, type TextCursor, type TextEngine } from "@wmxdsl/text-engine";
 import { type EvalContext, type Viewport, engineFont, gridGeometry, px, span } from "./evaluate.js";
 import { type RowItem, packRows } from "./rows.js";
-import { type Candidate, type Float, type PenaltyParts, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, hardOk, signature } from "./compose.js";
+import { type Candidate, type Float, type PenaltyParts, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, distance, hardOk, signature } from "./compose.js";
 import type {
   Exclusion,
   GridGeometry,
@@ -815,6 +815,8 @@ function fillFrame(
     /** Rule 3 (see `bands`): the text ends with objects still waiting, so the band is set shorter. */
     const lone = (r: Columns): boolean => r.stop === "full" && (r.deferred.length > 0 || objectsAfter(r.cursor)) && !textAfter(r.cursor);
     const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends, lone, textAfter, exclusions) : undefined;
+    // The visor: with no budget, every object that would float here falls back.
+    if (env.picks && env.budget <= 0) for (const id of floatingIn(env, story, cursor)) env.picks.set(id, { reason: "fallback-budget", numbers: {} });
     const r = bands(env, contentTop, cursor, (limit, at, from, earlier, deferred) => run(limit, at, from, earlier, deferred), onBand, textAfter, feet, ends, lone, compose);
     anchorsAt(env, story, cursor, frame.id, r.placed);
     env.reports.push(...screenReports(env, frame.id, story, cursor, columns, r.placed));
@@ -976,8 +978,8 @@ function noteEnds(env: Env, set: Columns, over: Over): void {
   });
   for (const o of objects) {
     const p = env.v.objects[o.name]!.placement as AnchoredPlacement;
-    const floats = p.place !== "here" && p.horizontal.mode !== "cols" && FLOATING.has(env.v.objects[o.name]!.kind);
-    const pick = env.picks!.get(o.name) ?? { reason: floats && env.budget <= 0 ? "fallback-budget" : "here", numbers: {} };
+    // No verdict: the object never floats (place=here, cols=, or a frame where nothing floats).
+    const pick = env.picks!.get(o.name) ?? { reason: "here", numbers: {} };
     const column = set.why.findIndex((w) => inColumn(o, w));
     env.explain.push({
       kind: "picture",
@@ -995,7 +997,7 @@ function noteEnds(env: Env, set: Columns, over: Over): void {
 }
 
 /** The visor: each object of a chosen combination gets its score, its window and its spot in the runners-up. */
-function pickChosen(env: Env, best: { combo: Candidate[]; cost: number; parts: PenaltyParts; ranked: { combo: Candidate[]; cost: number }[] }, reason: (id: string) => PictureReason, window: (id: string) => Record<string, number>): void {
+function pickChosen(env: Env, best: { combo: Candidate[]; cost: number; parts: PenaltyParts; ranked: { combo: Candidate[]; cost: number }[] }, reason: (id: string) => PictureReason, window: (id: string) => Record<string, number>, own: (c: Candidate) => number): void {
   const spotOf = (c: Candidate): string => ("box" in c ? `${c.size} ${c.spot.place} cols ${c.first + 1}-${c.first + c.span}` : "wait");
   for (const c of best.combo) {
     if (!("box" in c)) continue;
@@ -1005,7 +1007,7 @@ function pickChosen(env: Env, best: { combo: Candidate[]; cost: number; parts: P
       if (!a || spotOf(a) === spotOf(c) || alternatives.some((x) => x.spot === spotOf(a))) continue;
       alternatives.push({ spot: spotOf(a), size: "box" in a ? a.size : "", score: r.cost });
     }
-    env.picks!.set(c.id, { reason: reason(c.id), numbers: { ...best.parts, score: best.cost, ...window(c.id) }, alternatives });
+    env.picks!.set(c.id, { reason: reason(c.id), numbers: { ...best.parts, score: best.cost, distance: own(c), ...window(c.id) }, alternatives });
   }
 }
 
@@ -1386,6 +1388,7 @@ function floatFlow(
 ): Columns | null {
   const { v, grid, viewport, sceneY } = env;
   const ids = floatingIn(env, story, start);
+  if (env.picks && !env.page && env.budget <= 0) for (const id of ids) env.picks.set(id, { reason: "fallback-budget", numbers: {} });
   if (env.page || env.budget <= 0 || ids.length === 0) return null;
   const today = balance(env, run);
   const lines = today.placed.lines.filter((l) => l.frame === frameId);
@@ -1429,7 +1432,7 @@ function floatFlow(
   env.onCompose?.(0, set.size);
   // With no valid combination, the search spent its budget or found none.
   if (env.picks && !best && calls >= env.budget) for (const f of floats) env.picks.set(f.id, { reason: "fallback-budget", numbers: {} });
-  if (env.picks && best) pickChosen(env, best, () => "chosen", () => ({}));
+  if (env.picks && best) pickChosen(env, best, () => "chosen", () => ({}), (c) => distance(c, floats.find((f) => f.id === c.id)!, g));
   if (!best) return today;
   const t = set.get(best.combo)!;
   anchorsAt(env, story, start, frameId, t.placed);
@@ -1581,8 +1584,6 @@ function composer(
   const anchors = new Map<string, { screen: number; column: number }>();
   const band = viewport.height - 2 * grid.marginY;
   let previous: string | null = null;
-  /** The visor: the first screen each object competed on (one set later waited). */
-  const first = new Map<string, number>();
   /** The visor: an object's window, the anchor's screen and one either side, 1-based across the document. */
   const window = (id: string): Record<string, number> => {
     const a = anchors.get(id)?.screen;
@@ -1665,7 +1666,7 @@ function composer(
       for (const id of [...pending]) if (passed(id) && !competing.includes(id) && (anchors.get(id)?.screen ?? page) <= page - 1) fall(id, "fallback-budget");
       for (const id of competing) {
         const f = floatOf(id);
-        if (candidates(f, v.spots, g).some((c) => "box" in c)) (floats.push(f), first.has(id) || first.set(id, page));
+        if (candidates(f, v.spots, g).some((c) => "box" in c)) floats.push(f);
         else if (f.anchorScreen <= page) fall(id, "fallback-no-spot");
       }
       /** Trial layouts left on this screen: every search and fallback below shares the one budget. */
@@ -1795,7 +1796,7 @@ function composer(
       if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, (t) => t !== null))) best = { combo: waits, cost: 0, parts: { distance: 0, order: 0, gaps: 0, crowd: 0, balance: 0, rhythm: 0 }, ranked: [] };
       if (floats.length) env.onCompose?.(page, env.budget - left);
       if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id, spent || left <= 0 ? "fallback-budget" : "fallback-no-spot");
-      if (best && env.picks) pickChosen(env, best, (id) => ((first.get(id) ?? page) < page ? "waited" : "chosen"), window);
+      if (best && env.picks) pickChosen(env, best, (id) => ((anchors.get(id)?.screen ?? page) < page ? "waited" : "chosen"), window, (c) => distance(c, floats.find((f) => f.id === c.id)!, g));
       const chosen = best ? setAs.get(keyOf(best.combo)) : undefined;
       const combo = chosen?.combo ?? best?.combo ?? [];
       for (const c of combo) if ("box" in c) (pending.delete(c.id), set.add(c.id));

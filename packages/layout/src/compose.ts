@@ -113,7 +113,7 @@ export function hardOk(combo: Candidate[], floats: Float[], g: ScreenGeometry, t
 }
 
 /** Distance from the anchor: columns away plus screens away (a `wait` lands one screen on). */
-function distance(c: Candidate, f: Float, g: ScreenGeometry): number {
+export function distance(c: Candidate, f: Float, g: ScreenGeometry): number {
   if ("wait" in c) return PENALTY.screen * Math.abs(g.index + 1 - f.anchorScreen);
   return PENALTY.column * Math.abs(c.first - f.anchorColumn) + PENALTY.screen * Math.abs(g.index - f.anchorScreen);
 }
