@@ -32,7 +32,7 @@ import type {
 import { CURSOR_START, type EngineRun, type LineBox, type PrepareCache, type Prepared, type TextCursor, type TextEngine } from "@wmxdsl/text-engine";
 import { type EvalContext, type Viewport, engineFont, gridGeometry, px, span } from "./evaluate.js";
 import { type RowItem, packRows } from "./rows.js";
-import { type Candidate, type Float, type ScreenGeometry, type TrialSummary, candidates, choose, hardOk, signature } from "./compose.js";
+import { type Candidate, type Float, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, hardOk, signature } from "./compose.js";
 import type {
   Exclusion,
   GridGeometry,
@@ -1528,8 +1528,23 @@ function composer(
         if (cut) return { k: cut.k, t: cut.t, as: cut.as, runs };
         return runs ? { k: 0, t: trial, as: combo, runs } : null;
       };
-      const tryLayout = (combo: Candidate[]): TrialSummary => {
+      /**
+       * Each combination's trial on this screen, by `keyOf`: the first search, the retries with fewer
+       * competitors and the all-wait trial share it. `rescore` is the balanced count of empty room,
+       * done only when the trial can still win (`full` keeps it once done).
+       */
+      const trialsDone = new Map<string, { pre: TrialSummary; rescore: (() => TrialSummary) | null; full: TrialSummary | null }>();
+      const tryLayout = (combo: Candidate[], lost: (t: TrialSummary | null) => boolean = () => false): TrialSummary => {
+        // A repeated or skipped combination still counts against the budget, so the search is the same.
         left--;
+        if (lost(null)) return UNTRIED;
+        const key = keyOf(combo);
+        const e = trialsDone.get(key) ?? setTrial(combo, key);
+        if (!e.rescore || e.full) return e.full ?? e.pre;
+        if (lost(e.pre)) return e.pre;
+        return (e.full = e.rescore());
+      };
+      const setTrial = (combo: Candidate[], key: string) => {
         env.floated = floatedFor(combo);
         let trial = run(limit, at, from, earlier, [...waiting, ...extra]);
         // Rule 3 as `bands` applies it (2026-10-17): text that ends here with objects still waiting
@@ -1544,15 +1559,8 @@ function composer(
         else (trial = shortAt.t), (env.floated = floatedFor(shortAt.as));
         const cut = shortAt?.k ?? 0;
         const as = shortAt?.as ?? combo;
-        setAs.set(keyOf(combo), { cut, combo: as });
-        let sum = summarise(trial, as, cut ? { ...g, foot: g.foot - cut } : g, from, over, [...exclusions, ...earlier, ...hanging]);
-        // The text ends here: `bands` balances the page (rule 11's last band), so its empty room is
-        // counted on the balanced setting, where a box at the foot can stand below shorter columns
-        // (2026-10-20).
-        if (trial.stop !== "full") {
-          const even = balance(env, (l) => run(Math.min(l, limit), at, from, earlier, [...waiting, ...extra]));
-          sum = { ...sum, gaps: holes(even, even.placed.lines.filter((l) => l.frame === frameId), even.placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained"), grid.baseline) };
-        }
+        setAs.set(key, { cut, combo: as });
+        const sum = summarise(trial, as, cut ? { ...g, foot: g.foot - cut } : g, from, over, [...exclusions, ...earlier, ...hanging]);
         // A box set before its text: the text must still reach its anchor on the next screen, even
         // with the objects still to place set there by today's rule.
         const early = combo.filter((c) => "box" in c && !beyond(trial.cursor, c.id));
@@ -1566,7 +1574,21 @@ function composer(
         // by boxes that take their room (2026-10-17: three pictures two screens past their anchors).
         const ending = waiting.filter((id) => (anchors.get(id)?.screen ?? page) <= page - 1);
         const kept = !stuck && owed.every((id) => beyond(trial.cursor, id)) && early.every((c) => !reach || beyond(reach, c.id)) && ![...due, ...ending].some((id) => trial.deferred.includes(id));
-        return kept ? sum : { ...sum, allSet: false };
+        const pre = kept ? sum : { ...sum, allSet: false };
+        // The text ends here: `bands` balances the page (rule 11's last band), so its empty room is
+        // counted on the balanced setting, where a box at the foot can stand below shorter columns
+        // (2026-10-20).
+        const rescore =
+          trial.stop === "full"
+            ? null
+            : (): TrialSummary => {
+                env.floated = floatedFor(as);
+                const even = balance(env, (l) => run(Math.min(l, limit), at, from, earlier, [...waiting, ...extra]));
+                return { ...pre, gaps: holes(even, even.placed.lines.filter((l) => l.frame === frameId), even.placed.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained"), grid.baseline) };
+              };
+        const e = { pre, rescore, full: null };
+        trialsDone.set(key, e);
+        return e;
       };
       // The first search keeps back one trial for each fallback below.
       let best = floats.length ? choose(floats, v.spots, g, tryLayout, previous, Math.max(0, left - floats.length)) : null;
@@ -1575,11 +1597,11 @@ function composer(
       // push the screen's last lines, and the anchors of pictures set before them, a screen further.
       for (let k = floats.length - 1; !best && k >= 1 && left > k && floats.slice(k).every((f) => f.anchorScreen >= page); k--) {
         const rest: Candidate[] = floats.slice(k).map((f) => ({ id: f.id, wait: true }));
-        const r = choose(floats.slice(0, k), v.spots, g, (c) => tryLayout([...c, ...rest]), previous, left - k);
+        const r = choose(floats.slice(0, k), v.spots, g, (c, lost) => tryLayout([...c, ...rest], lost), previous, left - k);
         if (r) best = { combo: [...r.combo, ...rest], cost: r.cost };
       }
       const waits: Candidate[] = floats.map((f) => ({ id: f.id, wait: true }));
-      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits))) best = { combo: waits, cost: 0 };
+      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, () => true))) best = { combo: waits, cost: 0 };
       if (floats.length) env.onCompose?.(page, env.budget - left);
       if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
       const chosen = best ? setAs.get(keyOf(best.combo)) : undefined;

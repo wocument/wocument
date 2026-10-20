@@ -46,6 +46,9 @@ type Placed = Extract<Candidate, { box: Box }>;
  */
 export type TrialSummary = { allSet: boolean; overlaps: boolean; stubs: boolean; feet: number[]; last: boolean; alone: boolean; gaps: number };
 
+/** A trial not set: it breaks no rule seen, and has no feet or empty room to cost. */
+export const UNTRIED: TrialSummary = { allSet: false, overlaps: false, stubs: false, feet: [], last: true, alone: false, gaps: 0 };
+
 /** `gap` (2026-10-20): a line of empty room inside a column costs as a line short at its foot does. */
 export const PENALTY = { column: 1, screen: 6, order: 20, shortLine: 2, crowd: 4, balance: 2, rhythm: 1, gap: 2 };
 
@@ -182,7 +185,12 @@ export function choose(
   floats: Float[],
   spots: Spot[],
   g: ScreenGeometry,
-  tryLayout: (combo: Candidate[]) => TrialSummary,
+  /**
+   * `lost` tells the trial when it cannot win, so it can skip work: with `null`, before any layout (its
+   * cost from the combination alone is over the best); with a summary, a hard rule broken or a cost
+   * over the best even with no empty room.
+   */
+  tryLayout: (combo: Candidate[], lost: (t: TrialSummary | null) => boolean) => TrialSummary,
   previous: string | null,
   budget = 40,
 ): { combo: Candidate[]; cost: number } | null {
@@ -218,7 +226,9 @@ export function choose(
       frontier.splice(at, 0, next);
     }
     if (!fitsTogether(n.combo)) continue;
-    const t = tryLayout(n.combo);
+    // Every term of the penalty is zero or more, so these are lower bounds of the trial's cost.
+    const over = (t: TrialSummary): boolean => best !== null && penalty(n.combo, fs, g, { ...t, gaps: 0 }, previous) > best.cost + EPS;
+    const t = tryLayout(n.combo, (t) => (t ? !hardOk(n.combo, fs, g, t) || over(t) : over(UNTRIED)));
     calls++;
     if (!hardOk(n.combo, fs, g, t)) continue;
     const cost = penalty(n.combo, fs, g, t, previous);
