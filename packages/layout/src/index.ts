@@ -1052,11 +1052,29 @@ function bands(
       env.origin = originOf(prev.page);
       const floated = env.floated;
       env.floated = prev.floated;
-      const t = run(prev.limit, prev.at, prev.from, earlier, prev.waiting);
-      if (t.stop !== "full" && !t.collides) {
+      const fits = (r: Columns): boolean => r.stop !== "full" && !r.collides;
+      // 2026-10-20: a page its floating pictures fill is set again with one of them moved on to the
+      // next page, the last in story order first, so the stub's lines fit. Only a picture anchored on
+      // that page (the next one is inside its window), never a quote or fact box (it would be alone).
+      const movable = [...(prev.floated ?? [])]
+        .flatMap(([id, f]) => (f && !tied(id) && (env.v.objects[id]!.placement as AnchoredPlacement).block >= prev!.from.block ? [id] : []))
+        .sort((a, b) => (env.v.objects[b]!.placement as AnchoredPlacement).block - (env.v.objects[a]!.placement as AnchoredPlacement).block);
+      let moved: string | null = null;
+      if (!fits(run(prev.limit, prev.at, prev.from, earlier, prev.waiting)))
+        for (const id of movable) {
+          env.floated = new Map(prev.floated).set(id, null);
+          if (fits(run(prev.limit, prev.at, prev.from, earlier, prev.waiting))) {
+            moved = id;
+            break;
+          }
+          env.floated = prev.floated;
+        }
+      if (moved !== null || fits(run(prev.limit, prev.at, prev.from, earlier, prev.waiting))) {
         band = balance(env, (l) => run(Math.min(l, prev!.limit), prev!.at, prev!.from, earlier, prev!.waiting));
         at = prev.at;
         page = prev.page;
+        // The next page chooses the moved picture's spot.
+        if (moved !== null) compose?.release(moved);
       } else {
         // It does not fit: both pages stand as they were.
         env.origin = originOf(page);
@@ -1100,6 +1118,8 @@ type Composer = {
   screen: (page: number, at: number, limit: number, from: Resume, earlier: readonly Exclusion[], waiting: readonly string[], hanging: readonly Exclusion[]) => { extra: string[]; cut: number };
   /** Floating objects still to place: the frame does not end before they are set. */
   left: () => boolean;
+  /** An object set on the screen before goes back to those still to place (the stub fold, 2026-10-20). */
+  release: (id: string) => void;
 };
 
 /** The objects that float (design 2026-10-17, "The author's words"). */
@@ -1408,6 +1428,7 @@ function composer(
 
   return {
     left: () => pending.size > 0,
+    release: (id) => (set.delete(id), pending.add(id)),
     screen(page, at, limit, from, earlier, waiting, hanging) {
       env.floated = floatedFor([]);
       if (pending.size === 0) return { extra: [], cut: 0 };

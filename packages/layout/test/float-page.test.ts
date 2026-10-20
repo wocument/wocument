@@ -340,4 +340,29 @@ describe("floating in screen pages", () => {
     layoutInvariants(doc, pd, { standoff: false });
     expect(columnHoles(doc, pd, pd.scenes[0]!.grid.baseline)).toEqual([]);
   });
+
+  /** test-spread at 1470x956, characters `em` wide (0.45 to 0.47 set it as the browser's fonts did). */
+  function testSpread(em: number) {
+    const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
+    const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/test-spread.wmx"), "utf8")).ast as Document, { assets });
+    const pd = layout(doc, { width: 1470, height: 956 }, new PrepareCache(createFixedEngine(em)));
+    layoutInvariants(doc, pd, { standoff: false });
+    return { doc, pd };
+  }
+
+  // 2026-10-20 (test-spread at 1470x956): the story's last three lines had a screen of their own.
+  // The page before was full of floating pictures, so the stub could not fold back into it. That
+  // page is now set again with a picture moved on to the next page, inside its window.
+  it.each([0.45, 0.46, 0.47, 0.5])("no screen holds three lines or fewer and nothing else (test-spread at 1470x956, characters %fem)", (em) => {
+    const { doc, pd } = testSpread(em);
+    const v = doc.variants[pd.breakpoint]!;
+    for (const s of pd.scenes.filter((s) => s.paged))
+      for (let k = 0; k < Math.round(s.height / pd.viewport.height); k++) {
+        const on = (y: number) => Math.floor((y - s.y + 1e-6) / pd.viewport.height) === k;
+        const lines = s.lines.filter((l) => v.frames[l.frame] && on(l.y));
+        if (s.objects.some((o) => on(o.box.y))) continue;
+        expect(lines.length === 0 || lines.length > 3, `${s.name} screen ${k + 1}: ${lines.length} lines alone`).toBe(true);
+      }
+  });
 });
