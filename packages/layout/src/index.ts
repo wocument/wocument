@@ -2094,8 +2094,26 @@ type NextLine = (p: Prepared, from: TextCursor, width: number) => LineBox | null
 type Plan = { cost: number; line: LineBox | null };
 /** Composer plans per prepared paragraph, kept while the paragraph is: the levelling search's trials reuse them. */
 const PLANS = new WeakMap<Prepared, Map<string, Plan>>();
-/** The most a justified line's spaces close, in em (the renderer's SHRINK). */
-const SHRINK = 0.05;
+/**
+ * §07.6 `justify`: how much to add to each space so the line fills its slot. The slack is what
+ * layout measured the line without; `white-space: pre` stops the browser justifying on its own, so
+ * the renderer does the arithmetic itself (and the visor reads it, 2026-10-21). Zero when there is no slack or nowhere to put it (a
+ * single long word, or a line already at its slot's width). Given the text's `size`, a line that
+ * would open its spaces by more than half an em is set flush left instead (2026-09-30: a sliver
+ * beside a picture, two words to a line, justified into rivers). A line a little longer than its
+ * slot (the paragraph composer's, §07.6 composer=paragraph) closes its spaces instead, by up to a
+ * twentieth of an em each (about a fifth of a space); a line longer than that is left alone.
+ */
+export function justifySpacing(l: { text: string; width: number; measured: number }, size = Number.POSITIVE_INFINITY): number {
+  const spaces = (l.text.trimEnd().match(/ /g) ?? []).length;
+  const slack = l.width - l.measured;
+  const each = spaces > 0 ? slack / spaces : 0;
+  if (each < 0) return -each <= SHRINK * size + 0.01 ? each : 0;
+  return each > size / 2 ? 0 : each;
+}
+
+/** The most a justified line's spaces close, in em: a fifth of Georgia's space (0.24em). The composer uses the same. */
+export const SHRINK = 0.05;
 const sameCursor = (a: TextCursor, b: TextCursor): boolean => a.item === b.item && a.seg === b.seg && a.grapheme === b.grapheme;
 
 /**
