@@ -217,15 +217,16 @@ describe("picture reasons", () => {
     const scored = ds.filter((d) => d.reason === "chosen" || d.reason === "waited");
     expect(scored.length).toBeGreaterThan(0);
     for (const d of scored) {
-      const { distance, order, gaps, crowd, balance, rhythm, score, windowFrom, windowTo } = d.numbers;
-      // `distance` is this object's own; the combination's distance holds it, so the rest of the score is at least it.
-      expect(distance).toBeGreaterThanOrEqual(0);
-      expect(score! - (order! + gaps! + crowd! + balance! + rhythm!)).toBeGreaterThanOrEqual(distance!);
+      const { distance, order, gaps, crowd, balance, rhythm, score, ownDistance, windowFrom, windowTo } = d.numbers;
+      expect(distance! + order! + gaps! + crowd! + balance! + rhythm!).toBe(score);
+      // The object's own distance is part of the combination's.
+      expect(ownDistance).toBeGreaterThanOrEqual(0);
+      expect(ownDistance).toBeLessThanOrEqual(distance!);
       expect(windowFrom).toBeLessThanOrEqual(d.screen!);
       expect(windowTo).toBeGreaterThanOrEqual(d.screen!);
       // The window is the anchor's screen and one either side: waited is the screen after the anchor's.
       expect(d.reason === "waited").toBe(d.screen === windowTo);
-      if (d.reason === "waited") expect(distance).toBeGreaterThanOrEqual(6);
+      if (d.reason === "waited") expect(ownDistance).toBeGreaterThanOrEqual(6);
     }
   });
 

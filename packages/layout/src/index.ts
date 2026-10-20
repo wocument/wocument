@@ -1007,7 +1007,7 @@ function pickChosen(env: Env, best: { combo: Candidate[]; cost: number; parts: P
       if (!a || spotOf(a) === spotOf(c) || alternatives.some((x) => x.spot === spotOf(a))) continue;
       alternatives.push({ spot: spotOf(a), size: "box" in a ? a.size : "", score: r.cost });
     }
-    env.picks!.set(c.id, { reason: reason(c.id), numbers: { ...best.parts, score: best.cost, distance: own(c), ...window(c.id) }, alternatives });
+    env.picks!.set(c.id, { reason: reason(c.id), numbers: { ...best.parts, score: best.cost, ownDistance: own(c), ...window(c.id) }, alternatives });
   }
 }
 
