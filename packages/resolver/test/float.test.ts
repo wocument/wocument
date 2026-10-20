@@ -60,6 +60,12 @@ describe("floating placement", () => {
     expect(placed(fig(run(`Text.\n\n${FIG}, side=right, width=40%]\n\nMore.`)))).toEqual({ size: "small", place: "here" });
   });
 
+  it("size=small sits beside its text at the first small spot's side", () => {
+    const o = fig(run(`Text.\n\n${FIG}, size=small]\n\nMore.`));
+    expect(placed(o)).toEqual({ size: "small", place: "here" });
+    expect(o.placement.mode === "anchored" && o.placement.horizontal).toEqual({ mode: "side", side: "left", width: { u: "pct", n: 50 } });
+  });
+
   it("a cut-out keeps its reach", () => {
     expect(placed(fig(run(`Text.\n\n${FIG}, shape=alpha]\n\nMore.`))).place).toBe("here");
   });

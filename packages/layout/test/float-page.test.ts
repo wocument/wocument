@@ -396,3 +396,16 @@ describe("floating in screen pages", () => {
     }
   });
 });
+
+describe("size=small", () => {
+  it("sets the box at half the column, with text beside it", () => {
+    // Two columns: at three, the strip beside half a column is too narrow for body text and stays empty.
+    const { pd } = lay(page(`${para(6, "a")}\n\n${fig("size=small, ratio=3:2")}\n\n${para(20, "b")}`).replace("columns=3", "columns=2"));
+    const o = objects(pd)[0]!;
+    const col = columnsOf(pd).find((c) => o.box.x >= c.x - 1 && o.box.x < c.x + c.width)!;
+    expect(o.box.width).toBeCloseTo(col.width / 2, 0);
+    const beside = pd.scenes[0]!.lines.filter((l) => l.story === "s" && l.y < o.box.y + o.box.height && l.y + l.height > o.box.y && l.x < col.x + col.width && l.x + l.width > col.x);
+    expect(beside.length).toBeGreaterThan(0);
+    for (const l of beside) expect(l.x >= o.box.x + o.box.width - 1e-3 || l.x + l.width <= o.box.x + 1e-3).toBe(true);
+  });
+});

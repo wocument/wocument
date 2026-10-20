@@ -385,7 +385,10 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
       let placement: Placement;
       if (where.mode === "contained") placement = where;
       else if (where.mode === "anchored") {
-        const side = enumId(oa.get("side"));
+        // §07.7, §11.1: an explicit size=small with no side takes the side of the theme's first small spot.
+        const small = elementAttrs(cmd, bp, cmd.name, deref).has("size") && enumId(oa.get("size")) === "small";
+        const ownSide = enumId(oa.get("side"));
+        const side = small && ownSide === "full" ? (design.spots(bp).find((x) => x.size === "small")?.side ?? "right") : ownSide;
         const horizontal: AnchorHorizontal = oa.has("cols")
           ? { mode: "cols", cols: range(oa.get("cols"), where.lastCol, { from: 1, to: 1 }) }
           : side === "left" || side === "right" || side === "center"
@@ -398,7 +401,8 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
         const sized = side !== "full" || set("width");
         const asked = enumId(oa.get("size")) as FloatSize | "auto";
         const size = set("size") ? asked : sized ? "small" : "auto";
-        const place = set("place") ? (enumId(oa.get("place")) as FloatPlace) : sized || set("cols") || enumId(oa.get("shape")) === "alpha" ? "here" : "float";
+        // §09.7 rule 15: anchor spots are set at the anchor, not scored, so a small object stays there.
+        const place = small ? "here" : set("place") ? (enumId(oa.get("place")) as FloatPlace) : sized || set("cols") || enumId(oa.get("shape")) === "alpha" ? "here" : "float";
         placement = { mode: "anchored", story: where.story, block: where.block, horizontal, height: lenOrAuto(oa.get("height")), size, place };
       } else if (layer === "background") placement = { mode: "background", scene: where.scene };
       else
