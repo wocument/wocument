@@ -590,7 +590,7 @@ A frame with `columns>1`, `height=auto` and `balance=true` is balanced by **whol
 
 Columns often end at different heights; that is accepted. Examples, with blocks of equal height: 2 blocks in 2 or 3 columns set one in column 1 and one in column 2; 3 in 2 set two and one; 3 in 3 set one in each; 4 in 3 set two and two, leaving column 3 empty.
 
-The engine finds the height by search (lay out, measure, adjust); fitting only gets easier as the height grows, so it halves. Widows, orphans and wrap exclusions apply on every pass, and an anchored object's pin-and-reflow (§11.3) runs inside each trial, so a trial can cost up to four placements.
+The engine finds the height by search (lay out, measure, adjust); it searches by halving, and may settle on a taller height when keep-with-next makes fitting not monotonic in height. Widows, orphans and wrap exclusions apply on every pass, and an anchored object's pin-and-reflow (§11.3) runs inside each trial, so a trial can cost up to four placements.
 
 ### 09.5 Overset
 

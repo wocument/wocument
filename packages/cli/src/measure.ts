@@ -49,7 +49,7 @@ export function copyfit(rd: ResolvedDocument, widths = TEST_WIDTHS): string[] {
       ...(r.short >= 1
         ? [
             `screen ${r.screen} at ${w}px: ${lines(r.short)} short of the bottom line.`,
-            `  Add about ${Math.round((r.short * perLine) / 10) * 10} characters to "${r.lastParagraph}…"${r.photo ? `, or let ${r.photo} grow by ${lines(r.short)} (size=wide)` : ""}.`,
+            `  Add about ${Math.round((r.short * perLine) / 10) * 10} characters${r.lastParagraph ? ` to "${r.lastParagraph}…"` : ""}${r.photo ? `, or let ${r.photo} grow by ${lines(r.short)} (size=wide)` : ""}.`,
           ]
         : []),
       ...r.far.flatMap((f) => [

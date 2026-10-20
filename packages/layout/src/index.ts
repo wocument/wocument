@@ -110,7 +110,7 @@ type Env = {
   whole?: boolean;
   /** 2026-10-17: the scene is set in screen pages, so every frame snaps to the grid of the screen a line is on. */
   pageGrids?: boolean;
-  /** Picture composition (2026-10-17): how many combinations a screen may try; 0 keeps today's placement. */
+  /** Picture composition (2026-10-17): how many combinations a screen may try; 0: no composition, every object takes rule 6. */
   budget: number;
   /** Picture composition: told how many trial layouts each composed screen used (tests and reports). */
   onCompose?: (screen: number, trials: number) => void;
@@ -824,7 +824,8 @@ function fillFrame(
  * reading order, filling from the left, and are never split across columns; a subhead goes with the
  * paragraph after it. The height is the smallest, in baseline steps, at which every block fits in the
  * columns; columns that height does not need stay empty, and one block alone stays in the first.
- * Fitting is monotonic in height, so the search halves.
+ * The search halves the height; keep-with-next breaks monotonic fitting, so it may settle on a taller
+ * height than the smallest that fits, never losing text.
  */
 function balance(env: Env, run: (limit: number) => Columns, rest = false): Columns {
   const bl = env.grid.baseline;
