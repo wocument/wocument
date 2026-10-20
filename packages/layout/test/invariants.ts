@@ -68,10 +68,20 @@ export function layoutInvariants(rd: ResolvedDocument, pd: PositionedDocument, {
       expect(Math.min(d, s.grid.baseline - d), `${s.name} page ${page + 1}: ${l.text}`).toBeLessThan(1e-6);
     }
   }
-  // No frame line inside a wrapping object's shape.
+  // No line inside a wrapping object's shape: a frame's line, or another object's (a pull quote's
+  // text). 2026-10-20: every object counts, a scene's own cut-out too (it was left out, and a pull
+  // quote floated under one went unseen).
+  const inside = (l: { frame: string }, o: { name: string }): boolean => {
+    for (let id: string | undefined = l.frame; id; ) {
+      if (id === o.name) return true;
+      const p = v.objects[id]?.placement;
+      id = p?.mode === "contained" ? p.container : undefined;
+    }
+    return false;
+  };
   for (const s of pd.scenes)
-    for (const o of s.objects.filter((o) => o.exclusion && !o.exclusion.jump && o.anchoredAt !== null))
-      for (const l of s.lines.filter((l) => v.frames[l.frame])) {
+    for (const o of s.objects.filter((o) => o.exclusion && !o.exclusion.jump))
+      for (const l of s.lines.filter((l) => (v.frames[l.frame] || v.objects[l.frame]) && !inside(l, o))) {
         const ext = bandExtent(standoff ? o.exclusion! : { ...o.exclusion!, offset: 0 }, l.y, l.y + l.height);
         if (ext) expect(l.x + l.width <= ext[0] + 1e-6 || l.x >= ext[1] - 1e-6, `${o.name} vs "${l.text}"`).toBe(true);
       }

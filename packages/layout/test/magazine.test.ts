@@ -7,7 +7,7 @@ import { createAssetHost } from "@wmxdsl/assets";
 import { parse, type Document } from "@wmxdsl/parser";
 import { resolve } from "@wmxdsl/resolver";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
-import { layout } from "../src/index.js";
+import { bandExtent, layout } from "../src/index.js";
 import { layoutInvariants } from "./invariants.js";
 
 const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
@@ -71,6 +71,22 @@ describe("magazine.wmx", () => {
       if (band(text[i]!.y) === band(text[i - 1]!.y)) expect(text[i]!.column, text[i]!.text).toBeGreaterThanOrEqual(text[i - 1]!.column);
     // Lines beside the cut-out stay left of its box.
     for (const l of screen1.filter((l) => l.y < cut.box.y + cut.box.height && l.y + l.height > cut.box.y)) expect(l.x).toBeLessThan(cut.box.x);
+  });
+
+  it("no line runs under a picture's box or outline (the feature at 1470x956)", () => {
+    // 2026-10-20: the composer floated the pull quote into the third column, under the scene's
+    // cut-out; its lines showed through the picture. A floating box keeps clear of the frame's
+    // wrapping objects as of its own.
+    const pd = lay(1470, 956);
+    layoutInvariants(rd, pd);
+    const v = rd.variants[pd.breakpoint]!;
+    for (const s of pd.scenes)
+      for (const o of s.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained"))
+        for (const l of s.lines.filter((l) => l.frame !== o.name && !(v.objects[l.frame]?.placement.mode === "contained"))) {
+          if (!(l.y < o.box.y + o.box.height - 1 && o.box.y < l.y + l.height - 1)) continue;
+          const ext = o.exclusion && !o.exclusion.jump ? bandExtent({ ...o.exclusion, offset: 0 }, l.y, l.y + l.height) : [o.box.x, o.box.x + o.box.width];
+          if (ext) expect(l.x + l.width <= ext[0] + 1 || l.x >= ext[1] - 1, `${o.name} over "${l.text}"`).toBe(true);
+        }
   });
 
   it("the front headline is fitted", () => {
