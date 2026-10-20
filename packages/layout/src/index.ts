@@ -32,7 +32,7 @@ import type {
 import { CURSOR_START, type EngineRun, type LineBox, type PrepareCache, type Prepared, type TextCursor, type TextEngine } from "@wmxdsl/text-engine";
 import { type EvalContext, type Viewport, engineFont, gridGeometry, px, span } from "./evaluate.js";
 import { type RowItem, packRows } from "./rows.js";
-import { type Candidate, type Float, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, hardOk, signature } from "./compose.js";
+import { type Candidate, type Float, type PenaltyParts, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, hardOk, signature } from "./compose.js";
 import type {
   Exclusion,
   GridGeometry,
@@ -46,6 +46,7 @@ import type {
   PositionedScene,
   ColumnEndReason,
   Decision,
+  PictureReason,
   Explanation,
   Rect,
   ScreenReport,
@@ -128,7 +129,11 @@ type Env = {
   reports: ScreenReport[];
   /** The visor (2026-10-21): decisions of kept settings only; absent when `explain` is off. Truncated with `reports` at every rollback. */
   explain?: Decision[];
+  /** The visor: why each floating object took its spot, as the composer last decided; absent when `explain` is off. */
+  picks?: Map<string, Pick>;
 };
+/** The visor: a floating object's reason, and for a chosen spot its score parts and the alternatives. */
+type Pick = { reason: PictureReason; numbers: Record<string, number>; alternatives?: NonNullable<Decision["alternatives"]> };
 type Floated = { box: Rect; fixed: boolean };
 
 /** The active variant: the last breakpoint range starting at or below the width. */
@@ -146,7 +151,7 @@ export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareC
   const explained: Explanation["scenes"] = [];
   let y = 0;
   for (const scene of v.scenes) {
-    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut, reports: [], ...(opts.explain ? { explain: [] } : {}) });
+    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut, reports: [], ...(opts.explain ? { explain: [], picks: new Map() } : {}) });
     const before = new Map(cursors);
     let e = env(false);
     let s = layoutScene(e, scene, cursors);
@@ -925,35 +930,83 @@ const COLUMN_END_RULE: Record<ColumnEndReason, string> = {
   "picture-at-foot": "§09.7 rule 13",
 };
 
+/** The spec rule each picture code stands on. */
+const PICTURE_RULE: Record<PictureReason, string> = {
+  chosen: "§11.3 floating",
+  waited: "§11.3 floating",
+  "fallback-budget": "§09.7 rule 6",
+  "fallback-no-spot": "§09.7 rule 6",
+  here: "§09.7 rule 6",
+};
+
 /**
  * The visor (design 2026-10-21): one column-end decision for each column of a kept setting that holds
- * text, at its last line, and for one a picture ends (rule 13: it opens the column, so the column
- * often holds no text), at the picture. Called only where a setting is kept; a no-op when `explain` is off.
+ * text, at whichever is lower, its last line or the lowest object in it (a pull quote set after the
+ * text), and for one a picture ends (rule 13: it opens the column, so the column often holds no text),
+ * at the picture. Then one picture decision for each anchored object the setting placed. Called only
+ * where a setting is kept; a no-op when `explain` is off.
  */
 function noteEnds(env: Env, set: Columns, over: Over): void {
   if (!env.explain) return;
   const vh = env.viewport.height;
+  // In screen pages, the screen a box is on, counted from the document's top (as `ScreenReport`).
+  const screenOf = (y: number): number | null => (env.pageGrids ? Math.floor((env.sceneY + Math.floor((y - env.sceneY + EPS) / vh) * vh + EPS) / vh) + 1 : null);
+  const box = (r: Rect): Rect => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+  const objects = set.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode === "anchored");
+  const inColumn = (o: PositionedObject, w: Columns["why"][number]): boolean => o.box.x < w.x + w.width - EPS && o.box.x + o.box.width > w.x + EPS;
   set.why.forEach((w, column) => {
     const last = set.placed.lines.filter((l) => l.frame === w.frame && l.column === column).at(-1);
     const pic = w.object === undefined ? undefined : set.placed.objects.find((o) => o.name === w.object);
-    const at = pic?.box ?? last;
+    const low = objects.filter((o) => inColumn(o, w)).sort((a, b) => b.box.y + b.box.height - (a.box.y + a.box.height))[0];
+    const at = pic?.box ?? (last && low && low.box.y + low.box.height > last.y + last.height + EPS ? low.box : last);
     if (!at) return;
     const swap = over !== undefined && w.code === "bottom-line";
     const reason = swap ? over.why : w.code;
-    // In screen pages, the screen the column is on, counted from the document's top (as `ScreenReport`).
-    const screen = env.pageGrids ? Math.floor((env.sceneY + Math.floor((at.y - env.sceneY + EPS) / vh) * vh + EPS) / vh) + 1 : null;
     env.explain!.push({
       kind: "column-end",
       reason,
-      screen,
+      screen: screenOf(at.y),
       frame: w.frame,
       column,
-      at: { x: at.x, y: at.y, width: at.width, height: at.height },
+      at: box(at),
       numbers: swap ? { ...over.numbers } : w.moved !== undefined ? { lines: w.moved } : {},
       refs: { ...(last ? { blocks: [last.block] } : {}), ...(pic ? { objects: [pic.name] } : {}) },
       rule: COLUMN_END_RULE[reason],
     });
   });
+  for (const o of objects) {
+    const p = env.v.objects[o.name]!.placement as AnchoredPlacement;
+    const floats = p.place !== "here" && p.horizontal.mode !== "cols" && FLOATING.has(env.v.objects[o.name]!.kind);
+    const pick = env.picks!.get(o.name) ?? { reason: floats && env.budget <= 0 ? "fallback-budget" : "here", numbers: {} };
+    const column = set.why.findIndex((w) => inColumn(o, w));
+    env.explain.push({
+      kind: "picture",
+      reason: pick.reason,
+      screen: screenOf(o.box.y),
+      frame: set.why[0]?.frame ?? null,
+      column: column < 0 ? null : column,
+      at: box(o.box),
+      numbers: { ...pick.numbers },
+      refs: { blocks: [p.block], objects: [o.name] },
+      rule: PICTURE_RULE[pick.reason],
+      ...(pick.alternatives ? { alternatives: pick.alternatives } : {}),
+    });
+  }
+}
+
+/** The visor: each object of a chosen combination gets its score, its window and its spot in the runners-up. */
+function pickChosen(env: Env, best: { combo: Candidate[]; cost: number; parts: PenaltyParts; ranked: { combo: Candidate[]; cost: number }[] }, reason: (id: string) => PictureReason, window: (id: string) => Record<string, number>): void {
+  const spotOf = (c: Candidate): string => ("box" in c ? `${c.size} ${c.spot.place} cols ${c.first + 1}-${c.first + c.span}` : "wait");
+  for (const c of best.combo) {
+    if (!("box" in c)) continue;
+    const alternatives: NonNullable<Decision["alternatives"]> = [];
+    for (const r of best.ranked.slice(1)) {
+      const a = r.combo.find((x) => x.id === c.id);
+      if (!a || spotOf(a) === spotOf(c) || alternatives.some((x) => x.spot === spotOf(a))) continue;
+      alternatives.push({ spot: spotOf(a), size: "box" in a ? a.size : "", score: r.cost });
+    }
+    env.picks!.set(c.id, { reason: reason(c.id), numbers: { ...best.parts, score: best.cost, ...window(c.id) }, alternatives });
+  }
 }
 
 /**
@@ -1341,7 +1394,7 @@ function floatFlow(
   const spots = v.spots.filter((s) => s.place === "top");
   const { floatOf } = floatMaker(env, columns, ids);
   const { summarise } = trials(env, frameId, columns, ends);
-  const floats = ids
+  const eligible = ids
     .flatMap((id) => {
       const at = (v.objects[id]!.placement as AnchoredPlacement).block;
       const near = lines.filter((l) => l.block < at).at(-1) ?? lines.find((l) => l.block > at);
@@ -1351,8 +1404,10 @@ function floatFlow(
       return [floatOf(id, { screen: -1, column: near?.column ?? 0 })];
     })
     // A whole screen (`place=screen`) has no meaning in a scrolling frame.
-    .filter((f) => f.place !== "screen" && candidates(f, spots, g).some((c) => "box" in c))
-    .slice(0, 3);
+    .filter((f) => f.place !== "screen" && candidates(f, spots, g).some((c) => "box" in c));
+  const floats = eligible.slice(0, 3);
+  // The visor: left out with no spot (anchored low, or no box fits), or past the three that compete.
+  if (env.picks) for (const id of ids) env.picks.set(id, { reason: eligible.slice(3).some((f) => f.id === id) ? "fallback-budget" : "fallback-no-spot", numbers: {} });
   if (floats.length === 0) return today;
   /** Each combination's setting, by the array `choose` passes and returns. */
   const set = new Map<Candidate[], Columns>();
@@ -1369,8 +1424,12 @@ function floatFlow(
       env.floated = was;
     }
   };
-  const best = choose(floats, spots, g, tryLayout, null, env.budget);
+  let calls = 0;
+  const best = choose(floats, spots, g, (c) => (calls++, tryLayout(c)), null, env.budget);
   env.onCompose?.(0, set.size);
+  // With no valid combination, the search spent its budget or found none.
+  if (env.picks && !best && calls >= env.budget) for (const f of floats) env.picks.set(f.id, { reason: "fallback-budget", numbers: {} });
+  if (env.picks && best) pickChosen(env, best, () => "chosen", () => ({}));
   if (!best) return today;
   const t = set.get(best.combo)!;
   anchorsAt(env, story, start, frameId, t.placed);
@@ -1522,6 +1581,14 @@ function composer(
   const anchors = new Map<string, { screen: number; column: number }>();
   const band = viewport.height - 2 * grid.marginY;
   let previous: string | null = null;
+  /** The visor: the first screen each object competed on (one set later waited). */
+  const first = new Map<string, number>();
+  /** The visor: an object's window, the anchor's screen and one either side, 1-based across the document. */
+  const window = (id: string): Record<string, number> => {
+    const a = anchors.get(id)?.screen;
+    const doc = (p: number): number => Math.floor((sceneY + p * viewport.height + EPS) / viewport.height) + 1;
+    return a === undefined ? {} : { windowFrom: doc(Math.max(0, a - 1)), windowTo: doc(a + 1) };
+  };
 
   const { heightAt, floatOf: floatAt } = floatMaker(env, columns, ids);
   const floatOf = (id: string): Float => floatAt(id, anchors.get(id)!);
@@ -1576,13 +1643,14 @@ function composer(
       const extra: string[] = [];
       /** Fallen back with its anchor's text already set: it is set on this screen, never sent on. */
       const due: string[] = [];
-      const fall = (id: string): void => {
+      const fall = (id: string, why: PictureReason): void => {
+        env.picks?.set(id, { reason: why, numbers: window(id) });
         pending.delete(id);
         if (passed(id)) due.push(id);
         if (from.block > block(id)) extra.push(id);
       };
       // Past its window already (one that waited behind three others): today's placement.
-      for (const id of [...pending]) if (passed(id) && (anchors.get(id)?.screen ?? page) < page - 1) fall(id);
+      for (const id of [...pending]) if (passed(id) && (anchors.get(id)?.screen ?? page) < page - 1) fall(id, "fallback-budget");
       const g: ScreenGeometry = { index: page, top: at, foot: at + limit, band, columns, baseline: grid.baseline, origin: env.origin ?? sceneY };
       // Objects set before their text owe this screen their anchors: a setting that pushes one on is
       // refused, so none lands two screens from its picture.
@@ -1594,11 +1662,11 @@ function composer(
       const near = (id: string): boolean => anchors.has(id) && (anchors.get(id)!.screen <= page || anchors.get(id)!.column === 0);
       const competing = [...pending].filter(near).slice(0, 3);
       // A leftover at the end of its window that is not among them falls back now, on this screen.
-      for (const id of [...pending]) if (passed(id) && !competing.includes(id) && (anchors.get(id)?.screen ?? page) <= page - 1) fall(id);
+      for (const id of [...pending]) if (passed(id) && !competing.includes(id) && (anchors.get(id)?.screen ?? page) <= page - 1) fall(id, "fallback-budget");
       for (const id of competing) {
         const f = floatOf(id);
-        if (candidates(f, v.spots, g).some((c) => "box" in c)) floats.push(f);
-        else if (f.anchorScreen <= page) fall(id);
+        if (candidates(f, v.spots, g).some((c) => "box" in c)) (floats.push(f), first.has(id) || first.set(id, page));
+        else if (f.anchorScreen <= page) fall(id, "fallback-no-spot");
       }
       /** Trial layouts left on this screen: every search and fallback below shares the one budget. */
       let left = env.budget;
@@ -1705,20 +1773,29 @@ function composer(
         trialsDone.set(key, e);
         return e;
       };
+      /** The visor: a search ran out of trials, so a fallback below is the budget's. */
+      let spent = false;
+      const search = (fs: Float[], tl: typeof tryLayout, budget: number) => {
+        const before = left;
+        const r = choose(fs, v.spots, g, tl, previous, budget);
+        if (before - left >= budget) spent = true;
+        return r;
+      };
       // The first search keeps back one trial for each fallback below.
-      let best = floats.length ? choose(floats, v.spots, g, tryLayout, previous, Math.max(0, left - floats.length)) : null;
+      let best = floats.length ? search(floats, tryLayout, Math.max(0, left - floats.length)) : null;
       // When the budget runs out, the later objects wait for the next screen, inside their window, and
       // the earlier ones are chosen again; at last all wait. Setting them here by rule 6 instead can
       // push the screen's last lines, and the anchors of pictures set before them, a screen further.
       for (let k = floats.length - 1; !best && k >= 1 && left > k && floats.slice(k).every((f) => f.anchorScreen >= page); k--) {
         const rest: Candidate[] = floats.slice(k).map((f) => ({ id: f.id, wait: true }));
-        const r = choose(floats.slice(0, k), v.spots, g, (c, lost) => tryLayout([...c, ...rest], lost), previous, left - k);
-        if (r) best = { combo: [...r.combo, ...rest], cost: r.cost };
+        const r = search(floats.slice(0, k), (c, lost) => tryLayout([...c, ...rest], lost), left - k);
+        if (r) best = { ...r, combo: [...r.combo, ...rest], ranked: r.ranked.map((x) => ({ combo: [...x.combo, ...rest], cost: x.cost })) };
       }
       const waits: Candidate[] = floats.map((f) => ({ id: f.id, wait: true }));
-      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, (t) => t !== null))) best = { combo: waits, cost: 0 };
+      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, (t) => t !== null))) best = { combo: waits, cost: 0, parts: { distance: 0, order: 0, gaps: 0, crowd: 0, balance: 0, rhythm: 0 }, ranked: [] };
       if (floats.length) env.onCompose?.(page, env.budget - left);
-      if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
+      if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id, spent || left <= 0 ? "fallback-budget" : "fallback-no-spot");
+      if (best && env.picks) pickChosen(env, best, (id) => ((first.get(id) ?? page) < page ? "waited" : "chosen"), window);
       const chosen = best ? setAs.get(keyOf(best.combo)) : undefined;
       const combo = chosen?.combo ?? best?.combo ?? [];
       for (const c of combo) if ("box" in c) (pending.delete(c.id), set.add(c.id));
@@ -1788,7 +1865,7 @@ type Columns = {
   /** Objects still waiting for a column when this fill ended (§11.3); the next band takes them. */
   deferred: string[];
   /** The visor (2026-10-21): why each column set ended, by column; `moved`: lines orphans or widows sent on; `object`: the picture that ends it (rule 13). */
-  why: { code: ColumnEndReason; frame: string; moved?: number; object?: string }[];
+  why: { code: ColumnEndReason; frame: string; x: number; width: number; moved?: number; object?: string }[];
   /** Set by `balance` when the whole-block search chose a height: that height, in px. */
   balanced?: number;
 };
@@ -1928,7 +2005,7 @@ function fillColumns(
     // all, so it reports no bottom (an empty bottom would make balancing think the columns uneven).
     if (c > 0 && r.stop === "end" && r.placed.lines.length === 0 && r.placed.objects.length === 0 && defer.list.length === 0) {
       // The visor: so the text ended in the column before.
-      why[why.length - 1] = { code: r.why, frame: frame.id };
+      why[why.length - 1] = { code: r.why, frame: frame.id, x: why.at(-1)!.x, width: why.at(-1)!.width };
       cursor = r.cursor;
       stop = "end";
       break;
@@ -1936,7 +2013,7 @@ function fillColumns(
     append(placed, r.placed);
     tops.push(top);
     bottoms.push(r.bottom);
-    why.push({ code: r.why, frame: frame.id, ...(r.moved === undefined ? {} : { moved: r.moved }), ...(r.object === undefined ? {} : { object: r.object }) });
+    why.push({ code: r.why, frame: frame.id, x: columns[c]!.x, width: columns[c]!.width, ...(r.moved === undefined ? {} : { moved: r.moved }), ...(r.object === undefined ? {} : { object: r.object }) });
     cursor = r.cursor;
     // The story ended with objects still waiting: the next column (or, after the last, the next band) takes them.
     if (r.stop === "end" && defer.list.length > 0) {

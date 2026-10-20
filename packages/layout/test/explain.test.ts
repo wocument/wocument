@@ -8,7 +8,7 @@ import { parse, type Document } from "@wmxdsl/parser";
 import { type AssetHost, resolve } from "@wmxdsl/resolver";
 import type { ResolvedDocument } from "@wmxdsl/resolved-document";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
-import { COLUMN_END_REASONS, type Decision, type PositionedDocument, layout } from "../src/index.js";
+import { COLUMN_END_REASONS, PICTURE_REASONS, type Decision, type PositionedDocument, layout } from "../src/index.js";
 
 const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
@@ -77,6 +77,11 @@ describe("the reasons log", () => {
     const keys = ends(on).map(keyOf);
     expect(new Set(keys).size).toBe(keys.length);
     expect([...keys].sort()).toEqual(columnsWithLines(rd, on).sort());
+    // Every placed anchored object has exactly one picture decision.
+    const v = rd.variants[on.breakpoint]!;
+    const anchored = on.scenes.flatMap((s) => s.objects.filter((o) => v.objects[o.name]?.placement.mode === "anchored").map((o) => o.name));
+    const pics = on.explain!.scenes.flatMap((s) => s.decisions.filter((d) => d.kind === "picture").map((d) => d.refs.objects![0]));
+    expect(pics.sort()).toEqual(anchored.sort());
     delete on.explain;
     expect(on).toEqual(off);
   });
@@ -185,6 +190,75 @@ describe("only kept settings record", () => {
     for (const d of ends(two)) expect(d.screen).toBeNull();
     const phone = lay(`\\story[name=s]{${LONG}}\n\\scene[height=page, grid=page]{\\frame[story=s, cols=1-12]}`, { width: 390, height: 800 });
     expect(ends(phone).map((d) => d.reason)).toEqual(["story-end"]);
+  });
+});
+
+describe("picture reasons", () => {
+  const pictures = (pd: PositionedDocument): Decision[] => pd.explain!.scenes.flatMap((s) => s.decisions.filter((d) => d.kind === "picture"));
+  const FIVE = page(`${Array.from({ length: 5 }, (_, i) => `${para(12, `p${i}`)}\n\n${fig("size=column, ratio=4:3")}`).join("\n\n")}\n\n${para(30, "z")}`);
+  const placed = (pd: PositionedDocument) => pd.scenes.flatMap((s) => s.objects);
+
+  it("lists every picture code", () => {
+    expect(PICTURE_REASONS).toEqual(["chosen", "fallback-budget", "fallback-no-spot", "waited", "here"]);
+  });
+
+  it("one picture decision per object", () => {
+    const pd = lay(FIVE, VIEW, { explain: true, composeBudget: 40 });
+    const ds = pictures(pd);
+    expect(ds).toHaveLength(5);
+    expect(new Set(ds.map((d) => d.refs.objects![0])).size).toBe(5);
+    for (const d of ds) {
+      const o = placed(pd).find((x) => x.name === d.refs.objects![0])!;
+      expect(d.at).toEqual(o.box);
+      expect(d.refs.blocks).toHaveLength(1);
+      expect(PICTURE_REASONS).toContain(d.reason);
+      expect(d.screen).toBeGreaterThanOrEqual(1);
+    }
+    const scored = ds.filter((d) => d.reason === "chosen" || d.reason === "waited");
+    expect(scored.length).toBeGreaterThan(0);
+    for (const d of scored) {
+      const { distance, order, gaps, crowd, balance, rhythm, score, windowFrom, windowTo } = d.numbers;
+      expect(distance! + order! + gaps! + crowd! + balance! + rhythm!).toBe(score);
+      expect(windowFrom).toBeLessThanOrEqual(d.screen!);
+      expect(windowTo).toBeGreaterThanOrEqual(d.screen!);
+    }
+  });
+
+  it("fallback is explained", () => {
+    const ds = pictures(lay(FIVE, VIEW, { explain: true, composeBudget: 0 }));
+    expect(ds.map((d) => d.reason)).toEqual(Array(5).fill("fallback-budget"));
+  });
+
+  it("here is explained", () => {
+    const ds = pictures(lay(page(`${para(30, "a")}\n\n${fig("place=here, ratio=3:2")}\n\n${para(60, "b")}`)));
+    expect(ds.map((d) => d.reason)).toEqual(["here"]);
+  });
+
+  it("alternatives score no better than the choice", () => {
+    const ds = pictures(lay(FIVE, VIEW, { explain: true, composeBudget: 40 })).filter((d) => d.alternatives?.length);
+    expect(ds.length).toBeGreaterThan(0);
+    for (const d of ds) {
+      expect(d.alternatives!.length).toBeLessThanOrEqual(3);
+      expect(new Set(d.alternatives!.map((a) => a.spot)).size).toBe(d.alternatives!.length);
+      for (const a of d.alternatives!) {
+        expect(a.score).toBeGreaterThanOrEqual(d.numbers.score!);
+        expect(a.spot).toMatch(/^(\w+ \w+ cols \d+-\d+|wait)$/);
+      }
+    }
+  });
+});
+
+describe("column-end at", () => {
+  it("is the lower of the column's last line and its lowest object", () => {
+    // The text ends part-way down column 2; the pull quote with no text after it sets below it there.
+    const pd = lay(page(`${para(30, "a")}\n\n\\pullquote{Stone keeps what water gives it.}`), VIEW, { explain: true, composeBudget: 0 });
+    const q = pd.scenes[0]!.objects.find((o) => o.kind === "pullquote")!;
+    const d = ends(pd).find((x) => x.reason === "story-end")!;
+    const last = pd.scenes[0]!.lines.filter((l) => l.frame === d.frame && l.column === d.column).at(-1)!;
+    expect(q.box.x).toBe(last.x);
+    expect(q.box.y).toBeGreaterThan(last.y + last.height);
+    expect(d.at).toEqual(q.box);
+    expect(d.refs.blocks).toEqual([last.block]);
   });
 });
 

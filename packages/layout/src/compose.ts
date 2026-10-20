@@ -125,37 +125,45 @@ const readsBefore = (a: Candidate, b: Candidate): number => {
   return p[0] - q[0] || p[1] - q[1];
 };
 
-export function penalty(combo: Candidate[], floats: Float[], g: ScreenGeometry, t: TrialSummary, previous: string | null): number {
+/** The penalty's terms (the visor shows them): `gaps` is the lines short at the feet and the empty room inside. */
+export type PenaltyParts = { distance: number; order: number; gaps: number; crowd: number; balance: number; rhythm: number };
+
+export function penaltyParts(combo: Candidate[], floats: Float[], g: ScreenGeometry, t: TrialSummary, previous: string | null): PenaltyParts {
   const byId = new Map(floats.map((f) => [f.id, f]));
   const order = (c: Candidate) => byId.get(c.id)?.order ?? 0;
-  let cost = 0;
+  const p: PenaltyParts = { distance: 0, order: 0, gaps: 0, crowd: 0, balance: 0, rhythm: 0 };
   for (const c of combo) {
     const f = byId.get(c.id);
-    if (f) cost += distance(c, f, g);
+    if (f) p.distance += distance(c, f, g);
   }
   for (const [i, a] of combo.entries())
     for (const b of combo.slice(i + 1)) {
       const [early, late] = order(a) <= order(b) ? [a, b] : [b, a];
-      if (order(a) !== order(b) && readsBefore(late, early) < 0) cost += PENALTY.order;
+      if (order(a) !== order(b) && readsBefore(late, early) < 0) p.order += PENALTY.order;
     }
   if (!t.last && Number.isFinite(g.foot))
-    for (const foot of t.feet) cost += PENALTY.shortLine * Math.max(0, Math.round((g.foot - foot) / g.baseline));
-  cost += PENALTY.gap * t.gaps;
+    for (const foot of t.feet) p.gaps += PENALTY.shortLine * Math.max(0, Math.round((g.foot - foot) / g.baseline));
+  p.gaps += PENALTY.gap * t.gaps;
   const placed = combo.filter((c): c is Placed => "box" in c);
   for (const [i, a] of placed.entries())
     for (const b of placed.slice(i + 1)) {
       const shareColumn = a.first < b.first + b.span && b.first < a.first + a.span;
       const sideBySide = a.size === b.size && a.box.y < b.box.y + b.box.height && b.box.y < a.box.y + a.box.height;
-      if (shareColumn || sideBySide) cost += PENALTY.crowd;
+      if (shareColumn || sideBySide) p.crowd += PENALTY.crowd;
     }
   const last = g.columns[g.columns.length - 1];
   // One box always sits on one side; balance weighs two or more.
   if (placed.length > 1 && g.columns[0] && last) {
     const mid = (g.columns[0].x + last.x + last.width) / 2;
-    if (placed.every((c) => c.box.x + c.box.width <= mid + EPS) || placed.every((c) => c.box.x >= mid - EPS)) cost += PENALTY.balance;
+    if (placed.every((c) => c.box.x + c.box.width <= mid + EPS) || placed.every((c) => c.box.x >= mid - EPS)) p.balance += PENALTY.balance;
   }
-  if (signature(combo) === previous) cost += PENALTY.rhythm;
-  return cost;
+  if (signature(combo) === previous) p.rhythm += PENALTY.rhythm;
+  return p;
+}
+
+export function penalty(combo: Candidate[], floats: Float[], g: ScreenGeometry, t: TrialSummary, previous: string | null): number {
+  const p = penaltyParts(combo, floats, g, t, previous);
+  return p.distance + p.order + p.gaps + p.crowd + p.balance + p.rhythm;
 }
 
 /** The arrangement, without the objects' names: what the next screen's rhythm penalty compares. */
@@ -193,7 +201,7 @@ export function choose(
   tryLayout: (combo: Candidate[], lost: (t: TrialSummary | null) => boolean) => TrialSummary,
   previous: string | null,
   budget = 40,
-): { combo: Candidate[]; cost: number } | null {
+): { combo: Candidate[]; cost: number; parts: PenaltyParts; ranked: { combo: Candidate[]; cost: number }[] } | null {
   const fs = [...floats].sort((a, b) => a.order - b.order);
   const lists = fs.map((f) =>
     candidates(f, spots, g)
@@ -213,7 +221,9 @@ export function choose(
     a.sum - b.sum || storyFirst(a.combo, b.combo) || compareVectors(a.v, b.v);
   // ponytail: sorted-array frontier, O(n) inserts; a heap if screens ever hold many more floats.
   const frontier: Node[] = [node(fs.map(() => 0), 0)];
-  let best: { combo: Candidate[]; cost: number } | null = null;
+  let best: { combo: Candidate[]; cost: number; parts: PenaltyParts } | null = null;
+  /** Every combination that kept the hard rules, for the visor's alternatives. */
+  const valid: { combo: Candidate[]; cost: number }[] = [];
   let calls = 0;
   while (frontier.length > 0 && calls < budget) {
     const n = frontier.shift()!;
@@ -231,10 +241,15 @@ export function choose(
     const t = tryLayout(n.combo, (t) => (t ? !hardOk(n.combo, fs, g, t) || over(t) : over(UNTRIED)));
     calls++;
     if (!hardOk(n.combo, fs, g, t)) continue;
-    const cost = penalty(n.combo, fs, g, t, previous);
-    if (!best || cost < best.cost - EPS || (cost < best.cost + EPS && storyFirst(n.combo, best.combo) < 0)) best = { combo: n.combo, cost };
+    const parts = penaltyParts(n.combo, fs, g, t, previous);
+    const cost = parts.distance + parts.order + parts.gaps + parts.crowd + parts.balance + parts.rhythm;
+    valid.push({ combo: n.combo, cost });
+    if (!best || cost < best.cost - EPS || (cost < best.cost + EPS && storyFirst(n.combo, best.combo) < 0)) best = { combo: n.combo, cost, parts };
   }
-  return best;
+  if (!best) return null;
+  const b = best;
+  const others = valid.filter((r) => r.combo !== b.combo).sort((x, y) => x.cost - y.cost || storyFirst(x.combo, y.combo));
+  return { ...b, ranked: [{ combo: b.combo, cost: b.cost }, ...others].slice(0, 4) };
 }
 
 function compareVectors(a: number[], b: number[]): number {

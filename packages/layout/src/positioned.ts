@@ -22,7 +22,7 @@ export type Explanation = { version: 1; scenes: { scene: string; decisions: Deci
 
 export type Decision = {
   kind: "column-end" | "picture" | "space" | "line";
-  /** A fixed code: for `column-end`, one of `COLUMN_END_REASONS`. */
+  /** A fixed code: for `column-end`, one of `COLUMN_END_REASONS`; for `picture`, one of `PICTURE_REASONS`. */
   reason: string;
   /** 1-based across the document; null in scrolling scenes. */
   screen: number | null;
@@ -41,6 +41,10 @@ export type Decision = {
 /** Why a column ends (`kind: "column-end"`). */
 export const COLUMN_END_REASONS = ["bottom-line", "levelled", "rule-3-cut", "keep-with-next", "orphans", "widows", "hyphen-avoided", "frame-break", "column-break", "story-end", "balanced-last-page", "stub-folded", "picture-at-foot"] as const;
 export type ColumnEndReason = (typeof COLUMN_END_REASONS)[number];
+
+/** Why a floating object took its spot (`kind: "picture"`); `here`: it does not float. */
+export const PICTURE_REASONS = ["chosen", "fallback-budget", "fallback-no-spot", "waited", "here"] as const;
+export type PictureReason = (typeof PICTURE_REASONS)[number];
 
 export type PositionedScene = {
   /** Scene id in the Resolved Document. */
