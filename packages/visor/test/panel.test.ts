@@ -53,10 +53,16 @@ describe("the visor panel", () => {
   it("only the current screen is listed", () => {
     // The screen under the viewport's centre is the current one; its entries are its decisions only.
     models.forEach((m, i) => {
-      expect(currentScreen(models, m.top + m.height / 2)).toBe(i);
-      const listed = panelEntries(models[currentScreen(models, m.top + m.height / 2)]!).map((e) => m.decisions[e.index]);
-      expect(listed).toEqual(m.decisions);
-      for (const other of models) if (other !== m) for (const d of other.decisions) expect(listed).not.toContain(d);
+      for (const y of [m.top, m.top + m.height / 2, m.top + m.height - 0.5]) {
+        const at = currentScreen(models, y);
+        expect(at, `y ${y}`).toBe(i);
+        const cur = models[at]!;
+        const listed = panelEntries(cur).map((e) => cur.decisions[e.index]);
+        expect(listed).toEqual(m.decisions);
+        for (const other of models) if (other !== m) for (const d of other.decisions) expect(listed).not.toContain(d);
+      }
+      // Just above a screen's top is the screen before it.
+      if (i > 0) expect(currentScreen(models, m.top - 0.5)).toBe(i - 1);
     });
     // Past either end: the nearest screen.
     expect(currentScreen(models, -500)).toBe(0);
@@ -79,5 +85,17 @@ describe("the visor panel", () => {
     const screens = models.filter((m) => m.screen !== null).map((m) => m.screen!);
     expect(dotsOf(pd, screens[0]!, screens.at(-1)!)).toEqual(screens.map((_, i) => i));
     expect(dotsOf(pd, screens[1]!, screens[1]!)).toEqual([1]);
+  });
+
+  it("a scrolling scene before the pages offsets the dots from the screen numbers", () => {
+    // Dots: the scrolling scene's top, then each page screen, then the end.
+    const first = lay(`\\story[name=u]{${para(60, "u")}}\n\\scene{\\frame[story=u, cols=1-12, columns=2]}\n${page(para(200, "a"), "s")}`);
+    const paged = buildModel(first, first.explain!).filter((m) => m.screen !== null);
+    expect(first.scenes[0]!.paged).toBe(false);
+    // The pages start on screen 3 but on the second dot, so a dot is not its screen number less one.
+    expect(paged[0]!.screen).toBeGreaterThan(2);
+    expect(paged.length).toBeGreaterThanOrEqual(2);
+    paged.forEach((m, k) => expect(dotsOf(first, m.screen!, m.screen!), `screen ${m.screen}`).toEqual([k + 1]));
+    expect(dotsOf(first, paged[0]!.screen!, paged.at(-1)!.screen!)).toEqual(paged.map((_, k) => k + 1));
   });
 });

@@ -14,5 +14,8 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "dependencies": {
+    "@wmxdsl/renderer": "0.1.0"
+  }
 }

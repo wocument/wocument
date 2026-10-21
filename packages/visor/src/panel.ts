@@ -4,6 +4,7 @@
  */
 
 import type { Decision, PositionedDocument } from "@wmxdsl/layout";
+import { screenPoints, snapStops } from "@wmxdsl/renderer";
 import { describe, round } from "./dictionary.js";
 import type { Layer, ScreenModel } from "./model.js";
 
@@ -26,28 +27,25 @@ export function cardOf(d: Decision): { layer: Layer; kind: string; title: string
 
 /** The index of the screen that holds document y `y` (the viewport's centre), or the nearest one. */
 export function currentScreen(models: readonly ScreenModel[], y: number): number {
+  const inside = models.findIndex((m) => y >= m.top && y < m.top + m.height);
+  if (inside >= 0) return inside;
   let best = 0;
   let far = Infinity;
   models.forEach((m, i) => {
-    const d = y < m.top ? m.top - y : y >= m.top + m.height ? y - (m.top + m.height) : 0;
+    const d = Math.min(Math.abs(y - m.top), Math.abs(y - (m.top + m.height)));
     if (d < far) (far = d), (best = i);
   });
   return best;
 }
 
-/**
- * The renderer's screen dots that stand for screens `from`–`to` (1-based across the document).
- * ponytail: mirrors the renderer's snapStops (every page screen's top, every other scene's top, the
- * end) so the visor needs no renderer import; if snapStops changes, change this too.
- */
+/** The renderer's screen dots that stand for screens `from`–`to` (1-based across the document), as the renderer builds them. */
 export function dotsOf(pd: PositionedDocument, from: number, to: number): number[] {
   const vh = pd.viewport.height;
-  const last = pd.scenes.at(-1);
-  const end = last ? Math.max(0, last.y + last.height - vh) : 0;
-  const tops = pd.scenes.flatMap((s) => (s.paged ? Array.from({ length: Math.max(1, Math.round(s.height / vh)) }, (_, k) => s.y + k * vh) : []));
-  const stops = [...new Set([...tops, ...pd.scenes.filter((s) => !s.paged).map((s) => s.y), end].map((y) => Math.min(y, end)))].sort((a, b) => a - b);
+  const kinds = pd.scenes.map((s) => ({ y: s.y, height: s.height, page: s.paged }));
+  const stops = snapStops(kinds, vh);
+  const end = stops.at(-1) ?? 0;
   const out = new Set<number>();
-  for (const top of tops) {
+  for (const top of screenPoints(kinds, vh)) {
     const n = Math.floor((top + 1e-6) / vh) + 1;
     if (n >= from && n <= to) out.add(stops.indexOf(Math.min(top, end)));
   }
