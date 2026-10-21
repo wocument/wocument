@@ -5,7 +5,7 @@ import { parse, type Document } from "@wmxdsl/parser";
 import { type AssetHost, resolve } from "@wmxdsl/resolver";
 import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
 import { type GridGeometry, type PositionedDocument, type PositionedLine, layout } from "@wmxdsl/layout";
-import { buildModel } from "../src/index.js";
+import { DEFAULT_LAYERS, buildModel } from "../src/index.js";
 
 const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
@@ -122,5 +122,23 @@ describe("gaps", () => {
     const [m] = buildModel(pd, { version: 1, scenes: [{ scene: "a", decisions: [] }] });
     const gaps = m!.shapes.filter((s) => s.kind === "gap");
     expect(gaps).toEqual([{ layer: "space", kind: "gap", x: 48, y: 56 + 5 * 28, width: 380, height: 3 * 28, label: "3 lines" }]);
+  });
+
+  const gapsOf = (ls: PositionedLine[], objects: PositionedDocument["scenes"][number]["objects"] = []) =>
+    buildModel({ ...pd, scenes: [{ ...pd.scenes[0]!, lines: ls, objects }] }, { version: 1, scenes: [{ scene: "a", decisions: [] }] })[0]!.shapes.filter((s) => s.kind === "gap");
+  const rows = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => line(0, from + i));
+  const object = (y: number, height: number) => ({ name: "p", kind: "figure", box: { x: 48, y, width: 380, height }, exclusion: null, anchoredAt: null, media: null });
+
+  it("an object above or below the lines gives no gap", () => {
+    expect(gapsOf(rows(4, 12), [object(0, 100), object(600, 100)])).toEqual([]);
+  });
+
+  it("a run under one baseline gives no gap", () => {
+    const after = rows(5, 9).map((l) => ({ ...l, y: l.y + 20, baseline: l.baseline + 20 }));
+    expect(gapsOf([...rows(0, 4), ...after])).toEqual([]);
+  });
+
+  it("lines and words are off by default", () => {
+    expect([...DEFAULT_LAYERS].sort()).toEqual(["flow", "pictures", "space"]);
   });
 });

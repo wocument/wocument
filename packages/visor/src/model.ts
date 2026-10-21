@@ -7,6 +7,9 @@ import type { Decision, Explanation, PositionedDocument, PositionedScene } from 
 
 export type Layer = "flow" | "pictures" | "space" | "lines";
 
+/** The layers the visor shows when none are asked for: lines and words stay off until switched on. */
+export const DEFAULT_LAYERS: readonly Layer[] = ["flow", "pictures", "space"];
+
 export type Shape = {
   layer: Layer;
   kind: "column-tint" | "baseline" | "bottom-line" | "gap" | "marker" | "outline" | "anchor-link" | "badge" | "line-mark";
@@ -78,8 +81,13 @@ function screen(ps: PositionedScene, n: number | null, top: number, height: numb
     columns.set(key, c);
   }
   for (const c of columns.values()) {
-    for (const o of ps.objects)
-      if (o.box.x < c.right - EPS && o.box.x + o.box.width > c.x + EPS && o.box.y < foot && o.box.y + o.box.height > top) c.spans.push([o.box.y, o.box.y + o.box.height]);
+    // Objects count only inside the column's run of lines, so one above or below the text makes no gap.
+    const lo = Math.min(...c.spans.map((sp) => sp[0]));
+    const hi = Math.max(...c.spans.map((sp) => sp[1]));
+    for (const o of ps.objects) {
+      const [from, to] = [Math.max(o.box.y, lo), Math.min(o.box.y + o.box.height, hi)];
+      if (o.box.x < c.right - EPS && o.box.x + o.box.width > c.x + EPS && to > from) c.spans.push([from, to]);
+    }
     c.spans.sort((a, b) => a[0] - b[0]);
     let reach = c.spans[0]![1];
     for (const [from, to] of c.spans.slice(1)) {

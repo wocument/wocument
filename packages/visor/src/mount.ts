@@ -5,18 +5,17 @@
  */
 
 import type { Explanation, PositionedDocument } from "@wmxdsl/layout";
-import { type Layer, type ScreenModel, type Shape, buildModel } from "./model.js";
+import { DEFAULT_LAYERS, type Layer, type ScreenModel, type Shape, buildModel } from "./model.js";
 
 /** One strong colour per layer, readable on light and dark scenes; tints are this colour at low alpha. */
 export const PALETTE: Record<Layer, string> = { flow: "#7c3aed", pictures: "#0d9488", space: "#d97706", lines: "#e11d48" };
-const ALL: Layer[] = ["flow", "pictures", "space", "lines"];
 const FONT = "600 10px/1.4 system-ui, sans-serif";
 
 export function mountVisor(root: HTMLElement, pd: PositionedDocument, explain: Explanation, options: { layers?: Layer[] } = {}): { setLayers(l: Layer[]): void; destroy(): void } {
   const doc = root.ownerDocument;
   const win = doc.defaultView!;
   const models = buildModel(pd, explain);
-  let layers = new Set(options.layers ?? ALL);
+  let layers = new Set(options.layers ?? DEFAULT_LAYERS);
   const overlay = doc.createElement("div");
   overlay.className = "wmx-visor";
   overlay.style.cssText = `position:absolute;left:0;top:0;width:100%;height:${pd.height}px;pointer-events:none;z-index:2147483000;`;
@@ -111,7 +110,9 @@ function drawShape(doc: Document, s: Shape): HTMLElement {
       break;
     }
     case "line-mark":
-      el.style.cssText = box + `background:${c}1f;border-left:3px solid ${c};`;
+      // A faint wash over the line and a small dot just outside its left edge.
+      el.style.cssText = box + `background:${c}14;`;
+      el.appendChild(doc.createElement("span")).style.cssText = `position:absolute;left:-8px;top:50%;width:4px;height:4px;margin-top:-2px;border-radius:50%;background:${c};`;
       if (s.label) tag(s.label, "left:100%;top:50%;transform:translate(4px,-50%);");
       break;
   }
