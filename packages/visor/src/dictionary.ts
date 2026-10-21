@@ -57,5 +57,9 @@ export const DICTIONARY: Record<Decision["kind"], Record<string, Record<Voice, E
 export function describe(d: Decision, voice: Voice = "engineer"): { title: string; body: string; rule: string } {
   const entry = DICTIONARY[d.kind]?.[d.reason]?.[voice];
   if (!entry) return { title: d.reason, body: `No wording for the ${d.kind} code "${d.reason}".`, rule: d.rule };
-  return { title: entry.title, body: entry.body(d.numbers), rule: d.rule };
+  return { title: entry.title, body: entry.body(rounded(d.numbers)), rule: d.rule };
 }
+
+/** A number as the visor shows it: whole, or to one decimal for a ratio. */
+export const round = (key: string, v: number): number => (/ratio/i.test(key) ? Math.round(v * 10) / 10 : Math.round(v));
+const rounded = (n: N): N => Object.fromEntries(Object.entries(n).map(([k, v]) => [k, round(k, v)]));

@@ -108,7 +108,7 @@ function screen(ps: PositionedScene, n: number | null, top: number, height: numb
       const name = d.refs.objects?.[0] ?? "";
       const col = (x: number): number => Math.min(g.cols, Math.max(1, Math.floor((x - g.originX + EPS) / (g.colWidth + g.gutter)) + 1));
       shapes.push({ layer: "pictures", kind: "outline", ...at, label: `${name} · ${Math.round(at.width)}×${Math.round(at.height)} · cols ${col(at.x)}-${col(at.x + at.width - 2 * EPS)}`, decision: i });
-      shapes.push({ layer: "pictures", kind: "badge", x: at.x, y: at.y, width: 0, height: 0, label: d.numbers.score === undefined ? d.reason : `${d.reason} ${d.numbers.score}`, decision: i });
+      shapes.push({ layer: "pictures", kind: "badge", x: at.x, y: at.y, width: 0, height: 0, label: d.numbers.score === undefined ? d.reason : `${d.reason} ${Math.round(d.numbers.score)}`, decision: i });
       const anchor = anchorOf(ps, d, name);
       if (anchor) shapes.push({ layer: "pictures", kind: "anchor-link", x: anchor.x, y: anchor.y, width: at.x - anchor.x, height: at.y - anchor.y, decision: i });
     } else if (d.kind === "space") {

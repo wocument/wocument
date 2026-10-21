@@ -84,7 +84,7 @@ describe("the visor model", () => {
         const outline = mine.find((s) => s.kind === "outline")!;
         expect({ x: outline.x, y: outline.y, width: outline.width, height: outline.height }).toEqual(d.at);
         expect(outline.label).toContain(d.refs.objects![0]);
-        expect(mine.find((s) => s.kind === "badge")!.label).toContain(String(d.numbers.score ?? d.reason));
+        expect(mine.find((s) => s.kind === "badge")!.label).toContain(d.numbers.score === undefined ? d.reason : String(Math.round(d.numbers.score)));
       });
     expect(pictures).toBe(2);
   });
