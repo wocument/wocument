@@ -27,6 +27,7 @@ export default defineConfig({
       "@wmxdsl/text-engine": r("./packages/text-engine/src/index.ts"),
       "@wmxdsl/layout": r("./packages/layout/src/index.ts"),
       "@wmxdsl/renderer": r("./packages/renderer/src/index.ts"),
+      "@wmxdsl/visor": r("./packages/visor/src/index.ts"),
     },
   },
   test: {

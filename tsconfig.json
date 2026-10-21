@@ -9,6 +9,7 @@
     { "path": "packages/text-engine" },
     { "path": "packages/layout" },
     { "path": "packages/renderer" },
+    { "path": "packages/visor" },
     { "path": "packages/cli" }
   ]
 }
