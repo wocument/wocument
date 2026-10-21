@@ -1208,36 +1208,65 @@ shares its baseline.
 **Palette `default`**: paper `#f6f7f8`, ink `#16181d`, muted `#5f6570`, accent `#1f5fbf`, rule `#dde1e6`.
 
 **Styles**. Families: serif = `Georgia, serif`; sans = `Helvetica Neue, Helvetica, Arial, sans-serif`.
-Sizes are base and wide / tablet / phone where they differ. On `compact` each size is 85% of
-base, rounded to the pixel (body 18px, lede 19px, headline fluid(34px, 61px), deck fluid(18px, 21px),
-pull quote fluid(19px, 24px), subhead 15px, caption 13px, credit 11px, folio 10px, and so on).
+Sizes are listed as base / compact / tablet / phone where they differ; `wide` inherits base.
+On `compact`, the values are the base values at 85%, rounded to the pixel. Fluid sizes show
+their minimum and maximum.
 
 | Style | Family | Size | Leading | Other |
 | :---- | :---- | :---- | :---- | :---- |
-| `body` | serif | 21px / 19px / 18px | 1bl | align justify, justify-min 12em, indent 2em, space-after 0, min-slot 9em, composer paragraph, hyphenate (hyphenate-min 6, hyphenate-caps false), hang punctuation, widows 2, orphans 2 |
-| `lede` | serif | 22px / 22px / 20px | 1.45em | space-after 0.5bl, snap none, balance, bind-short, no hyphenation |
-| `headline` | serif, weight 700 | fluid(35px, 61px) | 1.05em | tracking -0.01em, space-after 0.35bl, snap none, balance, bind-short, no hyphenation |
-| `deck` | serif, italic | fluid(21px, 26px) | 1.3em | color muted, space-after 0.5bl, snap none, balance, bind-short, no hyphenation |
-| `kicker` | sans, weight 600 | 13px | 0.5bl | case upper, tracking 0.08em, color accent, space-after 0.25bl, snap none |
-| `byline` | sans, weight 600 | 16px | 0.75bl | space-after 0, snap none |
-| `meta` | sans | 13px | 0.75bl | color muted, space-after 0, snap none |
-| `subhead` | sans, weight 600 | 18px | 1bl | case upper, tracking 0.08em, color accent, space-before 1bl, space-after 0, keep-with-next, balance, bind-short |
-| `subhead-2` | sans, weight 700 | 20px | 1bl | space-before 1bl, space-after 0, keep-with-next |
-| `pullquote` | serif, italic | fluid(22px, 28px) | 1.25em | color ink, space-after 0, snap none, balance, bind-short, mark `"“”"` |
-| `cite` | as the enclosing style | 17px | 1.2em | color muted, upright |
-| `blockquote` | serif, italic | 20px | 1bl | indent via frame inset 1col, hang punctuation |
-| `caption` | serif, italic | 15px | 1.4em | color muted, snap none |
-| `credit` | sans | 13px | 1.4em | case upper, tracking 0.06em, color muted, snap none |
-| `sidebar` | sans | 16px | 1.5em | snap none |
+| `body` | serif | 21px / 18px / 19px / 18px | 1bl | align justify, justify-min 12em, indent 2em, space-after 0, min-slot 9em, composer paragraph, hyphenate (hyphenate-min 6, hyphenate-caps false), hang punctuation, widows 2, orphans 2 |
+| `lede` | serif | 22px / 19px / 22px / 20px | 1bl | space-after 1bl, snap baseline, no balance, paragraph composer, no hyphenation |
+| `headline` | serif | fluid(40px, 72px) / fluid(34px, 61px) | 1.06em | weight 400, tracking -0.015em, space-after 0.75bl, snap none, balance, bind-short, no hyphenation |
+| `deck` | serif | fluid(21px, 25px) / fluid(18px, 21px) | 1.4em | upright, color ink, space-after 1.5bl, snap none, balance, bind-short, no hyphenation |
+| `kicker` | sans, weight 500 | 12px / 10px | 0.5bl | case upper, tracking 0.14em, color ink, space-after 1bl, snap none |
+| `byline` | sans, weight 500 | 14px / 12px | 0.75bl | space-after 0, snap none |
+| `meta` | sans | 13px / 11px | 0.75bl | color muted, space-after 0, snap none |
+| `subhead` | sans, weight 600 | 18px / 15px | 1bl | case upper, tracking 0.08em, color accent, space-before 1bl, space-after 0, keep-with-next, balance, bind-short |
+| `subhead-2` | sans, weight 700 | 20px / 17px | 1bl | space-before 1bl, space-after 0, keep-with-next |
+| `pullquote` | serif, italic | fluid(22px, 28px) / fluid(19px, 24px) | 1.25em | color ink, space-after 0, snap none, balance, bind-short, mark `"“”"` |
+| `cite` | as the enclosing style | 17px / 14px | 1.2em | color muted, upright |
+| `blockquote` | serif, italic | 20px / 17px | 1bl | indent via frame inset 1col, hang punctuation |
+| `caption` | serif, italic | 15px / 13px | 1.4em | color muted, snap none |
+| `credit` | sans | 13px / 11px | 1.4em | case upper, tracking 0.06em, color muted, snap none |
+| `sidebar` | sans | 16px / 14px | 1.5em | snap none |
 | `dropcap` | as headline: serif, weight 700 | spans 3 lines | | color accent |
-| `bio` | sans, italic | 16px | 0.75bl | color muted, snap none |
-| `folio` | sans, weight 600 | 12px | | case upper, tracking 0.08em |
+| `bio` | sans, italic | 16px / 14px | 0.75bl | color muted, snap none |
+| `folio` | sans, weight 600 | 12px / 10px | | case upper, tracking 0.08em |
 | `link` | inherits | inherits | | character style, color accent, underlined |
 | `code` | monospace | 0.9em | | character style |
 | `title` | as `sidebar`, weight 700 | as `sidebar` | as `sidebar` | no hyphenation; sidebar and box titles |
 | `endmark` | as the enclosing paragraph | | | color accent |
 
 An empty cell takes the §07.6 default, whose column applies to every style, not only `body`.
+
+**Heading block.** In the zero-config form, a leading run of `kicker`, `headline`, `deck`,
+`byline` and `meta` is put in its own frame. The frame is `cols=1-8`, and becomes all columns
+on tablet and phone; `lede` is the first element of the story instead. The final Vanilla heading
+styles and gaps are:
+
+| Element | Size (base / compact) | Leading | Space after |
+| :---- | :---- | :---- | :---- |
+| `kicker` | 12px / 10px | 0.5bl | 1bl |
+| `headline` | fluid(40px, 72px) / fluid(34px, 61px) | 1.06em | 0.75bl |
+| `deck` | fluid(21px, 25px) / fluid(18px, 21px) | 1.4em | 1.5bl |
+| `byline` | 14px / 12px | 0.75bl | 0 |
+| `meta` | 13px / 11px | 0.75bl | 0 |
+
+**Spots menu.** Vanilla uses the same menu at every breakpoint. Rows are tried in source order
+for a floating object of the matching size; `anchor` spots are set at the anchor rather than
+scored.
+
+| Size | Place | Span | Side |
+| :---- | :---- | :---- | :---- |
+| `hero` | `top` | `all` | — |
+| `hero` | `top` | `all-but-one` | — |
+| `wide` | `top` | `2-3` | — |
+| `wide` | `bottom` | `2-3` | — |
+| `column` | `top` | `1` | — |
+| `column` | `bottom` | `1` | — |
+| `column` | `anchor` | `1` | — |
+| `small` | `anchor` | `1` | `left` |
+| `small` | `anchor` | `1` | `right` |
 
 ---
 
