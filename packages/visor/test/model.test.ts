@@ -19,9 +19,9 @@ const LONG = "Stone endures where nearly everything else decays. ".repeat(100).t
 const para = (n: number, tag: string): string => Array.from({ length: n }, (_, i) => `Stone ${tag}${i} endures where nearly everything else decays.`).join(" ");
 const fig = (attrs: string): string => `\\figure[src=/a.jpg, alt="A picture", ${attrs}]`;
 const page = (story: string, name = "s"): string => `\\story[name=${name}]{${story}}\n\\scene[height=page, grid=page]{\\frame[story=${name}, cols=1-12, columns=3]}`;
-function lay(src: string): PositionedDocument {
+function lay(src: string, view = VIEW): PositionedDocument {
   const rd = resolve(parse(FM + GRID + src).ast as Document, { assets: fake }).doc;
-  return layout(rd, VIEW, new PrepareCache(createFixedEngine()), { explain: true });
+  return layout(rd, view, new PrepareCache(createFixedEngine()), { explain: true });
 }
 
 /** A levelled page, a page with pictures and a scrolling scene after them. */
@@ -102,6 +102,22 @@ describe("the visor model", () => {
       if (m.screen === null) expect(bottom).toEqual([]);
       else expect(bottom.map((s) => s.y)).toEqual([m.top + VIEW.height - g.marginY]);
     }
+  });
+});
+
+describe("a model per layout", () => {
+  it("two layouts of different widths share no shapes", () => {
+    const src = page(`${para(40, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(30, "b")}`);
+    const [wide, narrow] = [VIEW, { width: 900, height: 800 }].map((v) => {
+      const pd = lay(src, v);
+      return buildModel(pd, pd.explain!);
+    });
+    const a = new Set(wide!.flatMap((m) => m.shapes));
+    const b = narrow!.flatMap((m) => m.shapes);
+    expect(a.size).toBeGreaterThan(0);
+    expect(b.length).toBeGreaterThan(0);
+    expect(b.filter((s) => a.has(s))).toEqual([]);
+    expect(wide).not.toEqual(narrow);
   });
 });
 
