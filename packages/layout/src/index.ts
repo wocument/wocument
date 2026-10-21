@@ -429,7 +429,9 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
     append(behind, r.placed);
   }
   append(behind, out);
-  return { name: scene.id, y: sceneY, height, grid, paged: env.paged, ...behind, ...(env.paged ? { screens: env.reports } : {}) };
+  // The visor's strips stay out of the page.
+  const { narrow: _, ...drawn } = behind;
+  return { name: scene.id, y: sceneY, height, grid, paged: env.paged, ...drawn, ...(env.paged ? { screens: env.reports } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1016,21 +1018,21 @@ function noteEnds(env: Env, set: Columns, over: Over): void {
 }
 
 /**
- * The visor: line decisions, read from each kept line and its style once every scene is set (a
- * paragraph's last line can be in a later scene). Justified lines follow the renderer's rules: the
- * paragraph's last line and one under justify-min are ragged, and the rest open or close their spaces
+ * The visor: line decisions, read from each kept line and its style once every scene is set.
+ * Justified lines follow what the renderer draws: a block's last line in the scene and one under
+ * justify-min (a % of the viewport's width, as the renderer reads it) are ragged, and the rest open or close their spaces
  * by `justifySpacing`, loose past 1.5 of a normal space and tight under 0.8.
  */
 function noteLines(v: Variant, cache: PrepareCache, viewport: Viewport, kept: readonly { env: Env; scene: PositionedScene }[]): void {
   const key = (l: PositionedLine): string => `${l.story}\u0000${l.block}`;
-  const last = new Map<string, PositionedLine>();
-  for (const { scene } of kept) for (const l of scene.lines) last.set(key(l), l);
   const spaces = new Map<string, number>();
-  for (const { env, scene } of kept)
+  for (const { env, scene } of kept) {
+    const last = new Map<string, PositionedLine>();
+    for (const l of scene.lines) last.set(key(l), l);
     for (const l of scene.lines) {
       const style = v.styles[l.style];
       if (!style) continue;
-      const ctx: EvalContext = { viewport, grid: scene.grid, pctOf: l.width };
+      const ctx: EvalContext = { viewport, grid: scene.grid, pctOf: viewport.width };
       const note = (reason: LineReason, numbers: Record<string, number>, rule: string): number =>
         env.explain!.push({ kind: "line", reason, screen: screenAt(env, l.y), frame: l.frame, column: l.column, at: box(l), numbers, refs: { blocks: [l.block] }, rule });
       if (style.align === "justify") {
@@ -1054,6 +1056,7 @@ function noteLines(v: Variant, cache: PrepareCache, viewport: Viewport, kept: re
       if (l.hang) note("hung", { left: l.hang.left, right: l.hang.right }, "§07.6 hang");
       if (l.text.endsWith(SHY_CHAR)) note("hyphenated", {}, "§07.6 hyphenate");
     }
+  }
 }
 
 const box = (r: Rect): Rect => ({ x: r.x, y: r.y, width: r.width, height: r.height });

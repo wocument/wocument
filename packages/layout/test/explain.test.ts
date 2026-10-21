@@ -301,6 +301,15 @@ describe("space reasons", () => {
     expect(d).toMatchObject({ screen: null, column: 0, rule: "§09.6 step 3", refs: { objects: [o.name] } });
   });
 
+  it("the strips stay out of the page: identical with explain on and off", () => {
+    const rd = doc(`\\story[name=s]{${para(4, "a")}\n\n${fig("side=right, width=450px, ratio=4:3")}\n\n${para(30, "b")}}\n\\scene{\\frame[story=s, cols=1-6]}`);
+    const off = layout(rd, VIEW, new PrepareCache(createFixedEngine()));
+    const on = layout(rd, VIEW, new PrepareCache(createFixedEngine()), { explain: true });
+    expect(on.explain!.scenes[0]!.decisions.some((d) => d.reason === "slot-too-narrow")).toBe(true);
+    delete on.explain;
+    expect(on).toEqual(off);
+  });
+
   it("grown: rule 12 makes a photograph a line taller so the page ends full", () => {
     const pd = lay(page(`${para(7, "a")}\n\n${fig("size=column, ratio=4:3")}\n\n${para(8, "b")}\n\n${para(30, "c")}`), VIEW, { explain: true, composeBudget: 0 });
     const ds = [...spaces(pd, "grown"), ...spaces(pd, "cropped")];
@@ -342,6 +351,23 @@ describe("line reasons", () => {
     expect(ds).toHaveLength(pd.scenes[0]!.lines.length);
     expect(ds.filter((d) => d.numbers.reasonCode === 2)).toHaveLength(ds.length - 1);
     expect(notes(pd, "loose")).toEqual([]);
+  });
+
+  it("ragged: a paragraph threaded on to the next scene ends each scene ragged, as the renderer draws it", () => {
+    const src = `\\style[name=body, align=justify]\n\\story[name=s]{${para(12, "a")}}\n\\scene{\\frame[story=s, cols=1-6, height=3bl]}\n\\scene{\\frame[story=s, cols=1-6]}`;
+    const pd = lay(src);
+    const [first, second] = pd.explain!.scenes;
+    const ragged = (ds: Decision[]) => ds.filter((d) => d.kind === "line" && d.reason === "ragged");
+    const end = pd.scenes[0]!.lines.at(-1)!;
+    expect(ragged(first!.decisions)).toEqual([expect.objectContaining({ numbers: { reasonCode: 1 }, at: { x: end.x, y: end.y, width: end.width, height: end.height } })]);
+    expect(ragged(second!.decisions)).toHaveLength(1);
+  });
+
+  it("ragged: justify-min in % is of the viewport's width, as the renderer reads it", () => {
+    // A 522px column: under 45% of 1280px (576px) is ragged; 40% (512px) is not.
+    const of = (pct: number) => notes(lay(`\\style[name=body, align=justify, justify-min=${pct}%]\n\\story[name=s]{${para(6, "a")}}\n\\scene{\\frame[story=s, cols=1-6]}`), "ragged");
+    expect(of(45).filter((d) => d.numbers.reasonCode === 2).length).toBeGreaterThan(0);
+    expect(of(40).filter((d) => d.numbers.reasonCode === 2)).toEqual([]);
   });
 
   it("hung: a quotation mark opening a line hangs outside the column", () => {
