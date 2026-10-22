@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Spot } from "@wmxdsl/resolved-document";
-import { PENALTY, candidates, choose, hardOk, penalty, type Candidate, type Float, type ScreenGeometry, type TrialSummary } from "../src/compose.js";
+import { PENALTY, candidates, choose, hardOk, penalty, penaltyParts, type Candidate, type Float, type ScreenGeometry, type TrialSummary } from "../src/compose.js";
 
 const geometry = (count: number, over: Partial<ScreenGeometry> = {}): ScreenGeometry => ({
   index: 1,
@@ -149,5 +149,36 @@ describe("choose", () => {
       const at = Object.fromEntries((got?.combo ?? []).map((c) => [c.id, "box" in c ? c.first : -1]));
       expect(at).toEqual({ a: 0, b: 1 });
     }
+  });
+});
+
+describe("the visor's score parts", () => {
+  it("penaltyParts sum to penalty", () => {
+    const a = float({ id: "a", order: 0, anchorColumn: 2 });
+    const b = float({ id: "b", order: 1, anchorColumn: 0 });
+    const [a0, a1, a2] = boxes(candidates(a, [spot("column", "top")], g3));
+    const [, , b2] = boxes(candidates(b, [spot("column", "bottom")], g3));
+    const combos: [Candidate[], TrialSummary, string | null][] = [
+      [[a0!, b2!], fine({ gaps: 2, feet: [900, 844, 816] }), null],
+      [[a2!, { id: "b", wait: true }], fine(), "column:top:2+1"],
+      [[a1!, b2!], fine({ last: true, gaps: 1 }), null],
+    ];
+    for (const [combo, t, previous] of combos) {
+      const parts = penaltyParts(combo, [a, b], g3, t, previous);
+      const sum = Object.values(parts).reduce((s, x) => s + x, 0);
+      expect(sum).toBe(penalty(combo, [a, b], g3, t, previous));
+    }
+    expect(penaltyParts([a2!, { id: "b", wait: true }], [a, b], g3, fine(), "column:top:2+1").rhythm).toBe(PENALTY.rhythm);
+  });
+
+  it("choose returns ranked alternatives, best first", () => {
+    const f = float();
+    const got = choose([f], [spot("column", "top")], g3, (c) => fine({ gaps: "box" in c[0]! && c[0].first === 0 ? 5 : 0 }), null)!;
+    expect(got.ranked[0]).toEqual({ combo: got.combo, cost: got.cost });
+    expect(got.ranked.length).toBeGreaterThanOrEqual(2);
+    expect(got.ranked.length).toBeLessThanOrEqual(4);
+    for (let i = 1; i < got.ranked.length; i++) expect(got.ranked[i]!.cost).toBeGreaterThanOrEqual(got.ranked[i - 1]!.cost);
+    const many = choose([f, float({ id: "g", order: 1 })], [spot("column", "top"), spot("column", "bottom")], g3, () => fine({ gaps: 1 }), null, 40)!;
+    expect(many.ranked.length).toBeLessThanOrEqual(4);
   });
 });

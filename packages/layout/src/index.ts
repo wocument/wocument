@@ -32,7 +32,7 @@ import type {
 import { CURSOR_START, type EngineRun, type LineBox, type PrepareCache, type Prepared, type TextCursor, type TextEngine } from "@wmxdsl/text-engine";
 import { type EvalContext, type Viewport, engineFont, gridGeometry, px, span } from "./evaluate.js";
 import { type RowItem, packRows } from "./rows.js";
-import { type Candidate, type Float, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, hardOk, signature } from "./compose.js";
+import { type Candidate, type Float, type PenaltyParts, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, distance, hardOk, signature } from "./compose.js";
 import type {
   Exclusion,
   GridGeometry,
@@ -44,6 +44,12 @@ import type {
   PositionedObject,
   PositionedRule,
   PositionedScene,
+  ColumnEndReason,
+  Decision,
+  PictureReason,
+  SpaceReason,
+  LineReason,
+  Explanation,
   Rect,
   ScreenReport,
 } from "./positioned.js";
@@ -69,8 +75,9 @@ const AUTO_MEASURE_EM = 32;
 type Resume = { block: number; piece: number; at: TextCursor; offset: number };
 const START: Resume = { block: 0, piece: 0, at: CURSOR_START, offset: 0 };
 
-/** What one fill produced. */
-type Placed = { lines: PositionedLine[]; caps: PositionedCap[]; rules: PositionedRule[]; objects: PositionedObject[]; columnRules: PositionedColumnRule[]; continues: PositionedContinue[] };
+/** What one fill produced. `narrow` (the visor, only with `explain`): strips under min-slot left empty beside an object. */
+type Placed = { lines: PositionedLine[]; caps: PositionedCap[]; rules: PositionedRule[]; objects: PositionedObject[]; columnRules: PositionedColumnRule[]; continues: PositionedContinue[]; narrow?: Narrow[] };
+type Narrow = Rect & { min: number; frame: string; column: number; object?: string };
 const empty = (): Placed => ({ lines: [], caps: [], rules: [], objects: [], columnRules: [], continues: [] });
 const append = (a: Placed, b: Placed): void => {
   a.lines.push(...b.lines);
@@ -79,8 +86,9 @@ const append = (a: Placed, b: Placed): void => {
   a.objects.push(...b.objects);
   a.columnRules.push(...b.columnRules);
   a.continues.push(...b.continues);
+  if (b.narrow?.length) (a.narrow ??= []).push(...b.narrow);
 };
-const mark = (p: Placed) => ({ lines: p.lines.length, caps: p.caps.length, rules: p.rules.length, objects: p.objects.length, columnRules: p.columnRules.length, continues: p.continues.length });
+const mark = (p: Placed) => ({ lines: p.lines.length, caps: p.caps.length, rules: p.rules.length, objects: p.objects.length, columnRules: p.columnRules.length, continues: p.continues.length, narrow: p.narrow?.length ?? 0 });
 function rollback(out: Placed, to: ReturnType<typeof mark>): void {
   out.lines.length = to.lines;
   out.caps.length = to.caps;
@@ -88,6 +96,7 @@ function rollback(out: Placed, to: ReturnType<typeof mark>): void {
   out.objects.length = to.objects;
   out.columnRules.length = to.columnRules;
   out.continues.length = to.continues;
+  if (out.narrow) out.narrow.length = to.narrow;
 }
 
 /** Everything a fill needs that does not change within one scene. */
@@ -123,7 +132,13 @@ type Env = {
   floated?: ReadonlyMap<string, Floated | null>;
   /** The copyfitting report: each banded frame adds its screens. */
   reports: ScreenReport[];
+  /** The visor (2026-10-21): decisions of kept settings only; absent when `explain` is off. Truncated with `reports` at every rollback. */
+  explain?: Decision[];
+  /** The visor: why each floating object took its spot, as the composer last decided; absent when `explain` is off. */
+  picks?: Map<string, Pick>;
 };
+/** The visor: a floating object's reason, and for a chosen spot its score parts and the alternatives. */
+type Pick = { reason: PictureReason; numbers: Record<string, number>; alternatives?: NonNullable<Decision["alternatives"]> };
 type Floated = { box: Rect; fixed: boolean };
 
 /** The active variant: the last breakpoint range starting at or below the width. */
@@ -133,27 +148,32 @@ export function activeVariant(rd: ResolvedDocument, width: number): string {
   return name;
 }
 
-export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareCache, opts: { composeBudget?: number; onCompose?: (screen: number, trials: number) => void; onCut?: (screen: number, layouts: number) => void } = {}): PositionedDocument {
+export function layout(rd: ResolvedDocument, viewport: Viewport, cache: PrepareCache, opts: { composeBudget?: number; onCompose?: (screen: number, trials: number) => void; onCut?: (screen: number, layouts: number) => void; explain?: boolean } = {}): PositionedDocument {
   const breakpoint = activeVariant(rd, viewport.width);
   const v = rd.variants[breakpoint]!;
   const cursors = new Map<string, Resume>();
   const scenes: PositionedScene[] = [];
+  const explained: Explanation["scenes"] = [];
+  const kept: { env: Env; scene: PositionedScene }[] = [];
   let y = 0;
   for (const scene of v.scenes) {
-    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut, reports: [] });
+    const env = (pageGrids: boolean): Env => ({ rd, v, grid: gridGeometry(scene.grid, viewport), sceneY: y, viewport, cache, page: scene.height === "page", paged: false, pageGrids, budget: opts.composeBudget ?? 40, onCompose: opts.onCompose, onCut: opts.onCut, reports: [], ...(opts.explain ? { explain: [], picks: new Map() } : {}) });
     const before = new Map(cursors);
-    let s = layoutScene(env(false), scene, cursors);
+    let e = env(false);
+    let s = layoutScene(e, scene, cursors);
     // 2026-10-17: a scene set in screen pages is set again with every frame on its screen's grid (only
     // known once a frame has been set in bands); one that scrolls keeps a single grid.
     if (s.paged) {
       cursors.clear();
       for (const [k, c] of before) cursors.set(k, c);
-      s = layoutScene(env(true), scene, cursors);
+      s = layoutScene((e = env(true)), scene, cursors);
     }
+    if (e.explain) (explained.push({ scene: scene.id, decisions: e.explain }), kept.push({ env: e, scene: s }));
     scenes.push(s);
     y += s.height;
   }
-  return { viewport, breakpoint, scenes, height: y };
+  if (opts.explain) noteLines(v, cache, viewport, kept);
+  return { viewport, breakpoint, scenes, height: y, ...(opts.explain ? { explain: { version: 1 as const, scenes: explained } } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -279,13 +299,14 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
     const fitted = (c: GroupChild, i: number): number => {
       const room = Math.max(1, n - kids.reduce((sum, k, j) => (j === i ? sum : sum + least(k)), 0));
       if (c.kind !== "frame" || pitch <= EPS) return room;
-      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors), reports: env.reports.length };
+      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors), reports: env.reports.length, explain: env.explain?.length ?? 0 };
       const box = span(grid, from, from + room - 1);
       setFrame(v.frames[c.id]!, box, top, null);
       const widest = Math.max(0, ...out.lines.slice(before.out.lines).filter((l) => l.frame === c.id).map((l) => l.x + l.measured - box.x));
       rollback(out, before.out);
       exclusions.length = before.exclusions;
       env.reports.length = before.reports;
+      if (env.explain) env.explain.length = before.explain;
       cursors.clear();
       for (const [k, x] of before.cursors) cursors.set(k, x);
       return Math.max(1, Math.min(room, Math.ceil((widest + grid.gutter) / pitch - EPS)));
@@ -311,7 +332,7 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
         return slot;
       });
       // Set at the top first, to learn each child's height; anything else sets the row again.
-      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors), reports: env.reports.length };
+      const before = { out: mark(out), exclusions: exclusions.length, cursors: new Map(cursors), reports: env.reports.length, explain: env.explain?.length ?? 0 };
       const bottoms = slots.map((s) => kid(s.c, s.a, s.b, y, null));
       // valign=text (2026-09-30): the row is as tall as its tallest text frame; media are cropped to it.
       const texts = slots.flatMap((s, i) => (s.c.kind === "frame" ? [bottoms[i]!] : []));
@@ -320,6 +341,7 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
         rollback(out, before.out);
         exclusions.length = before.exclusions;
         env.reports.length = before.reports;
+        if (env.explain) env.explain.length = before.explain;
         cursors.clear();
         for (const [k, c] of before.cursors) cursors.set(k, c);
         const H = rowBottom - y;
@@ -407,7 +429,9 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
     append(behind, r.placed);
   }
   append(behind, out);
-  return { name: scene.id, y: sceneY, height, grid, paged: env.paged, ...behind, ...(env.paged ? { screens: env.reports } : {}) };
+  // The visor's strips stay out of the page.
+  const { narrow: _, ...drawn } = behind;
+  return { name: scene.id, y: sceneY, height, grid, paged: env.paged, ...drawn, ...(env.paged ? { screens: env.reports } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -800,6 +824,8 @@ function fillFrame(
     /** Rule 3 (see `bands`): the text ends with objects still waiting, so the band is set shorter. */
     const lone = (r: Columns): boolean => r.stop === "full" && (r.deferred.length > 0 || objectsAfter(r.cursor)) && !textAfter(r.cursor);
     const compose = env.budget > 0 ? composer(env, frame.id, story, cursor, columns, run, ends, lone, textAfter, exclusions) : undefined;
+    // The visor: with no budget, every object that would float here falls back.
+    if (env.picks && env.budget <= 0) for (const id of floatingIn(env, story, cursor)) env.picks.set(id, { reason: "fallback-budget", numbers: {} });
     const r = bands(env, contentTop, cursor, (limit, at, from, earlier, deferred) => run(limit, at, from, earlier, deferred), onBand, textAfter, feet, ends, lone, compose);
     anchorsAt(env, story, cursor, frame.id, r.placed);
     env.reports.push(...screenReports(env, frame.id, story, cursor, columns, r.placed));
@@ -815,6 +841,7 @@ function fillFrame(
     else valign(env, frame, result, contentTop, height - 2 * inset);
   }
   onBand(contentTop, result, true);
+  noteEnds(env, result, env.explain && result.balanced !== undefined ? { why: "balanced-last-page", numbers: { height: result.balanced } } : undefined);
   const used = Math.max(contentTop, ...result.bottoms) + inset;
   return { placed: result.placed, cursor: result.cursor, bottom: height === null ? used : Math.max(top + height, used) };
 }
@@ -859,7 +886,7 @@ function balance(env: Env, run: (limit: number) => Columns, rest = false): Colum
     // The upper bound is measured, not tried: when even it does not take the text (lines snapping to a
     // page's grid can need a line more), the natural setting stands.
     const tried = run(lo * bl);
-    const best = same(tried) ? tried : natural;
+    const best = same(tried) ? { ...tried, balanced: lo * bl } : natural;
     // Such a fit took all the text: it ends where the line setting does, not "full" (2026-10-11: a
     // last page whose columns ended exactly at the balanced foot got a continuation arrow).
     return best.stop === "full" ? { ...best, stop: lines.stop } : best;
@@ -892,6 +919,174 @@ function columnRulesOf(frame: Frame, columns: Col[], top: number, band: Columns)
   for (let c = 0; c + 1 < columns.length; c++)
     if (used[c] && used[c + 1]) out.push({ frame: frame.id, x: (columns[c]!.x + columns[c]!.width + columns[c + 1]!.x) / 2, y, height: bottom - y });
   return out;
+}
+
+/** The visor: a band-level outcome that names the columns ending at the band's foot (`bottom-line`) instead. */
+type Over = { why: ColumnEndReason; numbers: Record<string, number> } | undefined;
+
+/** The spec rule each column-end code stands on. */
+const COLUMN_END_RULE: Record<ColumnEndReason, string> = {
+  "bottom-line": "§09.7 rule 11",
+  levelled: "§09.7 rule 11",
+  "rule-3-cut": "§09.7 rule 6",
+  "keep-with-next": "§07.6 keep-with-next",
+  orphans: "§07.6 orphans",
+  widows: "§07.6 widows",
+  "hyphen-avoided": "§09.7 rule 9",
+  "frame-break": "§09.3",
+  "column-break": "§09.3",
+  "story-end": "§09.3",
+  "balanced-last-page": "§09.4",
+  "stub-folded": "§09.7 rule 14",
+  "picture-at-foot": "§09.7 rule 13",
+};
+
+/** The spec rule each picture code stands on. */
+const PICTURE_RULE: Record<PictureReason, string> = {
+  chosen: "§11.3 floating",
+  waited: "§11.3 floating",
+  "fallback-budget": "§09.7 rule 6",
+  "fallback-no-spot": "§09.7 rule 6",
+  here: "§09.7 rule 6",
+};
+
+/**
+ * The visor (design 2026-10-21): one column-end decision for each column of a kept setting that holds
+ * text, at whichever is lower, its last line or the lowest object in it (a pull quote set after the
+ * text), and for one a picture ends (rule 13: it opens the column, so the column often holds no text),
+ * at the picture. Then one picture decision for each anchored object the setting placed. Called only
+ * where a setting is kept; a no-op when `explain` is off.
+ */
+function noteEnds(env: Env, set: Columns, over: Over): void {
+  if (!env.explain) return;
+  const screenOf = (y: number): number | null => screenAt(env, y);
+  const objects = set.placed.objects.filter((o) => env.v.objects[o.name]?.placement.mode === "anchored");
+  const inColumn = (o: PositionedObject, w: Columns["why"][number]): boolean => o.box.x < w.x + w.width - EPS && o.box.x + o.box.width > w.x + EPS;
+  set.why.forEach((w, column) => {
+    const last = set.placed.lines.filter((l) => l.frame === w.frame && l.column === column).at(-1);
+    const pic = w.object === undefined ? undefined : set.placed.objects.find((o) => o.name === w.object);
+    const low = objects.filter((o) => inColumn(o, w)).sort((a, b) => b.box.y + b.box.height - (a.box.y + a.box.height))[0];
+    const at = pic?.box ?? (last && low && low.box.y + low.box.height > last.y + last.height + EPS ? low.box : last);
+    if (!at) return;
+    const swap = over !== undefined && w.code === "bottom-line";
+    const reason = swap ? over.why : w.code;
+    env.explain!.push({
+      kind: "column-end",
+      reason,
+      screen: screenOf(at.y),
+      frame: w.frame,
+      column,
+      at: box(at),
+      numbers: swap ? { ...over.numbers } : w.moved !== undefined ? { lines: w.moved } : {},
+      refs: { ...(last ? { blocks: [last.block] } : {}), ...(pic ? { objects: [pic.name] } : {}) },
+      rule: COLUMN_END_RULE[reason],
+    });
+  });
+  for (const o of objects) {
+    const p = env.v.objects[o.name]!.placement as AnchoredPlacement;
+    // No verdict: the object never floats (place=here, cols=, or a frame where nothing floats).
+    const pick = env.picks!.get(o.name) ?? { reason: "here", numbers: {} };
+    const column = set.why.findIndex((w) => inColumn(o, w));
+    env.explain.push({
+      kind: "picture",
+      reason: pick.reason,
+      screen: screenOf(o.box.y),
+      frame: set.why[0]?.frame ?? null,
+      column: column < 0 ? null : column,
+      at: box(o.box),
+      numbers: { ...pick.numbers },
+      refs: { blocks: [p.block], objects: [o.name] },
+      rule: PICTURE_RULE[pick.reason],
+      ...(pick.alternatives ? { alternatives: pick.alternatives } : {}),
+    });
+  }
+  // Space: strips under min-slot, one a run of bands down an object's side (a line apart at most).
+  const strips: Narrow[] = [];
+  for (const n of [...(set.placed.narrow ?? [])].sort((a, b) => a.frame.localeCompare(b.frame) || a.column - b.column || a.x - b.x || a.y - b.y)) {
+    const prev = strips.at(-1);
+    const joins = prev && prev.frame === n.frame && prev.column === n.column && prev.object === n.object && Math.abs(prev.x - n.x) < 1 && n.y <= prev.y + prev.height + n.height + EPS;
+    if (joins) (prev.height = Math.max(prev.height, n.y + n.height - prev.y)), (prev.width = Math.max(prev.width, n.width));
+    else strips.push({ ...n });
+  }
+  for (const n of strips)
+    space(env, "slot-too-narrow", { x: n.x, y: n.y, width: n.width, height: n.height }, n.frame, n.column, { width: n.width, min: n.min }, n.object);
+  // Rule 12: a photograph this setting holds that is taller (or shorter, cropped) so its page ends full.
+  for (const o of set.placed.objects) {
+    const k = env.grow?.get(o.name) ?? 0;
+    if (k !== 0 && o.media) space(env, k > 0 ? "grown" : "cropped", box(o.media), set.why[0]?.frame ?? null, null, { px: Math.abs(k) }, o.name);
+  }
+}
+
+/**
+ * The visor: line decisions, read from each kept line and its style once every scene is set.
+ * Justified lines follow what the renderer draws: a block's last line in the scene and one under
+ * justify-min (a % of the viewport's width, as the renderer reads it) are ragged, and the rest open or close their spaces
+ * by `justifySpacing`, loose past 2 of a normal space and tight under 0.8.
+ */
+function noteLines(v: Variant, cache: PrepareCache, viewport: Viewport, kept: readonly { env: Env; scene: PositionedScene }[]): void {
+  const key = (l: PositionedLine): string => `${l.story}\u0000${l.block}`;
+  const spaces = new Map<string, number>();
+  for (const { env, scene } of kept) {
+    const last = new Map<string, PositionedLine>();
+    for (const l of scene.lines) last.set(key(l), l);
+    for (const l of scene.lines) {
+      const style = v.styles[l.style];
+      if (!style) continue;
+      const ctx: EvalContext = { viewport, grid: scene.grid, pctOf: viewport.width };
+      const note = (reason: LineReason, numbers: Record<string, number>, rule: string): number =>
+        env.explain!.push({ kind: "line", reason, screen: screenAt(env, l.y), frame: l.frame, column: l.column, at: box(l), numbers, refs: { blocks: [l.block] }, rule });
+      if (style.align === "justify") {
+        const end = last.get(key(l)) === l;
+        if (end || (style.justifyMin && l.width < px(style.justifyMin, ctx) - 0.5)) note("ragged", { reasonCode: end ? 1 : 2 }, end ? "§07.6 justify" : "§07.6 justify-min");
+        else {
+          const f = engineFont(style, ctx);
+          const font = l.size ? { ...f, size: l.size } : f;
+          const extra = justifySpacing(l.hang ? { ...l, width: l.width + l.hang.left + l.hang.right } : l, font.size);
+          const k = `${l.style}|${font.size}`;
+          if (!spaces.has(k)) {
+            const w = (t: string): number => cache.engine.nextLine(cache.get([{ text: t, font }], font), CURSOR_START, 1e9)?.width ?? 0;
+            spaces.set(k, w("x x") - w("xx"));
+          }
+          const normal = spaces.get(k)!;
+          const ratio = normal > 0 ? Math.round(((normal + extra) / normal) * 100) / 100 : 1;
+          if (ratio > 2) note("loose", { ratio }, "§07.6 justify");
+          else if (ratio < 0.8) note("tight", { ratio }, "§07.6 justify");
+        }
+      }
+      if (l.hang) note("hung", { left: l.hang.left, right: l.hang.right }, "§07.6 hang");
+      if (l.text.endsWith(SHY_CHAR)) note("hyphenated", {}, "§07.6 hyphenate");
+    }
+  }
+}
+
+const box = (r: Rect): Rect => ({ x: r.x, y: r.y, width: r.width, height: r.height });
+
+/** In screen pages, the screen `y` is on, counted from the document's top (as `ScreenReport`); null when the scene scrolls. */
+function screenAt(env: Env, y: number): number | null {
+  const vh = env.viewport.height;
+  return env.pageGrids ? Math.floor((env.sceneY + Math.floor((y - env.sceneY + EPS) / vh) * vh + EPS) / vh) + 1 : null;
+}
+
+const SPACE_RULE: Record<SpaceReason, string> = { "slot-too-narrow": "§09.6 step 3", cropped: "§09.7 rule 12", grown: "§09.7 rule 12", "early-end": "§09.7 rule 12" };
+
+/** The visor: one space decision. */
+function space(env: Env, reason: SpaceReason, at: Rect, frame: string | null, column: number | null, numbers: Record<string, number>, object?: string): void {
+  env.explain!.push({ kind: "space", reason, screen: screenAt(env, at.y), frame, column, at, numbers, refs: object ? { objects: [object] } : {}, rule: SPACE_RULE[reason] });
+}
+
+/** The visor: each object of a chosen combination gets its score, its window and its spot in the runners-up. */
+function pickChosen(env: Env, best: { combo: Candidate[]; cost: number; parts: PenaltyParts; ranked: { combo: Candidate[]; cost: number }[] }, reason: (id: string) => PictureReason, window: (id: string) => Record<string, number>, own: (c: Candidate) => number): void {
+  const spotOf = (c: Candidate): string => ("box" in c ? `${c.size} ${c.spot.place} cols ${c.first + 1}-${c.first + c.span}` : "wait");
+  for (const c of best.combo) {
+    if (!("box" in c)) continue;
+    const alternatives: NonNullable<Decision["alternatives"]> = [];
+    for (const r of best.ranked.slice(1)) {
+      const a = r.combo.find((x) => x.id === c.id);
+      if (!a || spotOf(a) === spotOf(c) || alternatives.some((x) => x.spot === spotOf(a))) continue;
+      alternatives.push({ spot: spotOf(a), size: "box" in a ? a.size : "", score: r.cost });
+    }
+    env.picks!.set(c.id, { reason: reason(c.id), numbers: { ...best.parts, score: best.cost, ownDistance: own(c), ...window(c.id) }, alternatives });
+  }
 }
 
 /**
@@ -947,15 +1142,19 @@ function bands(
   const hanging = (y: number): Exclusion[] =>
     out.objects.filter((o) => o.box.y + o.box.height > y + EPS && env.v.objects[o.name]?.placement.mode !== "contained").map((o) => ({ id: o.name, box: o.box, shape: { kind: "rect" }, offset: 0, side: "both", jump: true }));
   /** The last band set, to set again when the section's last page would be a stub. */
-  let prev: { mark: ReturnType<typeof mark>; tops: number; bottoms: number; earlier: number; at: number; limit: number; from: Resume; waiting: readonly string[]; page: number; band: Columns; floated: Env["floated"] } | null = null;
+  let prev: { mark: ReturnType<typeof mark>; tops: number; bottoms: number; earlier: number; at: number; limit: number; from: Resume; waiting: readonly string[]; page: number; band: Columns; floated: Env["floated"]; explain: number; over: Over } | null = null;
   for (;;) {
     // The screen's floating objects are chosen first; every setting of the screen below keeps them.
     /** How much shorter the composer set this band, rule 3 applied (2026-10-17). */
     let cut = 0;
+    /** The visor: how much shorter rule 3 and the levelling set the band, in px. */
+    let rule3 = 0;
+    let level = 0;
     if (compose) {
       // Objects that fall back join those already waiting in story order, so earlier ones open the band first.
       let extra: string[];
       ({ extra, cut } = compose.screen(page, at, limit, from, earlier, waiting, hanging(at)));
+      rule3 = cut;
       // The chosen setting was scored on the band as rule 3 sets it: this band is that much shorter.
       limit -= cut;
       const block = (id: string) => (env.v.objects[id]!.placement as AnchoredPlacement).block;
@@ -970,6 +1169,7 @@ function bands(
         const t = run(limit - k, at, from, earlier, waiting);
         if (textAfter(t.cursor)) {
           full = t;
+          rule3 = k;
           break;
         }
       }
@@ -1003,10 +1203,12 @@ function bands(
         // A try that sets nothing is level only because it has no columns: never a candidate.
         if (t.stop !== "full" || lone(t) || sameResume(t.cursor, from) || spread(t) >= spread(best) - EPS) continue;
         best = t;
+        level = cut;
         if (spread(t) <= EPS) break;
       }
       full = best;
     }
+    const levelled = full;
     // Rule 12 (2026-10-07): a page whose columns end short of the
     // foot, level or not, has a photograph on it take the difference, a line at a time taller (or
     // shorter, by up to three lines), cropped. The first height that ends every column, text or
@@ -1041,12 +1243,14 @@ function bands(
     // could not carry any on): this is the text's last page. It is balanced by whole blocks, as the
     // story's end is; the pictures follow on the pages after it.
     const last = !done && compose !== undefined && compose.left() && ![...(env.floated?.values() ?? [])].some((f) => f !== null) && lone(full);
+    let folded = 0;
     let band = done || last ? rise(env, (l) => run(Math.min(l, limit), at, from, earlier, waiting), last, foot) : full;
     // 2026-10-08: a section's last page never holds a stub of three lines or fewer and nothing
     // else. The page before is set again at its full height; when the rest of the text fits there,
     // that page ends the section (balanced) and the stub page goes.
     if (done && prev && band.placed.objects.length === 0 && band.placed.lines.length > 0 && band.placed.lines.length <= 3) {
       rollback(out, prev.mark);
+      if (env.explain) env.explain.length = prev.explain;
       tops.length = prev.tops;
       bottoms.length = prev.bottoms;
       earlier.length = prev.earlier;
@@ -1071,6 +1275,7 @@ function bands(
           env.floated = prev.floated;
         }
       if (moved !== null || fits(run(prev.limit, prev.at, prev.from, earlier, prev.waiting))) {
+        folded = band.placed.lines.length;
         band = rise(env, (l) => run(Math.min(l, prev!.limit), prev!.at, prev!.from, earlier, prev!.waiting), false, prev.at + prev.limit);
         at = prev.at;
         page = prev.page;
@@ -1081,14 +1286,25 @@ function bands(
         env.origin = originOf(page);
         env.floated = floated;
         append(out, prev.band.placed);
+        noteEnds(env, prev.band, prev.over);
         tops.push(...prev.band.tops);
         bottoms.push(...prev.band.bottoms);
         earlier.push(...prev.band.carried);
       }
     }
-    prev = { mark: mark(out), tops: tops.length, bottoms: bottoms.length, earlier: earlier.length, at, limit, from, waiting, page, band, floated: env.floated };
+    // The visor: a band-level outcome names the columns that ended at the band's (shortened) foot.
+    const bl = grid.baseline;
+    const r3 = band === levelled ? rule3 : cut;
+    const over: Over = !env.explain ? undefined
+      : folded ? { why: "stub-folded", numbers: { lines: folded } }
+      : band.balanced !== undefined ? { why: "balanced-last-page", numbers: { height: band.balanced } }
+      : band === levelled && level > 0 ? { why: "levelled", numbers: { lines: Math.round(level / bl) } }
+      : r3 > 0 ? { why: "rule-3-cut", numbers: { lines: Math.round(r3 / bl) } }
+      : undefined;
+    prev = { mark: mark(out), tops: tops.length, bottoms: bottoms.length, earlier: earlier.length, at, limit, from, waiting, page, band, floated: env.floated, explain: env.explain?.length ?? 0, over };
     onBand(at, band, done);
     append(out, band.placed);
+    noteEnds(env, band, over);
     tops.push(...band.tops);
     bottoms.push(...band.bottoms);
     earlier.push(...band.carried);
@@ -1101,7 +1317,7 @@ function bands(
     if ((done && holdOver.length === 0 && !compose?.left()) || (idle && !covered)) {
       env.origin = undefined;
       env.floated = undefined;
-      return { placed: out, cursor: band.cursor, stop: band.stop, tops, bottoms, carried: earlier, deferred: band.deferred };
+      return { placed: out, cursor: band.cursor, stop: band.stop, tops, bottoms, carried: earlier, deferred: band.deferred, why: [] };
     }
     waiting = [...holdOver, ...band.deferred];
     // Going on after a frame break (an object still to place) starts at the break, never past it: the
@@ -1184,6 +1400,12 @@ function screenReports(env: Env, frameId: string, story: Story, start: Resume, c
       return [Math.max(last.y + last.height, ...boxes.map((o) => o.box.y + o.box.height))];
     });
     const short = p !== pages.at(-1) && ends.length ? Math.max(0, Math.round((foot - Math.max(...ends)) / grid.baseline)) : 0;
+    // The visor: the screen ends a line or more short, from its lowest column end to the bottom line.
+    if (env.explain && short >= 1) {
+      const low = Math.max(...ends);
+      const right = columns.at(-1)!;
+      space(env, "early-end", { x: columns[0]!.x, y: low, width: right.x + right.width - columns[0]!.x, height: foot - low }, frameId, null, { lines: short });
+    }
     const para = [...on].reverse().map((l) => story.blocks[l.block]).find((b) => b?.kind === "paragraph");
     const words = para?.kind === "paragraph" ? para.runs.map((r) => (r.kind === "text" ? rd.strings[r.s]! : " ")).join("").replace(SHY, "").split(/\s+/).filter(Boolean).slice(0, 5).join(" ") : "";
     const photo = here.find((o) => {
@@ -1250,6 +1472,7 @@ function floatFlow(
 ): Columns | null {
   const { v, grid, viewport, sceneY } = env;
   const ids = floatingIn(env, story, start);
+  if (env.picks && !env.page && env.budget <= 0) for (const id of ids) env.picks.set(id, { reason: "fallback-budget", numbers: {} });
   if (env.page || env.budget <= 0 || ids.length === 0) return null;
   const today = balance(env, run);
   const lines = today.placed.lines.filter((l) => l.frame === frameId);
@@ -1258,7 +1481,7 @@ function floatFlow(
   const spots = v.spots.filter((s) => s.place === "top");
   const { floatOf } = floatMaker(env, columns, ids);
   const { summarise } = trials(env, frameId, columns, ends);
-  const floats = ids
+  const eligible = ids
     .flatMap((id) => {
       const at = (v.objects[id]!.placement as AnchoredPlacement).block;
       const near = lines.filter((l) => l.block < at).at(-1) ?? lines.find((l) => l.block > at);
@@ -1268,8 +1491,10 @@ function floatFlow(
       return [floatOf(id, { screen: -1, column: near?.column ?? 0 })];
     })
     // A whole screen (`place=screen`) has no meaning in a scrolling frame.
-    .filter((f) => f.place !== "screen" && candidates(f, spots, g).some((c) => "box" in c))
-    .slice(0, 3);
+    .filter((f) => f.place !== "screen" && candidates(f, spots, g).some((c) => "box" in c));
+  const floats = eligible.slice(0, 3);
+  // The visor: left out with no spot (anchored low, or no box fits), or past the three that compete.
+  if (env.picks) for (const id of ids) env.picks.set(id, { reason: eligible.slice(3).some((f) => f.id === id) ? "fallback-budget" : "fallback-no-spot", numbers: {} });
   if (floats.length === 0) return today;
   /** Each combination's setting, by the array `choose` passes and returns. */
   const set = new Map<Candidate[], Columns>();
@@ -1286,8 +1511,12 @@ function floatFlow(
       env.floated = was;
     }
   };
-  const best = choose(floats, spots, g, tryLayout, null, env.budget);
+  let calls = 0;
+  const best = choose(floats, spots, g, (c) => (calls++, tryLayout(c)), null, env.budget);
   env.onCompose?.(0, set.size);
+  // With no valid combination, the search spent its budget or found none.
+  if (env.picks && !best && calls >= env.budget) for (const f of floats) env.picks.set(f.id, { reason: "fallback-budget", numbers: {} });
+  if (env.picks && best) pickChosen(env, best, () => "chosen", () => ({}), (c) => distance(c, floats.find((f) => f.id === c.id)!, g));
   if (!best) return today;
   const t = set.get(best.combo)!;
   anchorsAt(env, story, start, frameId, t.placed);
@@ -1439,6 +1668,12 @@ function composer(
   const anchors = new Map<string, { screen: number; column: number }>();
   const band = viewport.height - 2 * grid.marginY;
   let previous: string | null = null;
+  /** The visor: an object's window, the anchor's screen and one either side, 1-based across the document. */
+  const window = (id: string): Record<string, number> => {
+    const a = anchors.get(id)?.screen;
+    const doc = (p: number): number => Math.floor((sceneY + p * viewport.height + EPS) / viewport.height) + 1;
+    return a === undefined ? {} : { windowFrom: doc(Math.max(0, a - 1)), windowTo: doc(a + 1) };
+  };
 
   const { heightAt, floatOf: floatAt } = floatMaker(env, columns, ids);
   const floatOf = (id: string): Float => floatAt(id, anchors.get(id)!);
@@ -1493,13 +1728,14 @@ function composer(
       const extra: string[] = [];
       /** Fallen back with its anchor's text already set: it is set on this screen, never sent on. */
       const due: string[] = [];
-      const fall = (id: string): void => {
+      const fall = (id: string, why: PictureReason): void => {
+        env.picks?.set(id, { reason: why, numbers: window(id) });
         pending.delete(id);
         if (passed(id)) due.push(id);
         if (from.block > block(id)) extra.push(id);
       };
       // Past its window already (one that waited behind three others): today's placement.
-      for (const id of [...pending]) if (passed(id) && (anchors.get(id)?.screen ?? page) < page - 1) fall(id);
+      for (const id of [...pending]) if (passed(id) && (anchors.get(id)?.screen ?? page) < page - 1) fall(id, "fallback-budget");
       const g: ScreenGeometry = { index: page, top: at, foot: at + limit, band, columns, baseline: grid.baseline, origin: env.origin ?? sceneY };
       // Objects set before their text owe this screen their anchors: a setting that pushes one on is
       // refused, so none lands two screens from its picture.
@@ -1511,11 +1747,11 @@ function composer(
       const near = (id: string): boolean => anchors.has(id) && (anchors.get(id)!.screen <= page || anchors.get(id)!.column === 0);
       const competing = [...pending].filter(near).slice(0, 3);
       // A leftover at the end of its window that is not among them falls back now, on this screen.
-      for (const id of [...pending]) if (passed(id) && !competing.includes(id) && (anchors.get(id)?.screen ?? page) <= page - 1) fall(id);
+      for (const id of [...pending]) if (passed(id) && !competing.includes(id) && (anchors.get(id)?.screen ?? page) <= page - 1) fall(id, "fallback-budget");
       for (const id of competing) {
         const f = floatOf(id);
         if (candidates(f, v.spots, g).some((c) => "box" in c)) floats.push(f);
-        else if (f.anchorScreen <= page) fall(id);
+        else if (f.anchorScreen <= page) fall(id, "fallback-no-spot");
       }
       /** Trial layouts left on this screen: every search and fallback below shares the one budget. */
       let left = env.budget;
@@ -1622,20 +1858,29 @@ function composer(
         trialsDone.set(key, e);
         return e;
       };
+      /** The visor: a search ran out of trials, so a fallback below is the budget's. */
+      let spent = false;
+      const search = (fs: Float[], tl: typeof tryLayout, budget: number) => {
+        const before = left;
+        const r = choose(fs, v.spots, g, tl, previous, budget);
+        if (before - left >= budget) spent = true;
+        return r;
+      };
       // The first search keeps back one trial for each fallback below.
-      let best = floats.length ? choose(floats, v.spots, g, tryLayout, previous, Math.max(0, left - floats.length)) : null;
+      let best = floats.length ? search(floats, tryLayout, Math.max(0, left - floats.length)) : null;
       // When the budget runs out, the later objects wait for the next screen, inside their window, and
       // the earlier ones are chosen again; at last all wait. Setting them here by rule 6 instead can
       // push the screen's last lines, and the anchors of pictures set before them, a screen further.
       for (let k = floats.length - 1; !best && k >= 1 && left > k && floats.slice(k).every((f) => f.anchorScreen >= page); k--) {
         const rest: Candidate[] = floats.slice(k).map((f) => ({ id: f.id, wait: true }));
-        const r = choose(floats.slice(0, k), v.spots, g, (c, lost) => tryLayout([...c, ...rest], lost), previous, left - k);
-        if (r) best = { combo: [...r.combo, ...rest], cost: r.cost };
+        const r = search(floats.slice(0, k), (c, lost) => tryLayout([...c, ...rest], lost), left - k);
+        if (r) best = { ...r, combo: [...r.combo, ...rest], ranked: r.ranked.map((x) => ({ combo: [...x.combo, ...rest], cost: x.cost })) };
       }
       const waits: Candidate[] = floats.map((f) => ({ id: f.id, wait: true }));
-      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, (t) => t !== null))) best = { combo: waits, cost: 0 };
+      if (!best && left > 0 && floats.length && floats.every((f) => f.anchorScreen >= page) && hardOk(waits, floats, g, tryLayout(waits, (t) => t !== null))) best = { combo: waits, cost: 0, parts: { distance: 0, order: 0, gaps: 0, crowd: 0, balance: 0, rhythm: 0 }, ranked: [] };
       if (floats.length) env.onCompose?.(page, env.budget - left);
-      if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id);
+      if (!best) for (const f of floats) if (f.anchorScreen <= page) fall(f.id, spent || left <= 0 ? "fallback-budget" : "fallback-no-spot");
+      if (best && env.picks) pickChosen(env, best, (id) => ((anchors.get(id)?.screen ?? page) < page ? "waited" : "chosen"), window, (c) => distance(c, floats.find((f) => f.id === c.id)!, g));
       const chosen = best ? setAs.get(keyOf(best.combo)) : undefined;
       const combo = chosen?.combo ?? best?.combo ?? [];
       for (const c of combo) if ("box" in c) (pending.delete(c.id), set.add(c.id));
@@ -1704,6 +1949,10 @@ type Columns = {
   carried: Exclusion[];
   /** Objects still waiting for a column when this fill ended (§11.3); the next band takes them. */
   deferred: string[];
+  /** The visor (2026-10-21): why each column set ended, by column; `moved`: lines orphans or widows sent on; `object`: the picture that ends it (rule 13). */
+  why: { code: ColumnEndReason; frame: string; x: number; width: number; moved?: number; object?: string }[];
+  /** Set by `balance` when the whole-block search chose a height: that height, in px. */
+  balanced?: number;
 };
 /** Anchored objects deferred to the next column (§11.3), and whether a later column or band exists to take one. */
 /**
@@ -1780,6 +2029,7 @@ function fillColumns(
   const defer: Defer = { list: [...deferred], allowed: false, last: false, banded, span, moved, held: [], floated: env.floated };
   const tops: number[] = [];
   const bottoms: number[] = [];
+  const why: Columns["why"] = [];
   let cursor = start;
   let stop: Stop = "end";
   /** Exclusions of objects placed in earlier columns: a `cols=` object can reach into later ones. */
@@ -1839,6 +2089,8 @@ function fillColumns(
     // The story ended exactly at the last column's foot: this one sets nothing and is no column at
     // all, so it reports no bottom (an empty bottom would make balancing think the columns uneven).
     if (c > 0 && r.stop === "end" && r.placed.lines.length === 0 && r.placed.objects.length === 0 && defer.list.length === 0) {
+      // The visor: so the text ended in the column before.
+      why[why.length - 1] = { code: r.why, frame: frame.id, x: why.at(-1)!.x, width: why.at(-1)!.width };
       cursor = r.cursor;
       stop = "end";
       break;
@@ -1846,6 +2098,7 @@ function fillColumns(
     append(placed, r.placed);
     tops.push(top);
     bottoms.push(r.bottom);
+    why.push({ code: r.why, frame: frame.id, x: columns[c]!.x, width: columns[c]!.width, ...(r.moved === undefined ? {} : { moved: r.moved }), ...(r.object === undefined ? {} : { object: r.object }) });
     cursor = r.cursor;
     // The story ended with objects still waiting: the next column (or, after the last, the next band) takes them.
     if (r.stop === "end" && defer.list.length > 0) {
@@ -1867,7 +2120,7 @@ function fillColumns(
     if (at >= 0 && at < columns.length - 1 && text.filter((l) => l.column === at).at(-1)?.text.endsWith(SHY_CHAR))
       return fillColumns(env, frame, story, columns, measure, top, limit, start, exclusions, lastInThread, pins, banded, deferred, at, moved);
   }
-  return { placed, cursor, stop, tops, bottoms, carried: [...carry, ...[...pins.values()].flatMap((p) => p.exclusions)], deferred: [...defer.list, ...new Set(defer.held)] };
+  return { placed, cursor, stop, tops, bottoms, carried: [...carry, ...[...pins.values()].flatMap((p) => p.exclusions)], deferred: [...defer.list, ...new Set(defer.held)], why };
 }
 
 /**
@@ -1877,7 +2130,7 @@ function fillColumns(
  * (step 3, W042); then `wrap-side` picks which slots take text. A `jump`
  * exclusion leaves the band empty.
  */
-function slotsFor(col: Col, exclusions: readonly Exclusion[], top: number, bottom: number, minSlot: number, strict = false): Col[] {
+function slotsFor(col: Col, exclusions: readonly Exclusion[], top: number, bottom: number, minSlot: number, strict = false, dropped?: Col[]): Col[] {
   let free: { lo: number; hi: number }[] = [{ lo: col.x, hi: col.x + col.width }];
   let side: Exclusion["side"] = "both";
   for (const e of exclusions) {
@@ -1905,6 +2158,8 @@ function slotsFor(col: Col, exclusions: readonly Exclusion[], top: number, botto
   const widest = [...free].sort((a, b) => b.hi - b.lo - (a.hi - a.lo))[0];
   // `strict` (banded frames, rule 4): never a gap under minSlot, not even the widest.
   const usable = wide.length > 0 || strict ? wide : widest ? [widest] : [];
+  // The visor: the strips under minSlot that stay empty.
+  if (dropped) for (const f of free) if (!usable.includes(f) && f.hi - f.lo < minSlot) dropped.push({ x: f.lo, width: f.hi - f.lo });
   const chosen = side === "largest" ? usable.sort((a, b) => b.hi - b.lo - (a.hi - a.lo)).slice(0, 1) : usable;
   return chosen.sort((a, b) => a.lo - b.lo).map((f) => ({ x: f.lo, width: f.hi - f.lo }));
 }
@@ -1925,8 +2180,26 @@ type NextLine = (p: Prepared, from: TextCursor, width: number) => LineBox | null
 type Plan = { cost: number; line: LineBox | null };
 /** Composer plans per prepared paragraph, kept while the paragraph is: the levelling search's trials reuse them. */
 const PLANS = new WeakMap<Prepared, Map<string, Plan>>();
-/** The most a justified line's spaces close, in em (the renderer's SHRINK). */
-const SHRINK = 0.05;
+/**
+ * §07.6 `justify`: how much to add to each space so the line fills its slot. The slack is what
+ * layout measured the line without; `white-space: pre` stops the browser justifying on its own, so
+ * the renderer does the arithmetic itself (and the visor reads it, 2026-10-21). Zero when there is no slack or nowhere to put it (a
+ * single long word, or a line already at its slot's width). Given the text's `size`, a line that
+ * would open its spaces by more than half an em is set flush left instead (2026-09-30: a sliver
+ * beside a picture, two words to a line, justified into rivers). A line a little longer than its
+ * slot (the paragraph composer's, §07.6 composer=paragraph) closes its spaces instead, by up to a
+ * twentieth of an em each (about a fifth of a space); a line longer than that is left alone.
+ */
+export function justifySpacing(l: { text: string; width: number; measured: number }, size = Number.POSITIVE_INFINITY): number {
+  const spaces = (l.text.trimEnd().match(/ /g) ?? []).length;
+  const slack = l.width - l.measured;
+  const each = spaces > 0 ? slack / spaces : 0;
+  if (each < 0) return -each <= SHRINK * size + 0.01 ? each : 0;
+  return each > size / 2 ? 0 : each;
+}
+
+/** The most a justified line's spaces close, in em: a fifth of Georgia's space (0.24em). The composer uses the same. */
+export const SHRINK = 0.05;
 const sameCursor = (a: TextCursor, b: TextCursor): boolean => a.item === b.item && a.seg === b.seg && a.grapheme === b.grapheme;
 
 /**
@@ -2084,7 +2357,7 @@ function fillColumn(
   carry: Exclusion[] = [],
   /** Objects waiting for a column (§11.3); `allowed`: a later column or band of this fill can take one. */
   defer: Defer = { list: [], allowed: false, last: false, banded: false },
-): { placed: Placed; cursor: Resume; bottom: number; stop: Stop | "column" } {
+): { placed: Placed; cursor: Resume; bottom: number; stop: Stop | "column"; why: ColumnEndReason; moved?: number; object?: string } {
   const { v, rd, grid, sceneY, cache } = env;
   const ctx: EvalContext = { viewport: env.viewport, grid, pctOf: col.width };
   // In a scene of screen pages, a frame not set in bands snaps to the grid of the screen each line is on.
@@ -2101,6 +2374,7 @@ function fillColumn(
   };
   const exclusions = [...inherited];
   const out = empty();
+  if (env.explain) out.narrow = [];
   let cursor = start;
   let y = top;
   let atTop = true;
@@ -2208,13 +2482,14 @@ function fillColumn(
    * for only one or two lines under it ends the column; the text goes on to the next one, and rule 12
    * may crop the picture down to the foot.
    */
-  const stub = (): boolean => {
-    if (!defer.banded) return false;
+  /** The picture that ends the column, or null. */
+  const stub = (): PositionedObject | null => {
+    if (!defer.banded) return null;
     const pics = out.objects.filter((o) => env.v.objects[o.name]?.placement.mode !== "contained" && o.box.x <= col.x + EPS && o.box.x + o.box.width >= col.x + col.width - EPS);
-    if (!pics.length) return false;
-    const under = Math.max(...pics.map((o) => o.box.y + o.box.height)) + grid.baseline;
-    const room = Math.floor((limitY - under + EPS) / grid.baseline);
-    return room > 0 && room < 3;
+    if (!pics.length) return null;
+    const lowest = pics.reduce((a, o) => (o.box.y + o.box.height > a.box.y + a.box.height ? o : a));
+    const room = Math.floor((limitY - (lowest.box.y + lowest.box.height + grid.baseline) + EPS) / grid.baseline);
+    return room > 0 && room < 3 ? lowest : null;
   };
   // A gutter-centred object waits for a band's first column: from a later one it would reach back
   // over text already set (2026-10-09).
@@ -2232,7 +2507,8 @@ function fillColumn(
       break;
     }
   defer.list.push(...later);
-  if (stub() && textAhead(cursor.block)) return { placed: out, cursor, bottom: y, stop: "full" };
+  const opened = stub();
+  if (opened && textAhead(cursor.block)) return { placed: out, cursor, bottom: y, stop: "full", why: "picture-at-foot", object: opened.name };
 
   while (cursor.block < story.blocks.length) {
     const b = cursor.block;
@@ -2249,9 +2525,9 @@ function fillColumn(
       // band, as they would at the story's end, and meet the break again there; with no later column
       // they are set in this one, after the text.
       if (block.scope === "frame") settle();
-      if (block.scope === "frame" && defer.list.length > 0 && defer.allowed) return { placed: out, cursor: { ...START, block: b }, bottom: y, stop: "end" };
+      if (block.scope === "frame" && defer.list.length > 0 && defer.allowed) return { placed: out, cursor: { ...START, block: b }, bottom: y, stop: "end", why: "frame-break" };
       if (block.scope === "frame") for (const id of defer.list.splice(0)) placeAnchored(v.objects[id]!, true);
-      return { placed: out, cursor: { ...START, block: b + 1 }, bottom: y, stop: block.scope === "frame" ? "frame" : "column" };
+      return { placed: out, cursor: { ...START, block: b + 1 }, bottom: y, stop: block.scope === "frame" ? "frame" : "column", why: block.scope === "frame" ? "frame-break" : "column-break" };
     }
 
     if (block.kind === "object") {
@@ -2283,16 +2559,17 @@ function fillColumn(
           cursor = { ...START, block: b + 1 };
           continue;
         }
-        return { placed: out, cursor, bottom: y, stop: "full" };
+        return { placed: out, cursor, bottom: y, stop: "full", why: "bottom-line" };
       }
       cursor = { ...START, block: b + 1 };
-      if (stub() && textAhead(b + 1)) return { placed: out, cursor, bottom: y, stop: "full" };
+      const atFoot = stub();
+      if (atFoot && textAhead(b + 1)) return { placed: out, cursor, bottom: y, stop: "full", why: "picture-at-foot", object: atFoot.name };
       continue;
     }
 
     if (block.kind === "rule") {
       // Limit: a rule takes one baseline step, the stroke centred in it.
-      if (y + grid.baseline > limitY + EPS && !atTop) return { placed: out, cursor, bottom: y, stop: "full" };
+      if (y + grid.baseline > limitY + EPS && !atTop) return { placed: out, cursor, bottom: y, stop: "full", why: "bottom-line" };
       const width = px(block.rule.width, ctx);
       const align = block.rule.align;
       const x = align === "left" ? col.x : align === "right" ? col.x + col.width - width : col.x + (col.width - width) / 2;
@@ -2368,7 +2645,7 @@ function fillColumn(
           // since then must not also open the next column (it was set twice: atlas at 1600x1440).
           const back = k.cursor.block;
           defer.list = defer.list.filter((id) => !story.blocks.some((x, i) => i >= back && x.kind === "object" && x.object === id));
-          return { placed: out, cursor: k.cursor, bottom: k.y, stop: "full" as const };
+          return { placed: out, cursor: k.cursor, bottom: k.y, stop: "full" as const, why: "keep-with-next" as const };
         };
         // Rule 6: once a band's or frame's last column is final, its last line
         // never ends in a hyphenated break; that line breaks earlier and the word carries on whole.
@@ -2400,14 +2677,14 @@ function fillColumn(
         if (env.whole && linesLeft(lineOf, pieces.slice(piece).map(prepare), at, Math.min(col.width, measure), 1) > 0) {
           if (kept) return backToKept(kept);
           rollback(out, blockMark.at);
-          return { placed: out, cursor, bottom: blockMark.y, stop: "full" };
+          return { placed: out, cursor, bottom: blockMark.y, stop: "full", why: "bottom-line" };
         }
         // Column full. Orphans: a paragraph that started here and would leave too few
         // lines behind moves whole, and a block kept with it comes along.
         if (!resuming && n > 0 && n < style.orphans && !(atTop && blockMark.at.lines === 0)) {
           if (kept) return backToKept(kept);
           rollback(out, blockMark.at);
-          return { placed: out, cursor, bottom: blockMark.y, stop: "full" };
+          return { placed: out, cursor, bottom: blockMark.y, stop: "full", why: "orphans", moved: n };
         }
         if (n === 0 && kept) return backToKept(kept);
         // Widows: too few lines would start the next column, so lines move over with them,
@@ -2419,33 +2696,46 @@ function fillColumn(
         if (left === 0 && n > 0 && style.keepWithNext && !resuming && !(atTop && blockMark.at.lines === 0)) {
           if (kept) return backToKept(kept);
           rollback(out, blockMark.at);
-          return { placed: out, cursor, bottom: blockMark.y, stop: "full" };
+          return { placed: out, cursor, bottom: blockMark.y, stop: "full", why: "keep-with-next" };
         }
         const give = left > 0 ? style.widows - left : 0;
         if (give > 0 && n - give >= style.orphans && !(cap && n - give < cap.lines)) {
           const from = starts[n - give]!;
           out.lines.length -= give;
-          return { placed: out, cursor: unhyphen(n - give - 1) ?? from.resume, bottom: from.y, stop: "full" };
+          return { placed: out, cursor: unhyphen(n - give - 1) ?? from.resume, bottom: from.y, stop: "full", why: "widows", moved: give };
         }
         // No split satisfies both rules: the paragraph moves whole, unless it already starts the column.
         if (give > 0 && !resuming && !(atTop && blockMark.at.lines === 0)) {
           if (kept) return backToKept(kept);
           rollback(out, blockMark.at);
-          return { placed: out, cursor, bottom: blockMark.y, stop: "full" };
+          return { placed: out, cursor, bottom: blockMark.y, stop: "full", why: "widows", moved: n };
         }
         // A paragraph that ended exactly at the foot resumes at the next block, not at its own end, so
         // "is there text after this point" can be read from the cursor alone (2026-09-30).
         const next = n > 0 && left === 0 ? { ...START, block: b + 1 } : { block: b, piece, at, offset };
-        return { placed: out, cursor: unhyphen(n - 1) ?? next, bottom: n === 0 ? blockMark.y : y, stop: "full" };
+        const whole = unhyphen(n - 1);
+        // The visor: a paragraph ending exactly at the foot with no text after it ends the story (or the frame's part) here.
+        const ended = !whole && n > 0 && left === 0 && !textAhead(b + 1);
+        const why = whole ? "hyphen-avoided" : !ended ? "bottom-line" : story.blocks.slice(b + 1).some((x) => x.kind === "framebreak" && x.scope === "frame") ? "frame-break" : "story-end";
+        return { placed: out, cursor: whole ?? next, bottom: n === 0 ? blockMark.y : y, stop: "full", why };
       }
       // Strict (no text in a gap under minSlot, the band skipped instead) in a band, and wherever the
       // column itself is wide enough: skipping then ends below the object (2026-09-30: slivers beside
       // pictures on phones). Only a column narrower than minSlot keeps its widest gap, or it would
       // never set a line.
-      const slots = slotsFor(col, exclusions, lineY, lineY + leading, minSlot, defer.banded || col.width >= minSlot);
+      const dropped: Col[] | undefined = out.narrow ? [] : undefined;
+      const slots = slotsFor(col, exclusions, lineY, lineY + leading, minSlot, defer.banded || col.width >= minSlot, dropped);
+      for (const d of dropped ?? []) {
+        // The object whose side the strip is on: its extent on this band meets the strip.
+        const by = exclusions.find((e) => {
+          const x = bandExtent(e, lineY, lineY + leading);
+          return x !== null && (Math.abs(x[0] - (d.x + d.width)) < 0.5 || Math.abs(x[1] - d.x) < 0.5);
+        });
+        out.narrow!.push({ x: d.x, y: lineY, width: d.width, height: leading, min: minSlot, frame: frameId, column, ...(by ? { object: by.id } : {}) });
+      }
       // A column with no width (a viewport narrower than its margins) has no slot on any band;
       // in a flow frame the bands never run out, so the column ends here as if full.
-      if (!(col.width > EPS)) return { placed: out, cursor: { block: b, piece, at, offset }, bottom: n === 0 ? blockMark.y : y, stop: "full" };
+      if (!(col.width > EPS)) return { placed: out, cursor: { block: b, piece, at, offset }, bottom: n === 0 ? blockMark.y : y, stop: "full", why: "bottom-line" };
       if (slots.length === 0) skipped = true;
       let inBand = 0;
       for (const slot of slots) {
@@ -2541,7 +2831,7 @@ function fillColumn(
   settle();
   // The story ended with objects still waiting and no later column to take them: set them here, after the text.
   if (!defer.allowed) for (const id of defer.list.splice(0)) placeAnchored(v.objects[id]!, true);
-  return { placed: out, cursor, bottom: y, stop: "end" };
+  return { placed: out, cursor, bottom: y, stop: "end", why: "story-end" };
 }
 
 /**

@@ -13,7 +13,46 @@ export type PositionedDocument = {
   breakpoint: string;
   scenes: PositionedScene[];
   height: number;
+  /** The visor (design 2026-10-21): why the engine set the page as it did; only with `layout(..., { explain: true })`. */
+  explain?: Explanation;
 };
+
+/** The reasons log (design 2026-10-21): plain versioned JSON, one entry per scene in scene order. */
+export type Explanation = { version: 1; scenes: { scene: string; decisions: Decision[] }[] };
+
+export type Decision = {
+  kind: "column-end" | "picture" | "space" | "line";
+  /** A fixed code: one of `COLUMN_END_REASONS`, `PICTURE_REASONS`, `SPACE_REASONS` or `LINE_REASONS`, by `kind`. */
+  reason: string;
+  /** 1-based across the document; null in scrolling scenes. */
+  screen: number | null;
+  frame: string | null;
+  column: number | null;
+  /** Where the overlay draws it, in document px. */
+  at: Rect;
+  numbers: Record<string, number>;
+  refs: { blocks?: number[]; objects?: string[] };
+  /** Spec reference, e.g. "§09.7 rule 11". */
+  rule: string;
+  /** Pictures: the next three spots. */
+  alternatives?: { spot: string; size: string; score: number }[];
+};
+
+/** Why a column ends (`kind: "column-end"`). */
+export const COLUMN_END_REASONS = ["bottom-line", "levelled", "rule-3-cut", "keep-with-next", "orphans", "widows", "hyphen-avoided", "frame-break", "column-break", "story-end", "balanced-last-page", "stub-folded", "picture-at-foot"] as const;
+export type ColumnEndReason = (typeof COLUMN_END_REASONS)[number];
+
+/** Why a floating object took its spot (`kind: "picture"`); `here`: it does not float. */
+export const PICTURE_REASONS = ["chosen", "fallback-budget", "fallback-no-spot", "waited", "here"] as const;
+export type PictureReason = (typeof PICTURE_REASONS)[number];
+
+/** Why space was left or changed (`kind: "space"`): a strip under min-slot left empty, a photograph rule 12 trimmed or extended, a screen ending short. */
+export const SPACE_REASONS = ["slot-too-narrow", "cropped", "grown", "early-end"] as const;
+export type SpaceReason = (typeof SPACE_REASONS)[number];
+
+/** What is notable about a line (`kind: "line"`). `short-word-kept` (bind-short) is deferred: the line breaker does not report it. */
+export const LINE_REASONS = ["ragged", "hung", "hyphenated", "loose", "tight"] as const;
+export type LineReason = (typeof LINE_REASONS)[number];
 
 export type PositionedScene = {
   /** Scene id in the Resolved Document. */
