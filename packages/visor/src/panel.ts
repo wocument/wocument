@@ -11,11 +11,13 @@ import type { Layer, ScreenModel } from "./model.js";
 export const LAYER_OF: Record<Decision["kind"], Layer> = { "column-end": "flow", picture: "pictures", space: "space", line: "lines" };
 export const LAYER_NAME: Record<Layer, string> = { flow: "Text flow", pictures: "Pictures", space: "Grid and space", lines: "Lines and words" };
 
-/** The screen's decisions, in the order the engine made them. */
-export function panelEntries(s: ScreenModel): { index: number; layer: Layer; title: string; detail: string }[] {
-  return s.decisions.map((d, index) => {
+/** The screen's decisions in the layers that are on, in the order the engine made them. */
+export function panelEntries(s: ScreenModel, layers?: ReadonlySet<Layer>): { index: number; layer: Layer; title: string; detail: string }[] {
+  return s.decisions.flatMap((d, index) => {
+    const layer = LAYER_OF[d.kind];
+    if (layers && !layers.has(layer)) return [];
     const { title, body } = describe(d);
-    return { index, layer: LAYER_OF[d.kind], title, detail: body };
+    return [{ index, layer, title, detail: body }];
   });
 }
 

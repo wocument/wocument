@@ -9,7 +9,7 @@ import { layout } from "@wmxdsl/layout";
 import { type RenderHandle, loadFonts, render } from "@wmxdsl/renderer";
 import type { ResolvedDocument } from "@wmxdsl/resolved-document";
 import { PrepareCache, createPretextEngine } from "@wmxdsl/text-engine";
-import { mountVisor } from "@wmxdsl/visor";
+import { type Layer, mountVisor } from "@wmxdsl/visor";
 
 export type View = { show(rd: ResolvedDocument): Promise<void>; setVisor(on: boolean): void };
 
@@ -24,6 +24,8 @@ export function createView(root: HTMLElement, svh: HTMLElement, options: { reduc
   let handle: RenderHandle | null = null;
   let visorOn = false;
   let visor: { destroy(): void } | null = null;
+  // The visor's layers and panel survive the remount after every layout.
+  let visorState: { layers?: Layer[]; open?: boolean } = {};
 
   const run = (): void => {
     if (!rd || !cache) return;
@@ -36,7 +38,7 @@ export function createView(root: HTMLElement, svh: HTMLElement, options: { reduc
     visor = null;
     handle?.destroy();
     handle = render(root, pd, rd, { reduceMotion: options.reduceMotion });
-    if (visorOn && pd.explain) visor = mountVisor(root, pd, pd.explain);
+    if (visorOn && pd.explain) visor = mountVisor(root, pd, pd.explain, { ...visorState, onChange: (st) => (visorState = st) });
     Object.assign(window, { __wmx: { rd, pd, cache, counter, run, visor: visorOn, setVisor } });
   };
 

@@ -70,30 +70,34 @@ function screen(ps: PositionedScene, n: number | null, top: number, height: numb
   for (let y = first; y <= areaFoot + 1e-6; y += g.baseline) shapes.push({ layer: "space", kind: "baseline", x: g.originX, y, width: g.content, height: 0 });
   if (n !== null) shapes.push({ layer: "space", kind: "bottom-line", x: g.originX, y: foot - g.marginY, width: g.content, height: 0, label: "bottom line" });
 
-  // Empty runs of a baseline or more inside a column, between content.
-  const columns = new Map<string, { x: number; right: number; spans: [number, number][] }>();
+  // Empty runs of a baseline or more inside a column, between content. A run before a new block's
+  // first line is the space its style asks for, not a gap.
+  type Span = { from: number; to: number; line?: (typeof here)[number] };
+  const columns = new Map<string, { x: number; right: number; spans: Span[] }>();
   for (const l of here) {
     const key = `${l.frame}\u0000${l.column}`;
     const c = columns.get(key) ?? { x: l.x, right: l.x + l.width, spans: [] };
     c.x = Math.min(c.x, l.x);
     c.right = Math.max(c.right, l.x + l.width);
-    c.spans.push([l.y, l.y + l.height]);
+    c.spans.push({ from: l.y, to: l.y + l.height, line: l });
     columns.set(key, c);
   }
   for (const c of columns.values()) {
     // Objects count only inside the column's run of lines, so one above or below the text makes no gap.
-    const lo = Math.min(...c.spans.map((sp) => sp[0]));
-    const hi = Math.max(...c.spans.map((sp) => sp[1]));
+    const lo = Math.min(...c.spans.map((sp) => sp.from));
+    const hi = Math.max(...c.spans.map((sp) => sp.to));
     for (const o of ps.objects) {
       const [from, to] = [Math.max(o.box.y, lo), Math.min(o.box.y + o.box.height, hi)];
-      if (o.box.x < c.right - EPS && o.box.x + o.box.width > c.x + EPS && to > from) c.spans.push([from, to]);
+      if (o.box.x < c.right - EPS && o.box.x + o.box.width > c.x + EPS && to > from) c.spans.push({ from, to });
     }
-    c.spans.sort((a, b) => a[0] - b[0]);
-    let reach = c.spans[0]![1];
-    for (const [from, to] of c.spans.slice(1)) {
-      const gap = from - reach;
-      if (gap >= g.baseline - EPS) shapes.push({ layer: "space", kind: "gap", x: c.x, y: reach, width: c.right - c.x, height: gap, label: linesOf(Math.round(gap / g.baseline)) });
-      reach = Math.max(reach, to);
+    c.spans.sort((a, b) => a.from - b.from);
+    let last = c.spans[0]!;
+    for (const sp of c.spans.slice(1)) {
+      const gap = sp.from - last.to;
+      // ponytail: any run between two text blocks counts as style space; compare with the styles' space-before/after if a real hole ever hides there.
+      const styled = sp.line?.paragraphStart && last.line && last.line.block !== sp.line.block;
+      if (gap >= g.baseline - EPS && !styled) shapes.push({ layer: "space", kind: "gap", x: c.x, y: last.to, width: c.right - c.x, height: gap, label: linesOf(Math.round(gap / g.baseline)) });
+      if (sp.to > last.to) last = sp;
     }
   }
 
@@ -108,7 +112,7 @@ function screen(ps: PositionedScene, n: number | null, top: number, height: numb
       const name = d.refs.objects?.[0] ?? "";
       const col = (x: number): number => Math.min(g.cols, Math.max(1, Math.floor((x - g.originX + EPS) / (g.colWidth + g.gutter)) + 1));
       shapes.push({ layer: "pictures", kind: "outline", ...at, label: `${name} · ${Math.round(at.width)}×${Math.round(at.height)} · cols ${col(at.x)}-${col(at.x + at.width - 2 * EPS)}`, decision: i });
-      shapes.push({ layer: "pictures", kind: "badge", x: at.x, y: at.y, width: 0, height: 0, label: d.numbers.score === undefined ? d.reason : `${d.reason} ${Math.round(d.numbers.score)}`, decision: i });
+      shapes.push({ layer: "pictures", kind: "badge", x: at.x, y: at.y, width: 0, height: 0, label: d.numbers.score === undefined ? d.reason : `${d.reason} · score ${Math.round(d.numbers.score)}`, decision: i });
       const anchor = anchorOf(ps, d, name);
       if (anchor) shapes.push({ layer: "pictures", kind: "anchor-link", x: anchor.x, y: anchor.y, width: at.x - anchor.x, height: at.y - anchor.y, decision: i });
     } else if (d.kind === "space") {

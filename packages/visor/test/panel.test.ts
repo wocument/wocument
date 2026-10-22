@@ -41,6 +41,11 @@ describe("the visor panel", () => {
     }
   });
 
+  it("panel lists only the layers that are on", () => {
+    const on = new Set(["flow", "pictures"] as const);
+    for (const m of models) expect(panelEntries(m, on).map((e) => e.index)).toEqual(m.decisions.flatMap((d, i) => (on.has(layerOf[d.kind] as "flow") ? [i] : [])));
+  });
+
   it("panel entries use the dictionary wording", () => {
     for (const m of models)
       panelEntries(m).forEach((e) => {

@@ -1021,7 +1021,7 @@ function noteEnds(env: Env, set: Columns, over: Over): void {
  * The visor: line decisions, read from each kept line and its style once every scene is set.
  * Justified lines follow what the renderer draws: a block's last line in the scene and one under
  * justify-min (a % of the viewport's width, as the renderer reads it) are ragged, and the rest open or close their spaces
- * by `justifySpacing`, loose past 1.5 of a normal space and tight under 0.8.
+ * by `justifySpacing`, loose past 2 of a normal space and tight under 0.8.
  */
 function noteLines(v: Variant, cache: PrepareCache, viewport: Viewport, kept: readonly { env: Env; scene: PositionedScene }[]): void {
   const key = (l: PositionedLine): string => `${l.story}\u0000${l.block}`;
@@ -1049,7 +1049,7 @@ function noteLines(v: Variant, cache: PrepareCache, viewport: Viewport, kept: re
           }
           const normal = spaces.get(k)!;
           const ratio = normal > 0 ? Math.round(((normal + extra) / normal) * 100) / 100 : 1;
-          if (ratio > 1.5) note("loose", { ratio }, "§07.6 justify");
+          if (ratio > 2) note("loose", { ratio }, "§07.6 justify");
           else if (ratio < 0.8) note("tight", { ratio }, "§07.6 justify");
         }
       }

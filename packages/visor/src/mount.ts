@@ -8,7 +8,7 @@
 
 import type { Decision, Explanation, PositionedDocument } from "@wmxdsl/layout";
 import { DEFAULT_LAYERS, type Layer, type ScreenModel, type Shape, buildModel } from "./model.js";
-import { cardOf, currentScreen, dotsOf, LAYER_NAME, panelEntries } from "./panel.js";
+import { cardOf, currentScreen, dotsOf, LAYER_NAME, LAYER_OF, panelEntries } from "./panel.js";
 
 /** One strong colour per layer, readable on light and dark scenes; tints are this colour at low alpha. */
 export const PALETTE: Record<Layer, string> = { flow: "#7c3aed", pictures: "#0d9488", space: "#d97706", lines: "#e11d48" };
@@ -28,6 +28,10 @@ const CSS = `
 .wmx-visor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--vs-line); font-weight: 600; }
 .wmx-visor-small { padding: 2px 8px; border: 1px solid var(--vs-line); border-radius: 4px; font-weight: 400; color: var(--vs-muted); }
 .wmx-visor-open { position: fixed; top: 12px; right: 40px; pointer-events: auto; background: var(--vs-bg); color: var(--vs-fg); }
+.wmx-visor-layers { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--vs-line); }
+.wmx-visor-switch::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border: 1px solid var(--c); border-radius: 50%; vertical-align: 1px; }
+.wmx-visor-switch[aria-pressed="true"] { color: var(--vs-fg); }
+.wmx-visor-switch[aria-pressed="true"]::before { background: var(--c); }
 .wmx-visor-list { list-style: none; margin: 0; padding: 4px; overflow: auto; flex: 1; }
 .wmx-visor-entry { display: block; width: 100%; padding: 6px; border-radius: 4px; }
 .wmx-visor-entry:hover, .wmx-visor-entry[aria-pressed="true"] { background: var(--vs-sel); }
@@ -42,7 +46,13 @@ const CSS = `
 .wmx-visor-dot { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: ${PALETTE.pictures}55; border: 1px solid ${PALETTE.pictures}; box-sizing: border-box; }
 `;
 
-export function mountVisor(root: HTMLElement, pd: PositionedDocument, explain: Explanation, options: { layers?: Layer[] } = {}): { setLayers(l: Layer[]): void; destroy(): void } {
+/** The panel starts collapsed unless `open`; `onChange` reports layer and panel changes so a caller can keep them across remounts. */
+export function mountVisor(
+  root: HTMLElement,
+  pd: PositionedDocument,
+  explain: Explanation,
+  options: { layers?: Layer[]; open?: boolean; onChange?(state: { layers: Layer[]; open: boolean }): void } = {},
+): { setLayers(l: Layer[]): void; destroy(): void } {
   const doc = root.ownerDocument;
   const win = doc.defaultView!;
   const models = buildModel(pd, explain);
@@ -67,11 +77,28 @@ export function mountVisor(root: HTMLElement, pd: PositionedDocument, explain: E
   const head = el("div", "wmx-visor-head", panel);
   const heading = el("span", "", head);
   const hide = el("button", "wmx-visor-small", head, "Hide");
+  // A switch per layer.
+  const switches = el("div", "wmx-visor-layers", panel);
+  for (const layer of Object.keys(LAYER_NAME) as Layer[]) {
+    const b = el("button", "wmx-visor-small wmx-visor-switch", switches, LAYER_NAME[layer]);
+    b.dataset.layer = layer;
+    b.style.setProperty("--c", `var(--vs-${layer})`);
+    b.addEventListener("click", () => api.setLayers(layers.has(layer) ? [...layers].filter((x) => x !== layer) : [...layers, layer]));
+  }
+  const markSwitches = (): void => switches.querySelectorAll<HTMLElement>("button").forEach((b) => b.setAttribute("aria-pressed", String(layers.has(b.dataset.layer as Layer))));
+  markSwitches();
   const list = el("ol", "wmx-visor-list", panel);
   const open = el("button", "wmx-visor-open wmx-visor-small", ui, "Decisions");
-  open.style.display = "none";
-  hide.addEventListener("click", () => ((panel.style.display = "none"), (open.style.display = "")));
-  open.addEventListener("click", () => ((panel.style.display = ""), (open.style.display = "none")));
+  let isOpen = options.open ?? false;
+  const report = (): void => options.onChange?.({ layers: [...layers], open: isOpen });
+  const setOpen = (on: boolean): void => {
+    isOpen = on;
+    panel.style.display = on ? "" : "none";
+    open.style.display = on ? "none" : "";
+  };
+  setOpen(isOpen);
+  hide.addEventListener("click", () => (setOpen(false), report()));
+  open.addEventListener("click", () => (setOpen(true), report()));
   const card = el("div", "wmx-visor-card", ui);
   card.style.display = "none";
   const dots = el("div", "", ui);
@@ -81,10 +108,11 @@ export function mountVisor(root: HTMLElement, pd: PositionedDocument, explain: E
 
   const renderPanel = (): void => {
     const m = models[shown]!;
-    heading.textContent = `${m.screen === null ? `Scene ${m.scene}` : `Screen ${m.screen}`} · ${m.decisions.length} decision${m.decisions.length === 1 ? "" : "s"}`;
+    const entries = panelEntries(m, layers);
+    heading.textContent = `${m.screen === null ? `Scene ${m.scene}` : `Screen ${m.screen}`} · ${entries.length} decision${entries.length === 1 ? "" : "s"}`;
     list.replaceChildren();
-    if (m.decisions.length === 0) el("li", "wmx-visor-none", list, "No decisions on this screen.");
-    for (const e of panelEntries(m)) {
+    if (entries.length === 0) el("li", "wmx-visor-none", list, "No decisions on this screen.");
+    for (const e of entries) {
       const b = el("button", "wmx-visor-entry", el("li", "", list));
       b.dataset.decision = String(e.index);
       el("span", "wmx-visor-kind", b, LAYER_NAME[e.layer]).style.color = `var(--vs-${e.layer})`;
@@ -186,15 +214,19 @@ export function mountVisor(root: HTMLElement, pd: PositionedDocument, explain: E
   win.addEventListener("resize", schedule);
   update();
 
-  return {
-    setLayers(l) {
+  const api = {
+    setLayers(l: Layer[]): void {
       layers = new Set(l);
       for (const el of drawn.values()) el.remove();
       drawn.clear();
       card.style.display = "none";
+      if (selected && !layers.has(LAYER_OF[models[selected.screen]!.decisions[selected.decision]!.kind])) selected = null;
+      markSwitches();
+      renderPanel();
       update();
+      report();
     },
-    destroy() {
+    destroy(): void {
       if (frame) win.cancelAnimationFrame(frame);
       win.removeEventListener("scroll", schedule, { capture: true });
       win.removeEventListener("resize", schedule);
@@ -204,6 +236,7 @@ export function mountVisor(root: HTMLElement, pd: PositionedDocument, explain: E
       drawn.clear();
     },
   };
+  return api;
 }
 
 function drawScreen(doc: Document, m: ScreenModel, index: number, layers: Set<Layer>): HTMLElement {

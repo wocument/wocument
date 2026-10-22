@@ -387,12 +387,13 @@ describe("line reasons", () => {
     for (const d of ds) expect(lineAt(pd, d).text.endsWith("\u00ad")).toBe(true);
   });
 
-  it("loose: a justified line whose spaces open past 1.5 of a space", () => {
-    const pd = lay(JUSTIFIED);
+  it("loose: a justified line whose spaces open past 2 of a space", () => {
+    // Letters a fifth of an em wide, so a space can open past twice its width before half an em sets the line flush left.
+    const pd = layout(doc(`\\style[name=body, align=justify]\n${page("Incomprehensibilities characteristically extraordinarily. ".repeat(60).trim())}`), VIEW, new PrepareCache(createFixedEngine(0.2)), { explain: true });
     const ds = notes(pd, "loose");
     expect(ds.length).toBeGreaterThan(0);
     for (const d of ds) {
-      expect(d.numbers.ratio).toBeGreaterThan(1.5);
+      expect(d.numbers.ratio).toBeGreaterThan(2);
       expect(d.rule).toBe("§07.6 justify");
     }
     // Not every line is loose; one decision a line a code.

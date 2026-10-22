@@ -84,7 +84,7 @@ describe("the visor model", () => {
         const outline = mine.find((s) => s.kind === "outline")!;
         expect({ x: outline.x, y: outline.y, width: outline.width, height: outline.height }).toEqual(d.at);
         expect(outline.label).toContain(d.refs.objects![0]);
-        expect(mine.find((s) => s.kind === "badge")!.label).toContain(d.numbers.score === undefined ? d.reason : String(Math.round(d.numbers.score)));
+        expect(mine.find((s) => s.kind === "badge")!.label).toBe(d.numbers.score === undefined ? d.reason : `${d.reason} · score ${Math.round(d.numbers.score)}`);
       });
     expect(pictures).toBe(2);
   });
@@ -152,6 +152,13 @@ describe("gaps", () => {
   it("a run under one baseline gives no gap", () => {
     const after = rows(5, 9).map((l) => ({ ...l, y: l.y + 20, baseline: l.baseline + 20 }));
     expect(gapsOf([...rows(0, 4), ...after])).toEqual([]);
+  });
+
+  it("the space a new block's style asks for gives no gap", () => {
+    const next = rows(7, 12).map((l, i) => ({ ...l, block: 1, paragraphStart: i === 0 }));
+    expect(gapsOf([...rows(0, 4), ...next])).toEqual([]);
+    // The same run inside one block is a gap.
+    expect(gapsOf([...rows(0, 4), ...rows(7, 12)]).map((g) => g.label)).toEqual(["2 lines"]);
   });
 
   it("lines and words are off by default", () => {
