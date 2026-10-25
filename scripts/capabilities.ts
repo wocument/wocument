@@ -87,8 +87,8 @@ const HOSTS: Record<string, Host[]> = {
       doc: (a) => `${FRONT}\\spot[${a}]\n\\story[name=s]{\n${TEXT[0]}\n\n\\figure[src=/w.jpg, alt="w", size=wide]\n\n${TEXT.slice(1).join("\n\n")}\n}\n\\scene[height=page]{\\frame[story=s, columns=3]}\n`,
     },
   ],
-  scene: [{ label: "", doc: (a) => `${FRONT}${DEFS}\n\\folio{A Folio}\n\\story[name=s]{\n${TEXT.slice(0, 4).join("\n\n")}\n}\n\\scene[${a || "name=one"}]{\n\\frame[story=s]\n}\n\\scene[name=two]{\\frame{${TEXT[4]}}}\n` }],
-  parent: [{ label: "", base: { name: "pq" }, doc: (a) => explicit({ defs: `\\parent[${a}]{\\folio{Parent folio}}`, scene: ", parent=pq" }) }],
+  scene: [{ label: "", doc: (a) => `${FRONT}${DEFS}\n\\folio{A Folio}\n\\story[name=s]{\n${TEXT.slice(0, 4).join("\n\n")}\n}\n\\scene[${a || "name=one"}]{\n\\frame[story=s, cols=1-6]\n\\frame[cols=7-12]{${P(2, "x")}}\n}\n\\scene[name=two]{\\frame{${TEXT[4]}}}\n` }],
+  parent: [{ label: "", base: { name: "pq" }, doc: (a) => explicit({ defs: `\\parent[${a}]{\\folio{Parent folio}}`, scene: ", parent=pq", frame: ", cols=1-6", sceneBody: `\\frame[cols=7-12]{${P(2, "x")}}\n` }) }],
   story: [{ label: "", doc: (a) => explicit({ story: after(a) }) }],
   frame: [
     { label: "in a flow scene", doc: (a) => explicit({ frame: after(a) }) },
@@ -144,6 +144,8 @@ const SKIP = new Set(["font.family", "token.name", "palette.name", "breakpoint.n
 
 /** Ident values that exist in every probe document. */
 const IDENTS: Record<string, string> = { style: "probe", extends: "caption", grid: "g2", palette: "p2", parent: "pp", at: "phone", story: "s", name: "probe-name" };
+/** Integers whose valid range is small. */
+const INTS: Record<string, string> = { level: "2" };
 const PATHS: Record<string, string> = { captions: "/c.vtt", poster: "/p2.jpg", url: "https://example.com/x", transcript: "/t.txt" };
 
 /** One sample per declared type, never the default or the host's own value; every value for an enum. */
@@ -154,7 +156,7 @@ function samples(key: string, s: AttrSchema, own?: string): string[] {
   for (const t of s.types) {
     if (t === "enum") out.push(...(s.enum ?? []));
     else if (t === "boolean") out.push(d === "true" ? "false" : "true");
-    else if (t === "integer") out.push(other("3", "4"));
+    else if (t === "integer") out.push(INTS[key] ?? other("3", "4"));
     else if (t === "number") out.push("1.5");
     else if (t === "length") out.push(d?.endsWith("bl") ? other("2bl", "3bl") : d?.endsWith("%") ? "60%" : d?.endsWith("em") ? "0.1em" : other("40px", "48px"));
     else if (t === "percentage") out.push(other("60%", "70%"));
@@ -280,7 +282,10 @@ const NOTES: Record<string, string> = Object.fromEntries([
   ...["figure", "video", "lottie"].map((o) => [`${o}.alpha-threshold`, "acts on a picture with transparency; the probe's pictures are opaque"]),
   ["style.hyphenate-min", "used when the resolver hyphenates long words; the probe's words are short"],
   ["style.hyphenate-caps", "used when the resolver hyphenates long words; the probe's words are short"],
-  ["audio.transcript", "resolved, but the renderer does not show it yet"],
+  ["embed.url", "with provider=iframe, which also needs a url, so the probe cannot try one without the other"],
+  ["frame.story", "the probe's frame already names its story"],
+  ...["side", "width"].map((k) => [`group.${k}`, "for an anchored object; a group is not anchored in this version (§11.11)"]),
+  ["group.min-width", "for a group inside a row group (§11.11)"],
 ]);
 
 const EFFECT: Record<Outcome, string> = { layout: "changes the layout", resolved: "read when the page renders", "no-effect": "no effect seen", throws: "fails", rejected: "refused by the parser" };
@@ -298,7 +303,7 @@ function markdown(results: ReturnType<typeof probe>[]): string {
     "- **no effect seen**: nothing changed in these documents. Some attributes only act in a situation the probe does not build (named in the notes); the rest are ignored.",
     "- **fails**: the resolver or the layout throws. Usually a feature that is not built yet.",
     "- **refused by the parser**: a diagnostic code; usually a rule the attribute breaks without another one.",
-    "- **At a breakpoint**: the same value as `key@phone=` (phone, 390px wide). *ignored* means the phone layout did not change. An object placed with columns that do not fit the phone's grid falls back into the text there (W031), so `rows` and `top` on a placed object read *ignored* at phone.",
+    "- **At a breakpoint**: the same value as `key@phone=` (phone, 390px wide). *ignored* means the phone layout did not change. An object or group placed with columns that do not fit the phone's grid falls back into the text there (W031), so its placement attributes (`cols`, `rows`, `top`, `height`, `wrap-side`) read *ignored* at phone.",
     "",
     "Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trace and `alpha-threshold` shows nothing; render-time effects are read from the renderer's source, not seen in a browser.",
     "",

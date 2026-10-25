@@ -9,13 +9,12 @@ Every attribute was tried with each value other than its default, in a small doc
 - **no effect seen**: nothing changed in these documents. Some attributes only act in a situation the probe does not build (named in the notes); the rest are ignored.
 - **fails**: the resolver or the layout throws. Usually a feature that is not built yet.
 - **refused by the parser**: a diagnostic code; usually a rule the attribute breaks without another one.
-- **At a breakpoint**: the same value as `key@phone=` (phone, 390px wide). *ignored* means the phone layout did not change. An object placed with columns that do not fit the phone's grid falls back into the text there (W031), so `rows` and `top` on a placed object read *ignored* at phone.
+- **At a breakpoint**: the same value as `key@phone=` (phone, 390px wide). *ignored* means the phone layout did not change. An object or group placed with columns that do not fit the phone's grid falls back into the text there (W031), so its placement attributes (`cols`, `rows`, `top`, `height`, `wrap-side`) read *ignored* at phone.
 
 Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trace and `alpha-threshold` shows nothing; render-time effects are read from the renderer's source, not seen in a browser.
 
 ## Not built
 
-- `\blockquote`: throws: \blockquote is not resolved yet
 - `\lottie`: throws: \lottie is not resolved yet
 
 ## \font
@@ -36,11 +35,11 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `paper` | `accent` `#aa3355` | read when the page renders | yes | `accent`: fails (palette default paper: expected color, got accent); fields: `palette.paper`, `diagnostics`; warns W062 |
-| `ink` | `accent` `#aa3355` | read when the page renders | yes | `accent`: fails (palette default ink: expected color, got accent); fields: `palette.ink` |
-| `muted` | `accent` `#aa3355` | read when the page renders | yes | `accent`: fails (palette default muted: expected color, got accent); fields: `palette.muted` |
-| `accent` | `accent` `#aa3355` | read when the page renders | yes | `accent`: fails (palette default accent: expected color, got accent); fields: `palette.accent` |
-| `rule` | `accent` `#aa3355` | read when the page renders | yes | `accent`: fails (palette default rule: expected color, got accent); fields: `palette.rule` |
+| `paper` | `#aa3355` | read when the page renders | yes | fields: `palette.paper`, `diagnostics`; warns W062 |
+| `ink` | `#aa3355` | read when the page renders | yes | fields: `palette.ink` |
+| `muted` | `#aa3355` | read when the page renders | yes | fields: `palette.muted` |
+| `accent` | `#aa3355` | read when the page renders | yes | fields: `palette.accent` |
+| `rule` | `#aa3355` | read when the page renders | yes | fields: `palette.rule` |
 
 ## \breakpoint
 
@@ -57,7 +56,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `gutter` | `40px` | changes the layout | yes |  |
 | `margin-x` | `40px` | changes the layout | yes |  |
 | `margin-y` | `2bl` | changes the layout | yes |  |
-| `margin` | `40px` | no effect seen | **ignored** |  |
+| `margin` | `40px` | changes the layout | yes |  |
 | `max` | `40px` | changes the layout | yes |  |
 | `baseline` | `40px` | changes the layout | yes |  |
 | `rows` | `3` | changes the layout | yes |  |
@@ -116,7 +115,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
 | `name` | `probe-name` | changes the layout | not allowed |  |
-| `grid` | `g2` | changes the layout | yes | warns W031; warns W061 |
+| `grid` | `g2` | changes the layout | yes | warns W061 |
 | `parent` | `pp` | changes the layout | not allowed | warns W062 |
 | `palette` | `p2` | changes the layout | yes | warns W062 |
 | `height` | `screen` `page` | changes the layout | yes |  |
@@ -133,14 +132,13 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `ease` | `in` `out` `linear` | read when the page renders | yes | with `enter=fade`; fields: `reveal.ease` |
 | `replay` | `true` | read when the page renders | yes | with `enter=fade`; fields: `reveal.replay` |
 | `motion` | `always` | read when the page renders | yes | with `enter=fade`; fields: `reveal.motion`, `diagnostics`; warns W034 |
-| `stagger` | `1200ms` | no effect seen | **ignored** | with `enter=fade` |
+| `stagger` | `1200ms` | read when the page renders | yes | with `enter=fade`; fields: `reveal.delayMs` |
 
 ## \parent
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `grid` | `g2` | changes the layout | yes | warns W031; warns W061 |
-| `parent` | `pp` | no effect seen | not allowed |  |
+| `grid` | `g2` | changes the layout | yes | warns W061 |
 | `palette` | `p2` | read when the page renders | yes | fields: `palette.paper`, `palette.ink`, `palette.muted`, `palette.accent`, `palette.rule`, `diagnostics`; warns W062 |
 | `height` | `screen` `page` | read when the page renders | yes | fields: `scenes.height`, `vertical.mode`, `vertical.top`, `vertical.height`, `vertical.rows` |
 | `snap` | `soft` `hard` | read when the page renders | yes | fields: `scenes.snap`; warns W030 |
@@ -148,7 +146,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `bg` | `accent` `#aa3355` | read when the page renders | yes | fields: `bg.role` |
 | `linearize` | `true` | changes the layout | yes |  |
 | `folio` | `hide` | read when the page renders | yes | fields: `strings`, `styles.folio`, `stories.pq#folio`, `scenes.folio` |
-| `enter` | `fade` `rise` `drop` `slide-left` `slide-right` `zoom` `wipe` | read when the page renders | yes | fields: `reveal.enter` |
+| `enter` | `fade` `rise` `drop` `slide-left` `slide-right` `zoom` `wipe` | read when the page renders | yes | fields: `reveal.enter`, `reveal.delayMs` |
 | `exit` | `fade` `rise` `drop` `slide-left` `slide-right` `zoom` `wipe` | read when the page renders | yes | with `enter=fade`; fields: `reveal.exit` |
 | `enter-at` | `60%` | read when the page renders | yes | with `enter=fade`; fields: `reveal.enterAt` |
 | `duration` | `1200ms` | read when the page renders | yes | with `enter=fade`; fields: `reveal.durationMs` |
@@ -156,21 +154,21 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `ease` | `in` `out` `linear` | read when the page renders | yes | with `enter=fade`; fields: `reveal.ease` |
 | `replay` | `true` | read when the page renders | yes | with `enter=fade`; fields: `reveal.replay` |
 | `motion` | `always` | read when the page renders | yes | with `enter=fade`; fields: `reveal.motion`, `diagnostics`; warns W034 |
-| `stagger` | `1200ms` | no effect seen | **ignored** | with `enter=fade` |
+| `stagger` | `1200ms` | read when the page renders | yes | with `enter=fade`; fields: `reveal.delayMs` |
 
 ## \story
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `overset` | `clip` `error` | read when the page renders | **ignored** | fields: `s.overset` (a layout input: no change in these documents) |
-| `style` | `probe` | changes the layout | **ignored** |  |
+| `overset` | `clip` `error` | read when the page renders | yes | fields: `s.overset` (a layout input: no change in these documents) |
+| `style` | `probe` | changes the layout | yes |  |
 
 ## \frame
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
 | `name` | `probe-name` | changes the layout | not allowed | in a flow scene |
-| `story` | `s` | refused by the parser | not allowed | in a flow scene; P014 |
+| `story` | `s` | refused by the parser | not allowed | in a flow scene; the probe's frame already names its story; P014 |
 | `cols` | `2-5` | changes the layout | yes | in a flow scene; warns W031 |
 | `rows` | `2-5` | changes the layout | yes | in a screen scene |
 | `top` | `40px` | changes the layout | yes | in a flow scene |
@@ -203,139 +201,146 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \headline
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \deck
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \byline
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \meta
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \lede
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \bio
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \subhead
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `blocks.span` |
-| `level` | `3` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text |
+| `style` | `probe` | changes the layout | yes | in text |
+| `span` | `all` | read when the page renders | yes | in text; fields: `blocks.span`, `diagnostics`; warns W035 |
+| `level` | `2` | read when the page renders | yes | in text; fields: `blocks.level` |
 
 ## \caption
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet |  |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes |  |
+| `span` | `all` | read when the page renders | yes | fields: `blocks.span` |
 
 ## \credit
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet |  |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes |  |
+| `span` | `all` | read when the page renders | yes | fields: `blocks.span` |
 
 ## \title
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet |  |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes |  |
+| `span` | `all` | read when the page renders | yes | fields: `blocks.span` |
 
 ## \cite
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | fails: breakpoint overrides on story content is not resolved yet |  |
-| `span` | `all` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | fields: `blocks.span` |
+| `style` | `probe` | changes the layout | yes |  |
+| `span` | `all` | read when the page renders | yes | fields: `blocks.span` |
+
+## \blockquote
+
+| Attribute | Values tried | Effect | At a breakpoint | Notes |
+| :-- | :-- | :-- | :-- | :-- |
+| `style` | `probe` | changes the layout | yes |  |
+| `span` | `all` | read when the page renders | yes | fields: `blocks.span`, `diagnostics`; warns W035 |
 
 ## \dropcap
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `lines` | `4` | changes the layout | fails: breakpoint overrides on story content is not resolved yet |  |
-| `chars` | `3` | changes the layout | fails: breakpoint overrides on story content is not resolved yet |  |
-| `quote` | `inside` `omit` | changes the layout | fails: breakpoint overrides on story content is not resolved yet |  |
+| `lines` | `4` | changes the layout | yes |  |
+| `chars` | `3` | changes the layout | yes |  |
+| `quote` | `inside` `omit` | changes the layout | yes |  |
 
 ## \framebreak
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `column` | `true` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | fields: `blocks.scope` (a layout input: no change in these documents) |
+| `column` | `true` | read when the page renders | yes | fields: `blocks.scope` (a layout input: no change in these documents) |
 
 ## \rule
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `name` | `probe-name` | no effect seen | not allowed | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `weight` | `40px` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `color` | `accent` `#aa3355` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `color.role`; in a scene: fails (\rule in a scene is not resolved yet) |
-| `width` | `60%` | changes the layout | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `align` | `center` `right` | read when the page renders | fails: breakpoint overrides on story content is not resolved yet | in text; fields: `rule.align`; in a scene: fails (\rule in a scene is not resolved yet) |
-| `cols` | `2-5` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `rows` | `2-5` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `top` | `40px` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `offset-x` | `40px` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `offset-y` | `40px` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `z` | `3` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
-| `hide` | `true` | no effect seen | fails: breakpoint overrides on story content is not resolved yet | in text; in a scene: fails (\rule in a scene is not resolved yet) |
+| `name` | `probe-name` | changes the layout | not allowed | in a scene |
+| `weight` | `40px` | changes the layout | yes | in text |
+| `color` | `accent` `#aa3355` | changes the layout | yes | in a scene |
+| `width` | `60%` | changes the layout | yes | in text |
+| `align` | `center` `right` | changes the layout | yes | in a scene |
+| `cols` | `2-5` | changes the layout | yes | in a scene |
+| `rows` | `2-5` | changes the layout | yes | in a scene |
+| `top` | `40px` | changes the layout | yes | in a scene |
+| `offset-x` | `40px` | changes the layout | yes | in a scene |
+| `offset-y` | `40px` | changes the layout | yes | in a scene |
+| `z` | `3` | changes the layout | yes | in a scene |
+| `hide` | `true` | changes the layout | yes | in a scene |
 
 ## \music
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `src` | `none` `/other.jpg` | read when the page renders | **ignored** | fields: `audio:/a.mp3`, `music.audio` |
-| `fade` | `1200ms` | read when the page renders | **ignored** | fields: `music.fadeMs` |
-| `volume` | `60%` | read when the page renders | **ignored** | fields: `music.volume` |
-| `loop` | `false` | read when the page renders | **ignored** | fields: `music.loop` |
-| `enter-at` | `60%` | read when the page renders | **ignored** | fields: `music.enterAt` |
+| `src` | `none` `/other.jpg` | read when the page renders | not allowed | fields: `audio:/a.mp3`, `music.audio` |
+| `fade` | `1200ms` | read when the page renders | not allowed | fields: `music.fadeMs` |
+| `volume` | `60%` | read when the page renders | not allowed | fields: `music.volume` |
+| `loop` | `false` | read when the page renders | not allowed | fields: `music.loop` |
+| `enter-at` | `60%` | read when the page renders | not allowed | fields: `music.enterAt` |
 
 ## \endmark
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `glyph` | `"Probe words"` | changes the layout | **ignored** |  |
+| `glyph` | `"Probe words"` | changes the layout | yes |  |
 
 ## \span
 
 | Attribute | Values tried | Effect | At a breakpoint | Notes |
 | :-- | :-- | :-- | :-- | :-- |
-| `style` | `probe` | changes the layout | **ignored** |  |
+| `style` | `probe` | changes the layout | yes |  |
 
 ## \folio
 
@@ -343,7 +348,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | :-- | :-- | :-- | :-- | :-- |
 | `position` | `top-right` `bottom-left` `bottom-right` `margin-left` `margin-right` | read when the page renders | yes | fields: `folio.position` |
 | `progress` | `true` | read when the page renders | yes | fields: `folio.progress` |
-| `style` | `probe` | no effect seen | **ignored** |  |
+| `style` | `probe` | read when the page renders | yes | fields: `styles.folio`, `styles.probe`, `blocks.style`, `runs.style` |
 
 ## \figure
 
@@ -469,7 +474,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `caption-side` | `above` `overlay` | changes the layout | yes | in text |
 | `provider` | `vimeo` `iframe` | read when the page renders | not allowed | in text; `iframe`: refused by the parser (P016); fields: `source.provider`, `embed-1.poster` |
 | `id` | `"Probe words"` | read when the page renders | yes | in text; fields: `source.id`, `poster.url` |
-| `url` | `https://example.com/x` | fails | fails: the document without it fails: P016 | with `provider=iframe`; in text; the document without it fails: P016 |
+| `url` | `https://example.com/x` | fails | fails: the document without it fails: P016 | with `provider=iframe`; in text; with provider=iframe, which also needs a url, so the probe cannot try one without the other; the document without it fails: P016 |
 | `title` | `"Probe words"` | read when the page renders | yes | in text; fields: `embed-1.title` |
 | `ratio` | `1:1` | changes the layout | yes | in text |
 | `poster` | `/p2.jpg` | read when the page renders | yes | in text; fields: `image:/p2.jpg`, `poster.url`, `poster.asset` |
@@ -508,7 +513,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `src` | `/other.jpg` | read when the page renders | yes | in text; fields: `audio:/a.mp3`, `audio:/other.jpg`, `audio-1.audio` |
 | `title` | `"Probe words"` | read when the page renders | yes | in text; fields: `audio-1.title` |
 | `captions` | `/c.vtt` | read when the page renders | yes | in text; fields: `file:/c.vtt`, `audio-1.captions` |
-| `transcript` | `/t.txt` | read when the page renders | yes | in text; fields: `file:/t.txt`, `audio-1.transcript` *(not read?)*; resolved, but the renderer does not show it yet |
+| `transcript` | `/t.txt` | changes the layout | yes | in text |
 
 ## \gallery
 
@@ -580,7 +585,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `motion` | `always` | read when the page renders | yes | with `enter=fade`; in text; fields: `reveal.motion`, `diagnostics`; warns W034 |
 | `size` | `hero` `wide` `column` `small` | changes the layout | yes | in text; `column`: read when the page renders |
 | `place` | `here` `top` `bottom` `screen` | changes the layout | yes | in text; `top`: read when the page renders |
-| `style` | `probe` | changes the layout | **ignored** | in text |
+| `style` | `probe` | changes the layout | yes | in text |
 
 ## \sidebar
 
@@ -614,7 +619,7 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `motion` | `always` | read when the page renders | yes | with `enter=fade`; in text; fields: `reveal.motion`, `diagnostics`; warns W034 |
 | `size` | `hero` `wide` `column` `small` | changes the layout | yes | in text; `column`: read when the page renders |
 | `place` | `here` `top` `bottom` `screen` | changes the layout | yes | in text; `top`: read when the page renders |
-| `style` | `probe` | changes the layout | **ignored** | in text |
+| `style` | `probe` | changes the layout | yes | in text |
 | `bg` | `accent` `#aa3355` | read when the page renders | yes | in text; fields: `sidebar-1.bg` |
 | `inset` | `40px` | changes the layout | yes | in text |
 | `border` | `rule` | read when the page renders | yes | in text; fields: `sidebar-1.border` |
@@ -631,14 +636,14 @@ Limits: pictures are stand-ins (1600x1000, opaque), so `shape=alpha` cannot trac
 | `height` | `40px` | read when the page renders | **ignored** | in a scene; fields: `vertical.height` |
 | `bleed` | `left` `right` `both` | read when the page renders | yes | in a scene; fields: `group-1.bleed` (a layout input: no change in these documents) |
 | `max-width` | `fluid(20px, 40px)` `40px` | read when the page renders | yes | in a scene; fields: `group-1.maxWidth` (a layout input: no change in these documents) |
-| `min-width` | `fluid(20px, 40px)` `40px` | no effect seen | **ignored** | in a scene |
+| `min-width` | `fluid(20px, 40px)` `40px` | no effect seen | **ignored** | in a scene; for a group inside a row group (§11.11) |
 | `offset-x` | `40px` | read when the page renders | yes | in a scene; fields: `offsetX.n` |
 | `offset-y` | `40px` | read when the page renders | yes | in a scene; fields: `offsetY.n` |
-| `layer` | `background` `overlay` | read when the page renders | yes | in a scene; `background`: fails (layout: \group objects is not laid out yet); fields: `group-1.layer` |
+| `layer` | `background` `overlay` | changes the layout | yes | in a scene; `overlay`: read when the page renders |
 | `z` | `3` | read when the page renders | yes | in a scene; fields: `group-1.z` |
 | `hide` | `true` | changes the layout | yes | in a scene |
-| `side` | `left` `right` `center` | no effect seen | **ignored** | in a scene |
-| `width` | `40px` | no effect seen | **ignored** | in a scene |
+| `side` | `left` `right` `center` | no effect seen | **ignored** | in a scene; for an anchored object; a group is not anchored in this version (§11.11) |
+| `width` | `40px` | no effect seen | **ignored** | in a scene; for an anchored object; a group is not anchored in this version (§11.11) |
 | `wrap` | `none` `rect` `contour` `jump` | read when the page renders | yes | in a scene; `none`: no effect seen; fields: `wrap.mode`, `wrap.side`, `wrap.offset` |
 | `wrap-side` | `both` `left` `right` | read when the page renders | **ignored** | with `wrap=rect`; in a scene; fields: `wrap.side` |
 | `wrap-offset` | `2bl` | read when the page renders | yes | with `wrap=rect`; in a scene; fields: `offset.n` |
