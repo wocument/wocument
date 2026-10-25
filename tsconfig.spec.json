@@ -21,5 +21,5 @@
     },
     "baseUrl": "."
   },
-  "include": ["packages/*/src/**/*.ts", "packages/cli/client/**/*.ts", "packages/*/test/**/*.ts", "packages/*/scripts/**/*.ts", "packages/*/examples/**/*.ts", "vitest.config.ts"]
+  "include": ["packages/*/src/**/*.ts", "packages/cli/client/**/*.ts", "scripts/**/*.ts", "packages/*/test/**/*.ts", "packages/*/scripts/**/*.ts", "packages/*/examples/**/*.ts", "vitest.config.ts"]
 }
