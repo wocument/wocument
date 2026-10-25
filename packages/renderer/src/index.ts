@@ -94,6 +94,7 @@ ${READ_ASSIST_CSS}`;
 const EASE: Record<Reveal["ease"], string> = { standard: "cubic-bezier(.2,.7,.2,1)", in: "ease-in", out: "ease-out", linear: "linear" };
 
 export { renderStatic } from "./static.js";
+export { type MountOptions, type Mounted, mount } from "./mount.js";
 export { continuingLines, currentPage, pageStep, screenPoints, snapStops } from "./pages.js";
 export { cuePositions, currentCue } from "./music.js";
 export { type AssistMode } from "./read-assist.js";
