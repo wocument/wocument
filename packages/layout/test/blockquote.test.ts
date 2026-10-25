@@ -72,3 +72,13 @@ describe("\\blockquote", () => {
     expect(columns.size).toBeGreaterThan(1);
   });
 });
+
+describe("\\blockquote[span=all]", () => {
+  it("crosses every column of a multi-column frame", () => {
+    const src = SRC.replace("\\blockquote{", "\\blockquote[span=all]{").replace("cols=3-10]", "cols=1-12, columns=3]");
+    const { pd } = lay(src);
+    const lines = pd.scenes[0]!.lines;
+    const body = Math.max(...lines.filter((l) => l.style === "body").map((l) => l.width));
+    expect(Math.max(...lines.filter((l) => l.style === "blockquote").map((l) => l.width))).toBeGreaterThan(2 * body);
+  });
+});

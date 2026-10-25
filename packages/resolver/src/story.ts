@@ -42,12 +42,14 @@ export function storyBlocks(nodes: Node[], ctx: StoryContext): Block[] {
     if (n.kind === "command" && n.name === "blockquote") {
       const quote = ++quotes;
       const style = styleAttr(n, ctx) ?? "blockquote";
+      // §10.3: span=all on the quote spans each of its blocks.
+      const span = attr(n, "span", ctx) ? "all" : "column";
       for (const child of (n.body as Node[] | null) ?? []) {
         const cite = child.kind === "command" && child.name === "cite";
         const inline = child.kind === "paragraph" ? child.runs : (child.body as Inline[]);
         const own = cite ? styleAttr(child as Command, ctx) : null;
         const { runs, links } = toRuns(inline, own ?? (cite ? `${style}+cite` : style), ctx);
-        out.push({ ...paragraph(cite ? "cite" : "prose", own ?? (cite ? `${style}+cite` : style), runs, links), quote });
+        out.push({ ...paragraph(cite ? "cite" : "prose", own ?? (cite ? `${style}+cite` : style), runs, links), quote, span });
       }
       continue;
     }
