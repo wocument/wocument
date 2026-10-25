@@ -101,3 +101,16 @@ describe("values that had no effect", () => {
     expect(paras(r.doc, "base").find((b) => b.element === "subhead")!.level).toBe(1);
   });
 });
+
+describe("grid margin", () => {
+  const grid = (d: ResolvedDocument, v: string) => d.variants[v]!.scenes[0]!.grid;
+  it("margin= on Vanilla's default grid sets both margins, though Vanilla sets margin-x (spec §07.5)", () => {
+    const d = run(`\\grid[name=default, margin=200px]\nText.`);
+    expect(grid(d, "base")).toMatchObject({ marginX: { u: "px", n: 200 }, marginY: { u: "px", n: 200 } });
+  });
+  it("in one definition, margin-x beats margin; at a breakpoint, margin@ applies there", () => {
+    const d = run(`\\grid[name=default, margin=200px, margin-x=10px, margin@phone=30px]\nText.`);
+    expect(grid(d, "base")).toMatchObject({ marginX: { u: "px", n: 10 }, marginY: { u: "px", n: 200 } });
+    expect(grid(d, "phone")).toMatchObject({ marginX: { u: "px", n: 30 }, marginY: { u: "px", n: 30 } });
+  });
+});

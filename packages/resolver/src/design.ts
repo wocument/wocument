@@ -78,7 +78,6 @@ export class Design {
     const baseline = toPx(a.get("baseline")!, { em: null, baseline: null, fluidTo: 0 });
     const ctx: LenContext = { em: null, baseline, fluidTo: this.fluidTo(bp) };
     const cols = need(a.get("cols"), "integer", "grid cols").n;
-    const margin = a.get("margin");
     const len = (k: string): Len => toLen(a.get(k)!, ctx);
     const body = need(a.get("body"), "range", "grid body");
     const gutter = len("gutter");
@@ -86,8 +85,8 @@ export class Design {
       name,
       cols,
       gutter,
-      marginX: margin && !this.setsOwn("grid", name, bp, "margin-x") ? toLen(margin, ctx) : len("margin-x"),
-      marginY: margin && !this.setsOwn("grid", name, bp, "margin-y") ? toLen(margin, ctx) : len("margin-y"),
+      marginX: len("margin-x"),
+      marginY: len("margin-y"),
       max: len("max"),
       baseline,
       rows: need(a.get("rows"), "integer", "grid rows").n,
@@ -95,10 +94,6 @@ export class Design {
       body: { from: body.from, to: body.to === "end" ? cols : body.to },
       outdent: len("outdent"),
     };
-  }
-
-  private setsOwn(command: string, name: string, bp: string, key: string): boolean {
-    return this.defs.attrs(command, name, bp).has(key);
   }
 
   /** Upper end of two-argument fluid(): grid `default`'s max at this breakpoint. */

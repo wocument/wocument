@@ -73,8 +73,15 @@ export class Definitions {
   attrs(command: string, name: string, bp: string): Attrs {
     const out: Attrs = new Map();
     const defs = this.applying(command, name, bp);
-    for (const c of defs) for (const a of c.attrs) if (a.at === null && a.key !== "name" && a.key !== "at") out.set(a.key, a.value);
-    for (const c of defs) for (const a of c.attrs) if (a.at === bp) out.set(a.key, a.value);
+    // A grid's `margin` is shorthand for margin-x and margin-y (§07.5), expanded in each definition, so
+    // a later definition's margin beats an earlier one's margin-x; in one definition, margin-x beats margin.
+    const put = (c: Command, at: string | null): void => {
+      const own = c.attrs.filter((a) => a.at === at && a.key !== "name" && a.key !== "at");
+      for (const a of own) if (command === "grid" && a.key === "margin") out.set("margin-x", a.value).set("margin-y", a.value);
+      for (const a of own) if (!(command === "grid" && a.key === "margin")) out.set(a.key, a.value);
+    };
+    for (const c of defs) put(c, null);
+    for (const c of defs) put(c, bp);
     for (const [k, v] of out) out.set(k, this.deref(command, k, v));
     return out;
   }

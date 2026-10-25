@@ -334,7 +334,7 @@ Breakpoint ranges MUST NOT overlap (resolve error). Any viewport width not cover
 | `gutter` | length | `24px` | Space between columns |
 | `margin-x` | length | `64px` | Left and right outer margin |
 | `margin-y` | length | `4bl` | Top and bottom scene padding |
-| `margin` | length | none | Shorthand for both |
+| `margin` | length | none | Shorthand for both. In one `\grid`, `margin-x` or `margin-y` beats it; a later definition's `margin` beats an earlier one's (a theme's, Vanilla's) `margin-x` and `margin-y` |
 | `max` | length | `1440px` | Max width of the column area. Beyond it the grid centers and margins grow. |
 | `baseline` | length | `28px` | Baseline step. Defines the `bl` unit. Normally equals body leading. |
 | `rows` | integer | `6` | Row count. Only used by screen-height scenes (§08.2). |
