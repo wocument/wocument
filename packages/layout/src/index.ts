@@ -5,13 +5,19 @@
  * Pure after prepare: it reads no DOM and measures nothing itself. All text
  * measurement goes through the PrepareCache's engine (spec §15.4 point 5).
  *
- * Covered: flow and screen scenes (rows, valign, growing on overset),
- * threading across frames and scenes, internal columns with balancing (§09.4),
- * frame and column breaks, orphans and keep-with-next, baseline snapping,
- * space, indent, `measure`, drop caps, in-frame rules, mixed-style paragraphs,
- * text-bearing objects (pull quotes, sidebars) grid-placed or anchored, and
- * rectangular wrap with slots and `wrap-side` (§09.6, §12). Media objects,
- * contour wrap and anchored `cols=` come next and throw until then.
+ * Covered: flow, screen and page scenes (rows, valign, growing on overset;
+ * page scenes set in column bands, §09.7), threading across frames and
+ * scenes, internal columns with balancing (§09.4), frame and column breaks,
+ * orphans, widows and keep-with-next, baseline snapping, space, indent,
+ * `measure`, `fit=width`, drop caps, in-frame rules, mixed-style paragraphs,
+ * media and text-bearing objects grid-placed, anchored (with or without
+ * `cols=`) or floating to a spot (§09.7 rule 15), groups and row groups
+ * (§11.11), and wrap around rectangles, ellipses, polygons and alpha contours
+ * with slots and `wrap-side` (§09.6, §12). With `explain`, every decision is
+ * logged for the visor.
+ *
+ * Not laid out yet (they throw): `\lottie` objects, and a `\group` on the
+ * background layer. `docs/capabilities.md` lists what every attribute does.
  */
 
 import type {
@@ -1628,8 +1634,8 @@ function floatMaker(env: Env, columns: Col[], ids: readonly string[]) {
 }
 
 /**
- * Picture composition, 2026-10-17 (docs/superpowers/specs/2026-10-17-picture-composition-design.md,
- * "How the engine chooses"), for a frame set in screen pages. A floating object is anchored, has a
+ * Picture composition, 2026-10-17 (spec §09.7 rule 15,
+ * Floating), for a frame set in screen pages. A floating object is anchored, has a
  * `place` other than `here` and no `cols=`; every other object keeps today's placement.
  *
  * Screen by screen: a text-only trial (every floating object stepped over) gives the blocks on the

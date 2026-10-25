@@ -1,6 +1,6 @@
 /**
- * Picture composition in screen pages (docs/superpowers/specs/2026-10-17-picture-composition-design.md,
- * "How the engine chooses"): a floating object goes to the best spot on its screen, the screen before
+ * Picture composition in screen pages (spec §09.7 rule 15,
+ * Floating): a floating object goes to the best spot on its screen, the screen before
  * or the screen after; `place=here`, the fallback and the budget keep today's placement.
  */
 

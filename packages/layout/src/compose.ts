@@ -1,6 +1,6 @@
 /**
  * Picture composition, 2026-10-17: where the floating objects of one screen go.
- * Design: docs/superpowers/specs/2026-10-17-picture-composition-design.md, "How the engine chooses".
+ * Design: spec §09.7 rule 15, Floating.
  *
  * Pure: no DOM, no clocks, no randomness. The caller lays a screen out with a combination's boxes
  * (`tryLayout`) and summarises the result; this module makes the candidates, applies the hard rules,

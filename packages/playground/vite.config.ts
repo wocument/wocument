@@ -62,7 +62,7 @@ function compile(source: string, dir: string): Compiled {
     }
     return { problems, rd: r.doc, formatted };
   } catch (e) {
-    // Resolve errors throw, with no position (QUESTIONS R23).
+    // Resolve errors throw, with no position.
     problems.push({ severity: "error", code: "resolve", message: e instanceof Error ? e.message : String(e), line: 1, column: 1 });
     return { problems, rd: null, formatted };
   }

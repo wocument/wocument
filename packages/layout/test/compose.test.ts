@@ -1,6 +1,6 @@
 /**
- * The picture composition module (docs/superpowers/specs/2026-10-17-picture-composition-design.md,
- * "How the engine chooses"): candidate spots, hard rules, penalties and the bounded search.
+ * The picture composition module (spec §09.7 rule 15,
+ * Floating): candidate spots, hard rules, penalties and the bounded search.
  */
 import { describe, expect, it } from "vitest";
 import type { Spot } from "@wocument/resolved-document";

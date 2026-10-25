@@ -1,5 +1,5 @@
 /**
- * Speed of picture composition (docs/superpowers/specs/2026-10-17-picture-composition-design.md):
+ * Speed of picture composition (spec §09.7 rule 15, Floating):
  * a ten-screen page story with 15 floating figures lays out in at most 4 times the time of the layout
  * without composition (`composeBudget: 0`); real articles, where they are present, in at most 8 times.
  * Each run uses a fresh PrepareCache, so neither side gains from caching.

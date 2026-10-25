@@ -638,7 +638,7 @@ Bands are **screen pages** (reading-flow design, 2026-09-29): each band is read 
 12. **Pages end full** (2026-10-07). A page whose columns end short of its foot, level or not, has a photograph on it (a rectangular figure, not a cut-out, gallery or group member) take the difference: a line at a time taller, or up to three lines shorter, cropped by its `fit`, never under 60% of its own height or over 85% of a band. The first height that ends every column, text or picture, on the page's last line wins, the smallest change first. A page with no photograph, and a section's last page (rule 4), can still end short.
 13. **No stub under a picture** (2026-10-07). A picture as wide as its column that leaves room for only one or two lines under it ends the column; the text goes on to the next column, and rule 12 may crop the picture down to the foot. A line that would end a page on a hyphen beside a narrow strip, where no shorter break exists, goes over to the next page whole.
 14. **Figures take whole lines** (2026-10-08). A rectangular figure in a story, its caption included, is a whole number of baseline steps tall, so the text after it resumes exactly one standoff below and every column keeps the same rhythm. A photograph that crops (`fit=cover`) takes the nearest whole number of lines; one that must show whole is scaled down to the line above, centred in its space (letterboxed to the line below if that would shrink it by more than a sixth). Cut-outs keep their size: text wraps their outline line by line, already on the grid. A section's last page never holds three lines or fewer and nothing else: the page before is set again at full height to take them, where they fit. Where that page's floating pictures leave them no room, it is set again with one picture moved on to the next page, the last in story order first, and the next page chooses its spot (2026-10-20); only a picture anchored on that page moves, inside its window, and never a pull quote or fact box, which would be alone.
-15. **Floating** (2026-10-17; design `docs/superpowers/specs/2026-10-17-picture-composition-design.md`, "How the engine chooses"). A floating object (§11.3) does not wait for a column's top: screen by screen, the engine chooses its spot. A text-only trial gives the paragraphs on the screen and, a band on, those on the next. Competing on a screen are the objects left over from the screen before, those anchored on it and those anchored early on the next (in its first column), at most three, in story order; the rest wait. A picture set before its text is kept only where the text still reaches its anchor on the next screen. Each object's candidates are the theme's `top` and `bottom` spots (§07.7) of its size at every column position they allow (anchor spots, `small` and `column anchor`, are set inline at the anchor by rule 6 and are not scored) (`auto`: a picture at least 1.2 times as wide as tall is `wide` or `column`, one under 0.9 `column` or `small`, any other `column` or `wide`; a pull quote or fact box `column` or `small`), a box's top on a grid line; or to wait for the next screen, inside its window. A combination is set as the band and kept only if it keeps the hard rules: every word set, nothing overlapping (no box over a wrapping object's outline, a scene's cut-out included; 2026-10-20) or pushed past the foot, every object within a screen of its anchor, one `hero` a screen, no picture taller than 85% of a full band, no one or two lines alone above or below a picture in a column (rule 13), no block kept with the next ending a column (rule 5), no pull quote or fact box alone on a page. Of those, the one with the smallest penalty wins (distance from the anchor, story order, columns short of the foot, empty room inside a column, crowding, balance, the same arrangement as the screen before; weights in the engine). Empty room (2026-10-20) is counted in whole lines, on every screen the last included: text that stops short of a box under it, or a strip beside a box that holds no text. In a band, a box narrower than its place (a portrait fact box, §11.10, or an object at its anchor's side) leaves a strip beside it at least as wide as the body style's `min-slot` (§09.6), or it takes the whole width (2026-10-20). At most 40 combinations are tried a screen, the most promising first. When none keeps the rules, the later objects wait for the next screen, inside their window, and the earlier ones are chosen again, down to all of them waiting; otherwise, or when an object has no spot on the screen, it falls back to rule 6: at its anchor, or, left over from the screen before, at the top of the band. An object left over at the end of its window that is not among the three falls back at once. An object that falls back once its anchor's text is set is set on that screen: a setting that sends it on is refused. The window is measured from the anchor in the text as set (below the last line before it), whether the object floated or fell back. It yields only to overflow: an object may land more than a screen after its anchor only when every screen after its anchor's screen, to the one before its own, already holds a floating object set earlier in story order (the pictures before it filled the window; the anchor's own screen does not count, since its first band can be too short for any picture); the copyfitting report names it ("it had no room nearer"). Objects that fall back join those waiting in story order. A box on the grid's outer edge, which reaches into the margin on wide screens (§07.5 outdent), keeps the height it was scored at, cropped to it. Rules 11 and 12 then run on the chosen band with the boxes kept: a box at the foot ends its column, but the text above it must still come down to it, so empty room above a box is scored as a gap, and on a balanced page (the text's last) a box at the foot rises by whole lines into the empty room above it (2026-10-21); where the text ends on the screen, it is scored on the band as rule 11 balances it (2026-10-20: a gallery and a pull quote at the foot, the text above them up to four lines short, counted as level). A frame does not end with a floating object unplaced: a page of pictures may follow its text, before a frame break sends the story on, and the text after the break is never set in this frame.
+15. **Floating** (2026-10-17). A floating object (§11.3) does not wait for a column's top: screen by screen, the engine chooses its spot. A text-only trial gives the paragraphs on the screen and, a band on, those on the next. Competing on a screen are the objects left over from the screen before, those anchored on it and those anchored early on the next (in its first column), at most three, in story order; the rest wait. A picture set before its text is kept only where the text still reaches its anchor on the next screen. Each object's candidates are the theme's `top` and `bottom` spots (§07.7) of its size at every column position they allow (anchor spots, `small` and `column anchor`, are set inline at the anchor by rule 6 and are not scored) (`auto`: a picture at least 1.2 times as wide as tall is `wide` or `column`, one under 0.9 `column` or `small`, any other `column` or `wide`; a pull quote or fact box `column` or `small`), a box's top on a grid line; or to wait for the next screen, inside its window. A combination is set as the band and kept only if it keeps the hard rules: every word set, nothing overlapping (no box over a wrapping object's outline, a scene's cut-out included; 2026-10-20) or pushed past the foot, every object within a screen of its anchor, one `hero` a screen, no picture taller than 85% of a full band, no one or two lines alone above or below a picture in a column (rule 13), no block kept with the next ending a column (rule 5), no pull quote or fact box alone on a page. Of those, the one with the smallest penalty wins (distance from the anchor, story order, columns short of the foot, empty room inside a column, crowding, balance, the same arrangement as the screen before; weights in the engine). Empty room (2026-10-20) is counted in whole lines, on every screen the last included: text that stops short of a box under it, or a strip beside a box that holds no text. In a band, a box narrower than its place (a portrait fact box, §11.10, or an object at its anchor's side) leaves a strip beside it at least as wide as the body style's `min-slot` (§09.6), or it takes the whole width (2026-10-20). At most 40 combinations are tried a screen, the most promising first. When none keeps the rules, the later objects wait for the next screen, inside their window, and the earlier ones are chosen again, down to all of them waiting; otherwise, or when an object has no spot on the screen, it falls back to rule 6: at its anchor, or, left over from the screen before, at the top of the band. An object left over at the end of its window that is not among the three falls back at once. An object that falls back once its anchor's text is set is set on that screen: a setting that sends it on is refused. The window is measured from the anchor in the text as set (below the last line before it), whether the object floated or fell back. It yields only to overflow: an object may land more than a screen after its anchor only when every screen after its anchor's screen, to the one before its own, already holds a floating object set earlier in story order (the pictures before it filled the window; the anchor's own screen does not count, since its first band can be too short for any picture); the copyfitting report names it ("it had no room nearer"). Objects that fall back join those waiting in story order. A box on the grid's outer edge, which reaches into the margin on wide screens (§07.5 outdent), keeps the height it was scored at, cropped to it. Rules 11 and 12 then run on the chosen band with the boxes kept: a box at the foot ends its column, but the text above it must still come down to it, so empty room above a box is scored as a gap, and on a balanced page (the text's last) a box at the foot rises by whole lines into the empty room above it (2026-10-21); where the text ends on the screen, it is scored on the band as rule 11 balances it (2026-10-20: a gallery and a pull quote at the foot, the text above them up to four lines short, counted as level). A frame does not end with a floating object unplaced: a page of pictures may follow its text, before a frame break sends the story on, and the text after the break is never set in this frame.
 
 A single-column frame in a page scene is not banded: it grows, as in a flow scene. So `columns@phone=1` gives phones a plain scrolling article.
 
@@ -1051,72 +1051,88 @@ The AST round-trips: `format(parse(src))` is canonical source, and formatting ca
 
 ### 15.3 Resolved Document
 
-JSON-serializable, snapshot-testable. Shape (informative):
+JSON-serializable, snapshot-testable. The types in `packages/resolved-document/src` are the source; the JSON Schema and the field-by-field reference (`packages/resolved-document/resolved-document.schema.md`) are generated from them. Shape (informative):
 
 ```ts
 type ResolvedDocument = {
-  meta: Frontmatter
-  breakpoints: Breakpoint[]
+  format: "wocument-resolved"
+  version: 1
+  meta: Meta                       // the frontmatter, typed
+  breakpoints: BreakpointRange[]   // which variant applies at which width
   fonts: FontFace[]
-  stories: { name: string; overset: Policy; content: Block[] }[]
-  scenes: {
-    name: string
-    perBreakpoint: Record<BreakpointName | "base", {
-      grid: GridValues
-      palette: PaletteValues
-      height: "flow" | "screen" | "page"
-      turn: { effect: "fade" | "slide"; durationMs: number; ease: Ease } | null
-      linearized: boolean
-      frames: ResolvedFrame[]      // placement, columns, story ref, fully-valued
-      objects: ResolvedObject[]    // placement, media, wrap shape polygon, reveal
-    }>
-  }[]
-  threads: Record<StoryName, Record<BreakpointName | "base", FrameRef[]>>
+  strings: string[]                // text, shared by index
+  assets: Record<AssetId, Asset>   // images, video, audio, files, polygons
+  variants: { base: Variant; [breakpoint: string]: Variant }
+  music: MusicCue[]
+  diagnostics: Diagnostic[]        // warnings found while resolving
+}
+
+type Variant = {                   // one complete value set per breakpoint
+  name: string
+  styles: Record<StyleKey, ResolvedStyle>
+  stories: Record<StoryId, Story>
+  scenes: Scene[]                  // grid, palette, height, turn, snap, reveals, children
+  frames: Record<FrameId, Frame>   // placement, columns, story ref
+  objects: Record<ObjectId, ObjectElement>   // placement, media, wrap shape, reveal
+  threads: Record<StoryId, FrameId[]>
+  spots: Spot[]                    // where floating objects may go (§07.7)
 }
 ```
 
 Every value in it is concrete. No tokens, no `extends`, no defaults left to look up.
 
-**Positioned Document** is layout's output and the renderer's only input. Frozen from the 0.2 layout spike:
+**Positioned Document** is layout's output and the renderer's only input. The types in `packages/layout/src/positioned.ts` are the source. Shape (informative):
 
 ```ts
 type PositionedDocument = {
   viewport: { width: number; height: number }
-  breakpoint: string
+  breakpoint: string               // the variant laid out
   scenes: PositionedScene[]
   height: number
+  explain?: Explanation            // the decision log, only when layout is asked for it
 }
 
 type PositionedScene = {
   name: string
-  y: number                  // document space, not scene-relative
+  y: number                        // document space, not scene-relative
   height: number
   grid: GridGeometry
-  lines: PositionedLine[]    // STORY order, never visual order
+  lines: PositionedLine[]          // STORY order, never visual order
   objects: PositionedObject[]
+  caps: PositionedCap[]            // drop caps
+  rules: PositionedRule[]          // rules inside a story
+  columnRules: PositionedColumnRule[]
+  continues: PositionedContinue[]  // the arrow where a frame's text continues
+  paged: boolean                   // a page scene set in column bands (§08.2, §09.7): whole screens tall
+  screens?: ScreenReport[]         // page scenes: per screen, what a content change could fill (§15.6)
 }
 
 type PositionedLine = {
   story: string; block: number; style: string; frame: string; column: number
   x: number; y: number
-  baseline: number           // stored, not derived: the snapping rule lives in one place
-  width: number              // the slot
-  measured: number           // the text; a large gap flags a too-narrow band
+  baseline: number                 // stored, not derived: the snapping rule lives in one place
+  width: number                    // the slot
+  measured: number                 // the text; a large gap flags a too-narrow band
   height: number
   text: string
   start: TextCursor; end: TextCursor
   paragraphStart: boolean
   snapped: boolean
+  fragments: { run: number; text: string }[]   // the line's text by style run
+  size?: number                    // a fitted paragraph's px size (fit=width)
+  hang?: { left: number; right: number }       // hanging punctuation
 }
 
 type PositionedObject = {
   name: string; kind: string
-  box: { x: number; y: number; width: number; height: number }
-  exclusion: Exclusion | null
+  box: Rect
+  exclusion: Exclusion | null      // the shape text wraps around
   anchoredAt: number | null
+  media: Rect | null               // the picture inside the box, when it is not the whole box
+  mark?: { text: string; size: number; close?: { text: string; x: number; y: number; size: number } }   // a pull quote's marks
 }
 
-type TextCursor = { seg: number; grapheme: number }
+type TextCursor = { item: number; seg: number; grapheme: number }
 ```
 
 `lines` in story order is what makes the DOM-order requirement of §14 free: the renderer emits in array order and never sorts. Cursors are plain data so the whole structure round-trips through JSON for snapshot tests.
