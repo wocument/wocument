@@ -42,8 +42,9 @@ describe("Field Atlas: build", () => {
 
   it("resolves with only the warnings it asks for", () => {
     // Media and font files that are not in the repository (W050), one motion=always (W034), and its
-    // accent and one muted colour just under 4.5:1 against their paper (W062, 2026-10-09).
-    expect([...new Set(diagnostics.map((d) => d.code))].sort()).toEqual(["W034", "W050", "W062"]);
+    // accent and one muted colour just under 4.5:1 against their paper (W062, 2026-10-09), and a
+    // span=all subhead in the middle of column bands, set in its column (W035, 2026-10-25).
+    expect([...new Set(diagnostics.map((d) => d.code))].sort()).toEqual(["W034", "W035", "W050", "W062"]);
     expect(diagnostics.filter((d) => d.code === "W062")).toHaveLength(2);
     expect(diagnostics.filter((d) => d.code === "W034")).toHaveLength(1);
     expect(checkInvariants(rd)).toEqual([]);
@@ -92,7 +93,6 @@ describe("Field Atlas: what the engine does not build yet", () => {
   ])("%s is not resolved yet", (_, src) => {
     expect(attempt(src)).toThrow(/not resolved yet/);
   });
-  it.todo("a text element with span=all spans every column of a multi-column frame (resolved, not laid out)");
   it.todo("a group anchored in a story");
 });
 

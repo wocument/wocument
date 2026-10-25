@@ -107,6 +107,8 @@ function rollback(out: Placed, to: ReturnType<typeof mark>): void {
 
 /** Everything a fill needs that does not change within one scene. */
 type Env = {
+  /** §10.3: the tops of column sections set under a span=all block; an object at one keeps its standoff from the block. */
+  spanTops?: Set<number>;
   rd: ResolvedDocument;
   v: Variant;
   grid: GridGeometry;
@@ -758,6 +760,51 @@ function fillFrame(
   const contentTop = top + inset;
   const banded = height === null && env.page && count > 1;
   if (banded) env.paged = true;
+
+  // §10.3 span=all: a block that crosses every column of the frame. The text before it is set, and
+  // balanced, in the columns; the block, with any spanning blocks right after it, across all of
+  // them; the text after it in the columns below. In column bands (§09.7) only at the frame's start:
+  // a spanning block later in the bands is set in its column (the resolver warns W035).
+  if (count > 1 && height === null) {
+    const spans = (b: number): boolean => {
+      const x = story.blocks[b];
+      return x?.kind === "paragraph" && x.span === "all";
+    };
+    const space = (b: number, k: "spaceBefore" | "spaceAfter"): number => {
+      const x = story.blocks[b];
+      return x?.kind === "paragraph" ? px(env.v.styles[x.style]![k], ctx) : 0;
+    };
+    /** fillFrame's `top` for content that starts at `y` (it adds the inset). */
+    const from = (y: number): number => y - inset;
+    /** Below everything a section set: its text, and objects that hang past it (a pull quote, a fact box). */
+    const under = (p: Placed, y: number): number => Math.max(y, ...p.objects.filter((o) => env.v.objects[o.name]?.placement.mode !== "contained").map((o) => o.box.y + o.box.height));
+    const fresh = cursor.piece === 0 && cursor.offset === 0 && cursor.at.item === 0 && cursor.at.seg === 0 && cursor.at.grapheme === 0;
+    if (fresh && spans(cursor.block)) {
+      let end = cursor.block;
+      while (spans(end)) end++;
+      const wide = frame.measure === null ? Number.POSITIVE_INFINITY : px(frame.measure, { ...ctx, pctOf: inner.width });
+      const head = fillColumns(env, frame, { ...story, blocks: story.blocks.slice(0, end) }, [inner], wide, contentTop, Number.POSITIVE_INFINITY, cursor, exclusions, lastInThread, new Map());
+      const below = under(head.placed, Math.max(contentTop, ...head.bottoms));
+      if (end >= story.blocks.length) return { placed: head.placed, cursor: head.cursor, bottom: below + inset };
+      const restTop = below + space(end - 1, "spaceAfter");
+      (env.spanTops ??= new Set()).add(restTop);
+      const rest = fillFrame(env, frame, story, box, from(restTop), null, head.cursor, lastInThread, exclusions);
+      append(head.placed, rest.placed);
+      return { placed: head.placed, cursor: rest.cursor, bottom: rest.bottom };
+    }
+    let next = -1;
+    for (let b = cursor.block + 1; !banded && next < 0 && b < story.blocks.length; b++) {
+      const x = story.blocks[b]!;
+      if (x.kind === "framebreak" && x.scope === "frame") break;
+      if (spans(b)) next = b;
+    }
+    if (next > 0) {
+      const before = fillFrame(env, frame, { ...story, blocks: story.blocks.slice(0, next) }, box, top, null, cursor, lastInThread, exclusions);
+      const rest = fillFrame(env, frame, story, box, from(under(before.placed, before.bottom - inset) + space(next, "spaceBefore")), null, before.cursor, lastInThread, exclusions);
+      append(before.placed, rest.placed);
+      return { placed: before.placed, cursor: rest.cursor, bottom: rest.bottom };
+    }
+  }
   const pass = (at: number, limit: number, from: Resume, pins: Pins, earlier: readonly Exclusion[], deferred: readonly string[], moved: ReadonlySet<string> = new Set()): Columns =>
     fillColumns(env, frame, story, columns, measure, at, limit, from, [...exclusions, ...earlier, ...[...pins.values()].flatMap((p) => p.exclusions)], lastInThread, pins, banded, deferred, undefined, moved);
   // §11.3 pin and reflow: a `cols=` object whose exclusion hits lines already set in this frame is
@@ -2421,8 +2468,9 @@ function fillColumn(
     const pin = pins.get(o.id);
     // §12.1: an object that follows text keeps its standoff from the line above too (2026-10-07: with
     // no space between paragraphs, a quote otherwise sat inside its own standoff).
-    const above = !atTop && o.wrap.mode !== "none" ? px(o.wrap.offset, ctx) : 0;
-    let objTop = pin?.y ?? (atTop ? y : snapUp(y + above));
+    const underSpan = atTop && env.spanTops?.has(y) === true;
+    const above = (!atTop || underSpan) && o.wrap.mode !== "none" ? px(o.wrap.offset, ctx) : 0;
+    let objTop = pin?.y ?? (atTop && !underSpan ? y : snapUp(y + above));
     const fixed = o.placement.height === "auto" ? null : px(o.placement.height, ctx);
     let r = placeObject(env, o, { x, y: objTop, width }, fixed, objTop, defer.banded);
     // Rule 8 (2026-09-30: every picture in the flow, not only cut-outs; a `cols=` picture is the

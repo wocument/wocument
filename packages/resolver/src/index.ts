@@ -793,6 +793,26 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
   const built = variants.map((bp) => [bp, variant(bp)] as const);
   // Readability (2026-10-09): body size, leading and weight, and text contrast, per variant.
   for (const r of readability(built)) warn(r.code, r.message, null, r.variant || null, r.fix);
+  // §10.3: in a page scene's column bands, span=all crosses the columns only at a frame's start
+  // (the story's, or after a frame break); a spanning block later is set in its column.
+  const lateSpans = new Set<string>();
+  for (const [, v] of built)
+    for (const st of Object.values(v.stories)) {
+      let start = true;
+      const late = st.blocks.some((b) => {
+        const spans = b.kind === "paragraph" && b.span === "all";
+        const isLate = spans && !start;
+        start = (start && spans) || (b.kind === "framebreak" && b.scope === "frame");
+        return isLate;
+      });
+      const banded = (v.threads[st.id] ?? []).some((id) => {
+        const fr = v.frames[id]!;
+        return fr.columns !== 1 && fr.vertical.mode === "flow" && fr.vertical.height === "auto" && v.scenes.find((x) => x.id === fr.scene)?.height === "page";
+      });
+      if (late && banded) lateSpans.add(st.id);
+    }
+  for (const id of lateSpans)
+    warn("W035", `A block with span=all in story "${id}" is set in its column: in a page scene's column bands it crosses the columns only at a frame's start.`, null, null, "Start a frame with it, or put a \\framebreak before it.");
 
   // §13: `motion=always` overrides the reader's reduced-motion setting, so it is always a warning.
   const walk = (nodes: readonly Node[]): void => {
