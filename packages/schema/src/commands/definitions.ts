@@ -37,11 +37,11 @@ export const TOKEN = def("token", "§07.2", {
 
 export const PALETTE = def("palette", "§07.3", {
   name: { types: ["ident"], required: true, responsive: false },
-  paper: { types: [...COLOR_VALUE] },
-  ink: { types: [...COLOR_VALUE] },
-  muted: { types: [...COLOR_VALUE] },
-  accent: { types: [...COLOR_VALUE] },
-  rule: { types: [...COLOR_VALUE] },
+  paper: { types: ["color"] },
+  ink: { types: ["color"] },
+  muted: { types: ["color"] },
+  accent: { types: ["color"] },
+  rule: { types: ["color"] },
 });
 
 export const BREAKPOINT = def("breakpoint", "§07.4", {

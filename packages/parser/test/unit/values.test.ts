@@ -152,3 +152,12 @@ describe("booleans and \\token", () => {
     expect(v).toEqual({ ok: true, value: { t: "any", raw: "4bl" } });
   });
 });
+
+describe("palette roles", () => {
+  it("take colors only: a role name there is P015 (spec §07.3)", async () => {
+    const { parse } = await import("../../src/index.js");
+    const r = parse("---\nwocument: 1\ntitle: T\n---\n\\palette[name=default, paper=accent]\nText.\n");
+    expect(r.diagnostics.map((d) => [d.code, d.message])).toEqual([["P015", "`paper` expects a color."]]);
+    expect(parse("---\nwocument: 1\ntitle: T\n---\n\\palette[name=default, paper=#101010]\nText.\n").diagnostics).toEqual([]);
+  });
+});
