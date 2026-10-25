@@ -84,7 +84,7 @@ describe("magazine.woc", () => {
       for (const o of s.objects.filter((o) => v.objects[o.name]?.placement.mode !== "contained"))
         for (const l of s.lines.filter((l) => l.frame !== o.name && !(v.objects[l.frame]?.placement.mode === "contained"))) {
           if (!(l.y < o.box.y + o.box.height - 1 && o.box.y < l.y + l.height - 1)) continue;
-          const ext = o.exclusion && !o.exclusion.jump ? bandExtent({ ...o.exclusion, offset: 0 }, l.y, l.y + l.height) : [o.box.x, o.box.x + o.box.width];
+          const ext: [number, number] | null = o.exclusion && !o.exclusion.jump ? bandExtent({ ...o.exclusion, offset: 0 }, l.y, l.y + l.height) : [o.box.x, o.box.x + o.box.width];
           if (ext) expect(l.x + l.width <= ext[0] + 1 || l.x >= ext[1] - 1, `${o.name} over "${l.text}"`).toBe(true);
         }
   });

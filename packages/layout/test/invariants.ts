@@ -1,7 +1,7 @@
 /** The layout invariants for one laid-out document, as expectations. */
 
 import { expect } from "vitest";
-import type { ParagraphBlock, ResolvedDocument } from "@wocument/resolved-document";
+import type { ParagraphBlock, Placement, ResolvedDocument } from "@wocument/resolved-document";
 import { bandExtent, type PositionedDocument } from "../src/index.js";
 
 const SHY = /­/g;
@@ -74,7 +74,7 @@ export function layoutInvariants(rd: ResolvedDocument, pd: PositionedDocument, {
   const inside = (l: { frame: string }, o: { name: string }): boolean => {
     for (let id: string | undefined = l.frame; id; ) {
       if (id === o.name) return true;
-      const p = v.objects[id]?.placement;
+      const p: Placement | undefined = v.objects[id]?.placement;
       id = p?.mode === "contained" ? p.container : undefined;
     }
     return false;

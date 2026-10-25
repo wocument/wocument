@@ -111,7 +111,7 @@ describe("penalties", () => {
   it("each line of empty room inside a column costs, on the last screen too", () => {
     // 2026-10-20: text stopping lines short of a box under it, or a strip beside a box left empty.
     const [c] = boxes(candidates(float(), [spot("column", "top")], g3));
-    for (const last of [false, true]) expect(penalty([c!], [float()], g3, fine({ last, gaps: 3 })) - penalty([c!], [float()], g3, fine({ last }))).toBe(3 * PENALTY.gap);
+    for (const last of [false, true]) expect(penalty([c!], [float()], g3, fine({ last, gaps: 3 }), null) - penalty([c!], [float()], g3, fine({ last }), null)).toBe(3 * PENALTY.gap);
   });
 });
 
