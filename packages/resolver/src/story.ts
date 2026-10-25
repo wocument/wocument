@@ -26,6 +26,8 @@ export type StoryContext = RunContext & {
   music: (c: Command, block: number) => void;
   /** Used as the default paragraph style of bare prose (spec §09.1 `style`). */
   proseStyle: string;
+  /** The variant being built: an element's `key@at=` values replace its base ones (§06.3). */
+  at: string;
 };
 
 /** Block-level content in source order. Objects arrive with step 2 and throw until then. */
@@ -132,10 +134,22 @@ export function withIndents(story: Story, style: (k: string) => ResolvedStyle): 
 
 // ---------------------------------------------------------------------------
 
-/** An element's own base attributes, tokens resolved. Limit: `@bp` overrides on text elements come with per-variant blocks. */
+/** An element's own attributes in the variant being built (base, then `@at` values), tokens resolved. */
 function own(c: Command, ctx: StoryContext): Map<string, Value> {
-  if (c.attrs.some((a) => a.at !== null)) notYet(c, "breakpoint overrides on story content");
-  return new Map(c.attrs.map((a) => [a.key, ctx.deref(c.name, a.key, a.value)]));
+  const out = new Map<string, Value>();
+  for (const a of c.attrs) if (a.at === null) out.set(a.key, a.value);
+  for (const a of c.attrs) if (a.at === ctx.at) out.set(a.key, a.value);
+  for (const [k, v] of out) out.set(k, ctx.deref(c.name, k, v));
+  return out;
+}
+
+/** Whether any element in these nodes, or in their inline text, has a `key@breakpoint=` value. */
+export function hasOverrides(x: unknown): boolean {
+  if (Array.isArray(x)) return x.some(hasOverrides);
+  if (!x || typeof x !== "object") return false;
+  const attrs = (x as { attrs?: unknown }).attrs;
+  if (Array.isArray(attrs) && attrs.some((a: { at: string | null }) => a.at !== null)) return true;
+  return Object.values(x).some(hasOverrides);
 }
 
 const attr = (c: Command, key: string, ctx: StoryContext): Value | undefined => own(c, ctx).get(key);

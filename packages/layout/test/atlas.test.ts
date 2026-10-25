@@ -90,7 +90,6 @@ describe("Field Atlas: what the engine does not build yet", () => {
     ["\\blockquote", "\\story[name=s]{\\blockquote{Quoted.}}\n\\scene{\\frame[story=s]}"],
     ["\\rule in a scene", "\\scene{\\rule[cols=1-4]}"],
     ["\\rule in a group", "\\scene{\\group[cols=all]{\\rule}}"],
-    ["a breakpoint override on a text element", "\\story[name=s]{\\headline[style@phone=deck]{Hi}}\n\\scene{\\frame[story=s]}"],
   ])("%s is not resolved yet", (_, src) => {
     expect(attempt(src)).toThrow(/not resolved yet/);
   });

@@ -187,7 +187,8 @@ function frameOrder(v: Variant): string[] {
 
 /** Shape of a block for the cross-variant comparison: kind and anchor target, not per-breakpoint properties. */
 function blockShape(b: Block): string {
-  return b.kind === "object" ? `object:${b.object}` : b.kind === "framebreak" ? `framebreak:${b.scope}` : b.kind;
+  // A frame break's scope may differ by breakpoint (§06.3); its place in the story may not.
+  return b.kind === "object" ? `object:${b.object}` : b.kind;
 }
 
 function allFinite(x: unknown): boolean {

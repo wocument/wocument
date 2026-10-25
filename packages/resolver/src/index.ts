@@ -46,7 +46,7 @@ export { contrast } from "./readability.js";
 import { type Attrs, Definitions, schemaDefaults } from "./definitions.js";
 import { BASE, Design } from "./design.js";
 import { Ids } from "./ids.js";
-import { OBJECTS, type StoryContext, notYet, storyBlocks, withIndents } from "./story.js";
+import { OBJECTS, type StoryContext, hasOverrides, notYet, storyBlocks, withIndents } from "./story.js";
 import { toLen } from "./units.js";
 
 /** What the asset host knows about an image file. */
@@ -197,12 +197,16 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
 
   /** Anchored objects, registered while stories are built. */
   const anchored: { cmd: Command; story: string; block: number }[] = [];
-  const storyCtx = (proseStyle: string, storyId: string): StoryContext => ({
+  /** `at` is the variant; a rebuild for a breakpoint (`again`) registers nothing a second time. */
+  const storyCtx = (proseStyle: string, storyId: string, at = BASE, again = false): StoryContext => ({
     object: (c, block) => {
-      anchored.push({ cmd: c, story: storyId, block });
+      if (!again) anchored.push({ cmd: c, story: storyId, block });
       return ids.of(c);
     },
-    music: (c, block) => cue(c, { story: storyId, block }),
+    music: (c, block) => {
+      if (!again) cue(c, { story: storyId, block });
+    },
+    at,
     lang,
     strings,
     intern,
@@ -214,7 +218,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     },
     binds: (style) => variants.some((bp) => design.styleKey(style, bp).bindShort),
     inlineAttr: (c, key) => {
-      const v = c.attrs.find((a) => a.key === key && a.at === null)?.value;
+      const v = (c.attrs.find((a) => a.key === key && a.at === at) ?? c.attrs.find((a) => a.key === key && a.at === null))?.value;
       const d = v ? defs.deref(c.name, key, v) : undefined;
       return d?.t === "ident" ? d.id : d?.t === "string" ? d.s : null;
     },
@@ -222,9 +226,14 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
 
   /** Stories are built once, in first-use order, so the string table is deterministic. */
   const stories = new Map<string, Story>();
-  const story = (id: string, origin: Story["origin"], owner: string | null, content: Node[], cmd: Command | null, prose = "body"): Story => {
+  /** What each story was built from, to build it again for a breakpoint whose values differ (§06.3). */
+  const storySources = new Map<string, { content: Node[]; cmd: Command | null; prose: string; proseAt: Map<string, string> }>();
+  /** `at`: the variant asking, whose prose style (a pull quote's `style@at`) may differ from the first build's. */
+  const story = (id: string, origin: Story["origin"], owner: string | null, content: Node[], cmd: Command | null, prose = "body", at = BASE): Story => {
+    storySources.get(id)?.proseAt.set(at, prose);
     const hit = stories.get(id);
     if (hit) return hit;
+    storySources.set(id, { content, cmd, prose, proseAt: new Map([[at, prose]]) });
     const a = cmd ? elementAttrs(cmd, BASE, "story", deref) : new Map<string, Value>();
     const s: Story = {
       id,
@@ -235,6 +244,14 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     };
     stories.set(id, s);
     return s;
+  };
+  /** A story in a variant: the base build, or built again with the variant's `@` values where it has any. */
+  const storyAt = (s: Story, bp: string): Story => {
+    const src = storySources.get(s.id)!;
+    const prose = src.proseAt.get(bp) ?? src.prose;
+    if (bp === BASE || (prose === src.prose && !hasOverrides([src.content, src.cmd]))) return s;
+    const a = src.cmd ? elementAttrs(src.cmd, bp, "story", deref) : new Map<string, Value>();
+    return { ...s, overset: (enumId(a.get("overset")) || "grow") as Story["overset"], blocks: storyBlocks(src.content, storyCtx(ident(a.get("style")) || prose, s.id, bp, true)) };
   };
   for (const s of ast.stories) story(ident(s.attrs.find((a) => a.key === "name")?.value), "named", null, s.body as Node[], s);
 
@@ -451,13 +468,13 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
       const body = (cmd.body as Node[] | null) ?? [];
       const prose = ident(oa.get("style"));
       if (cmd.name === "pullquote") {
-        return { ...common, kind: "pullquote", story: story(`${id}#text`, "pullquote", id, body, null, prose || "pullquote").id };
+        return { ...common, kind: "pullquote", story: story(`${id}#text`, "pullquote", id, body, null, prose || "pullquote", bp).id };
       }
       if (cmd.name === "sidebar") {
         return {
           ...common,
           kind: "sidebar",
-          story: story(`${id}#text`, "sidebar", id, body, null, prose || "sidebar").id,
+          story: story(`${id}#text`, "sidebar", id, body, null, prose || "sidebar", bp).id,
           bg: colorOf(oa.get("bg")),
           inset: len(oa.get("inset")!),
           border: enumId(oa.get("border")) as "none",
@@ -744,8 +761,9 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     }
 
     const styleAt = (k: string): ResolvedStyle => design.styleKey(k, bp);
-    const storyTable = Object.fromEntries([...stories.values()].map((s) => [s.id, withIndents(s, styleAt)]));
-    return { name: bp, styles: styleTable([...stories.values()], styleAt), stories: storyTable, scenes, frames, objects, threads, spots: design.spots(bp) };
+    const variantStories = [...stories.values()].map((s) => storyAt(s, bp));
+    const storyTable = Object.fromEntries(variantStories.map((s) => [s.id, withIndents(s, styleAt)]));
+    return { name: bp, styles: styleTable(variantStories, styleAt), stories: storyTable, scenes, frames, objects, threads, spots: design.spots(bp) };
   };
 
   /** The folio over a scene: its parent's if the parent declares one, else the document's (§10.5). */
