@@ -192,6 +192,36 @@ function sitter() {
   writeFileSync(out("keeper/mairi-cutout.png"), PNG.sync.write(png));
 }
 
+/**
+ * The Vanilla stress test (packages/playground/docs/stress-*.woc): 27 more stand-ins in every shape a
+ * page meets: 3:1 panoramas, 16:10, 16:9, 4:3, squares, 4:5 and 2:3 portraits, a phone-shaped 9:16.
+ * `node packages/playground/scripts/make-demo-assets.mjs stress` draws only these.
+ */
+function stress() {
+  const SEA = { sky: [[70, 100, 140], [180, 196, 210], [214, 220, 224]], ground: [[60, 90, 110], [40, 66, 84], [24, 44, 58]], stars: false, wall: null };
+  const STORM = { sky: [[40, 44, 52], [96, 100, 108], [130, 134, 140]], ground: [[50, 56, 60], [36, 40, 44], [22, 26, 28]], stars: false, wall: null };
+  const DAWN = { sky: [[60, 70, 120], [230, 160, 140], [244, 210, 170]], ground: [[90, 80, 96], [66, 60, 74], [44, 40, 52]], stars: false, wall: null };
+  const MOOR = { sky: [[110, 120, 140], [190, 186, 176], [214, 208, 194]], ground: [[96, 104, 72], [74, 82, 56], [52, 58, 40]], stars: false, wall: [214, 206, 190] };
+  const SNOW = { sky: [[170, 190, 210], [228, 234, 240], [240, 244, 248]], ground: [[220, 226, 232], [196, 204, 212], [170, 180, 190]], stars: false, wall: null };
+  const HARVEST = { sky: [[120, 140, 160], [226, 200, 150], [240, 220, 180]], ground: [[180, 140, 70], [150, 110, 56], [110, 80, 44]], stars: false, wall: null };
+  const NIGHT = { sky: [[6, 8, 18], [24, 30, 56], [40, 46, 70]], ground: [[18, 22, 30], [12, 14, 20], [6, 8, 12]], stars: true, wall: [240, 210, 140] };
+  const shots = [
+    ["coast-headland", SEA, [1600, 1000]], ["coast-panorama", SEA, [2400, 800]], ["coast-storm", STORM, [1600, 900]], ["coast-dawn", DAWN, [1200, 1200]],
+    ["coast-cliff", SEA, [1000, 1500]], ["coast-night", NIGHT, [1600, 1000]], ["coast-harbour", DAWN, [1200, 900]], ["coast-squall", STORM, [900, 1600]],
+    ["moor-wide", MOOR, [1600, 1000]], ["moor-panorama", MOOR, [2400, 800]], ["moor-tall", MOOR, [800, 1000]], ["moor-square", MOOR, [1200, 1200]],
+    ["snow-field", SNOW, [1600, 900]], ["snow-tall", SNOW, [1000, 1500]], ["snow-track", SNOW, [1200, 900]],
+    ["harvest-field", HARVEST, [1600, 1000]], ["harvest-tall", HARVEST, [800, 1000]], ["harvest-square", HARVEST, [1200, 1200]], ["harvest-panorama", HARVEST, [2400, 800]],
+  ];
+  shots.forEach(([name, look, size], i) => landscape(`stress/${name}`, { ...look, seed: 60 + i, size }));
+  [SEA, MOOR, DAWN, SNOW, HARVEST, STORM, SEA, DAWN].forEach((look, i) => landscape(`stress/plate-${i + 1}`, { ...look, seed: 100 + i, size: [800, 1000] }));
+}
+
+if (process.argv[2] === "stress") {
+  stress();
+  console.log("wrote stress/");
+  process.exit(0);
+}
+
 landscape("dusk", { sky: [[26, 30, 58], [196, 108, 72], [236, 170, 110]], ground: [[58, 52, 60], [40, 36, 44], [24, 22, 28]], stars: false, wall: [214, 196, 170] });
 landscape("night", { sky: [[6, 8, 18], [20, 26, 48], [36, 40, 62]], ground: [[16, 18, 24], [11, 12, 17], [6, 7, 10]], stars: true, wall: null });
 // Spec §18 "Stone & Strategy": a video poster, a foggy valley and its portrait crop.
@@ -214,4 +244,5 @@ landscape("sig/levers", { sky: [[120, 30, 30], [60, 60, 70], [30, 30, 36]], grou
 landscape("sig/night", { sky: [[6, 8, 18], [20, 26, 48], [36, 40, 62]], ground: [[16, 18, 24], [11, 12, 17], [6, 7, 10]], stars: true, wall: [240, 200, 120], seed: 42 });
 landscape("keeper/mairi-1989", { sky: [[90, 110, 130], [150, 160, 170], [170, 176, 180]], ground: [[80, 90, 96], [60, 70, 76], [40, 48, 52]], stars: false, wall: [230, 230, 230], seed: 50, size: [1000, 1000] });
 sitter();
-console.log("wrote img/, salt/, sig/, keeper/");
+stress();
+console.log("wrote img/, salt/, sig/, keeper/, stress/");
