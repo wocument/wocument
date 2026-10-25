@@ -16,9 +16,10 @@
       "@wocument/assets": ["./packages/assets/src/index.ts"],
       "@wocument/text-engine": ["./packages/text-engine/src/index.ts"],
       "@wocument/layout": ["./packages/layout/src/index.ts"],
-      "@wocument/renderer": ["./packages/renderer/src/index.ts"]
+      "@wocument/renderer": ["./packages/renderer/src/index.ts"],
+      "@wocument/visor": ["./packages/visor/src/index.ts"]
     },
     "baseUrl": "."
   },
-  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "packages/*/scripts/**/*.ts", "packages/*/examples/**/*.ts", "vitest.config.ts"]
+  "include": ["packages/*/src/**/*.ts", "packages/cli/client/**/*.ts", "packages/*/test/**/*.ts", "packages/*/scripts/**/*.ts", "packages/*/examples/**/*.ts", "vitest.config.ts"]
 }

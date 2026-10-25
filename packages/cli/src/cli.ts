@@ -33,6 +33,11 @@ const USAGE = `usage: woc <command> [options] <file...>
   build <file...>    a static site: one page per document, its script and its files
       --out <dir>    where to write it (default: ./dist)
       --no-webp      keep JPEG, PNG and GIF pictures as they are
+  dev [file|folder]  the editor and a live page for the .woc files in a folder
+                     (default: this folder); a new .woc file starts from a template
+      --port <n>     the first port to try (default: 5190)
+      --host         also listen on the network, to open the page on a phone
+      --no-open      do not open the browser
 
   --public <dir>     where site-absolute paths (/img/a.png) live (default: ./public)
 
@@ -51,10 +56,14 @@ export function main(argv: string[]): number | Promise<number> {
       check: { type: "boolean", default: false },
       out: { type: "string", default: "dist" },
       "no-webp": { type: "boolean", default: false },
+      port: { type: "string", default: "5190" },
+      host: { type: "boolean", default: false },
+      "no-open": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
   const [command, ...files] = positionals;
+  if (command === "dev" && !values.help) return startDev(files, { public: values.public as string, port: Number(values.port), host: values.host as boolean, open: !values["no-open"] });
   if (values.help || command === undefined || files.length === 0) {
     console.error(USAGE);
     return values.help ? 0 : 2;
@@ -97,6 +106,30 @@ export function main(argv: string[]): number | Promise<number> {
     default:
       console.error(`woc: unknown command \`${command}\`\n\n${USAGE}`);
       return 2;
+  }
+}
+
+/** Runs until stopped. Loaded only for `dev`, so the other commands do not load the dev server. */
+async function startDev(paths: string[], opts: import("./dev.js").DevOptions): Promise<number> {
+  if (paths.length > 1) {
+    console.error("woc: dev takes one file or folder");
+    return 2;
+  }
+  if (!Number.isInteger(opts.port) || opts.port < 0) {
+    console.error(`woc: --port needs a number`);
+    return 2;
+  }
+  const { dev } = await import("./dev.js");
+  try {
+    const server = await dev(paths[0] ?? ".", opts);
+    const url = server.resolvedUrls?.local[0] ?? "";
+    console.error(`woc dev: the editor is at ${url}`);
+    if (opts.host) server.printUrls();
+    if (!opts.host) console.error("  On a phone: run woc dev --host and open the network address.");
+    return 0;
+  } catch (e) {
+    console.error(`woc: ${e instanceof Error ? e.message : String(e)}`);
+    return 1;
   }
 }
 

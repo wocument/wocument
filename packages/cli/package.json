@@ -9,9 +9,11 @@
     "woc": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "client"
   ],
   "dependencies": {
-    "esbuild": "^0.21.5"
+    "esbuild": "^0.21.5",
+    "vite": "^5.4.21"
   }
 }
