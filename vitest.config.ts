@@ -16,6 +16,14 @@ const missing = Object.entries(articleTests)
   .filter(([, doc]) => !existsSync(r(`./packages/playground/docs/${doc}`)))
   .map(([test]) => test);
 
+// A clone without the local articles runs fewer tests. Say so, so a green run is not read as the whole suite.
+if (missing.length)
+  console.warn(
+    `\n[woc] Local sample articles are missing (packages/playground/docs is not in git).\n` +
+      `[woc] Not run: ${missing.join(", ")}.\n` +
+      `[woc] Tests that read one of those articles show as "skipped" in the summary.\n`,
+  );
+
 export default defineConfig({
   resolve: {
     alias: {

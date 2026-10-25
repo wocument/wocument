@@ -17,6 +17,9 @@ import { columnHoles, layoutInvariants, windowBreaks } from "./invariants.js";
 const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
 const VIEW = { width: 1280, height: 800 };
+/** A local article (packages/playground/docs, not in git): tests that read one are skipped without it. */
+const local = (name: string): boolean => existsSync(fileURLToPath(new URL(`../../playground/docs/${name}.woc`, import.meta.url)));
+
 const fake: AssetHost = {
   image: (path) => ({ url: path, type: "image/jpeg", width: 800, height: 600, animated: false }),
   contour: () => null,
@@ -175,7 +178,7 @@ describe("floating in screen pages", () => {
     expect(objects(pd)).toHaveLength(3);
   });
 
-  it("a subhead never ends a column beside a floating box", () => {
+  it.skipIf(!local("stress-salt"))("a subhead never ends a column beside a floating box", () => {
     // stress-salt at 2560x1440 (2026-10-17): on the balanced last page of a scene, a wide box over two
     // columns left the subhead "The first rain" at a column's foot and its paragraph in the next.
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
@@ -277,7 +280,7 @@ describe("floating in screen pages", () => {
   // below the text beside it; refusing such settings left page 1 no picture at all. Each trial is now
   // scored on the band as rule 3 sets it: page 1 keeps a picture, and its columns end level, where
   // their text or a box at their foot does.
-  it.each([[1440, 900], [1600, 900], [1799, 1000], [1800, 1000]] as const)("a page rule 3 sets shorter keeps a picture and level columns (stress-portraits at %ix%i)", (width, height) => {
+  it.skipIf(!local("stress-portraits")).each([[1440, 900], [1600, 900], [1799, 1000], [1800, 1000]] as const)("a page rule 3 sets shorter keeps a picture and level columns (stress-portraits at %ix%i)", (width, height) => {
     const p = portraitsPage1(width, height);
     expect(p.pictures, "page 1 holds a picture").toBeGreaterThan(0);
     expect(p.apart, "columns of page 1 end apart").toBeLessThanOrEqual(p.limit);
@@ -287,7 +290,7 @@ describe("floating in screen pages", () => {
   // lines alone by a box, rule 13), so every picture waits and the text ends on page 1: the text's
   // last page. It is balanced by whole blocks, as the story's end is: each paragraph in one column,
   // the columns filled from the left at the smallest height; the pictures follow, within their window.
-  it("the text's last page, every picture waiting, is balanced by whole blocks (stress-portraits at 1920x1080)", () => {
+  it.skipIf(!local("stress-portraits"))("the text's last page, every picture waiting, is balanced by whole blocks (stress-portraits at 1920x1080)", () => {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
     const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.woc"), "utf8")).ast as Document, { assets });
@@ -315,7 +318,7 @@ describe("floating in screen pages", () => {
 
   // 2026-10-21: the all-wait setting was never laid out (the search gave it up before the first
   // layout), so figure-1 fell back to its anchor's screen (y 374.6, screen 1) and not to the next one.
-  it.skipIf(!existsSync(fileURLToPath(new URL("../../playground/docs/stress-portraits.woc", import.meta.url))))("the all-wait setting competes on a screen (stress-portraits at 1920x1080)", () => {
+  it.skipIf(!local("stress-portraits"))("the all-wait setting competes on a screen (stress-portraits at 1920x1080)", () => {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
     const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.woc"), "utf8")).ast as Document, { assets });
@@ -324,7 +327,7 @@ describe("floating in screen pages", () => {
     expect(screenOf(pd, o.box.y)).toBe(1);
   });
 
-  it("a trial's rule-3 cut search sets at most seven layouts", () => {
+  it.skipIf(!local("stress-portraits"))("a trial's rule-3 cut search sets at most seven layouts", () => {
     // 2026-10-17: the budget counts combinations; each trial's cut search is bounded as the levelling
     // search is, six lines at most, so a trial is its own layout and up to six cuts.
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
@@ -343,7 +346,7 @@ describe("floating in screen pages", () => {
   // subhead "After" stood there alone above some ten empty lines. A box in a band leaves room for a
   // line of body text beside it (min-slot) or takes the column's width; and empty room inside a
   // column costs (PENALTY.gap). Character widths of 0.45em set the page as the browser's fonts did.
-  it.each([0.45, 0.5])("no empty room inside a column (vanilla-spread at 1470x956, characters %fem)", (em) => {
+  it.skipIf(!local("vanilla-spread")).each([0.45, 0.5])("no empty room inside a column (vanilla-spread at 1470x956, characters %fem)", (em) => {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
     const { doc } = resolve(parse(readFileSync(here("playground/docs/vanilla-spread.woc"), "utf8")).ast as Document, { assets });
@@ -365,7 +368,7 @@ describe("floating in screen pages", () => {
   // 2026-10-20 (test-spread at 1470x956): the story's last three lines had a screen of their own.
   // The page before was full of floating pictures, so the stub could not fold back into it. That
   // page is now set again with a picture moved on to the next page, inside its window.
-  it.each([0.45, 0.46, 0.47, 0.5])("no screen holds three lines or fewer and nothing else (test-spread at 1470x956, characters %fem)", (em) => {
+  it.skipIf(!local("test-spread")).each([0.45, 0.46, 0.47, 0.5])("no screen holds three lines or fewer and nothing else (test-spread at 1470x956, characters %fem)", (em) => {
     const { doc, pd } = testSpread(em);
     const v = doc.variants[pd.breakpoint]!;
     for (const s of pd.scenes.filter((s) => s.paged))
@@ -380,7 +383,7 @@ describe("floating in screen pages", () => {
   // 2026-10-21 (test-spread at 1470x956, characters 0.42 to 0.46em): on the text's last page a pull
   // quote at the foot stood 47 to 103px below the balanced columns. The last page is no exception: a
   // box at the foot rises with the balanced columns.
-  it.each([0.42, 0.44, 0.46, 0.47])("no page holds a hole taller than a line, the last included (test-spread at 1470x956, characters %fem)", (em) => {
+  it.skipIf(!local("test-spread")).each([0.42, 0.44, 0.46, 0.47])("no page holds a hole taller than a line, the last included (test-spread at 1470x956, characters %fem)", (em) => {
     const { doc, pd } = testSpread(em);
     expect(columnHoles(doc, pd, pd.scenes[0]!.grid.baseline, { last: true })).toEqual([]);
   });
@@ -390,7 +393,7 @@ describe("floating in screen pages", () => {
   // every column ended level, so the screen was scored and kept as level. Empty room above a box now
   // costs (PENALTY.gap), on the band as it is balanced too: on every page but the last, each column
   // ends level, and its text reaches a box under it, within rule 11's two lines.
-  it.each([0.42, 0.45, 0.47, 0.5])("every page but the last ends level, its text down to the boxes (test-spread at 1470x956, characters %fem)", (em) => {
+  it.skipIf(!local("test-spread")).each([0.42, 0.45, 0.47, 0.5])("every page but the last ends level, its text down to the boxes (test-spread at 1470x956, characters %fem)", (em) => {
     const { doc, pd } = testSpread(em);
     const v = doc.variants[pd.breakpoint]!;
     const limit = 2 * pd.scenes[0]!.grid.baseline + 1;
