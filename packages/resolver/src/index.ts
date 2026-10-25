@@ -195,6 +195,8 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     music.push({ at, audio, fadeMs: (a.get("fade") as { ms: number }).ms, volume: pct("volume"), loop: bool(a.get("loop")), enterAt: pct("enter-at") });
   };
 
+  /** W035s found while stories are built: stories are built once, in the discovery pass, whose warnings are dropped. */
+  const storyWarnings: [Command, string, string][] = [];
   /** Anchored objects, registered while stories are built. */
   const anchored: { cmd: Command; story: string; block: number }[] = [];
   /** `at` is the variant; a rebuild for a breakpoint (`again`) registers nothing a second time. */
@@ -207,6 +209,9 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
       if (!again) cue(c, { story: storyId, block });
     },
     at,
+    ignored: (c, message, fix) => {
+      if (!again && at === BASE) storyWarnings.push([c, message, fix]);
+    },
     lang,
     strings,
     intern,
@@ -772,8 +777,9 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     const cmd = fromParent ?? ast.folio;
     if (!cmd) return null;
     const id = fromParent ? `${parentName}#folio` : "folio#text";
-    story(id, "folio", null, [{ kind: "paragraph", id: cmd.id, runs: cmd.body as never, source: cmd.source }], null, "folio");
     const a = new Map([...schemaDefaults("folio"), ...elementAttrs(cmd, bp, "folio", deref)]);
+    // §10.5: its text in its own style, `folio` unless it names one.
+    story(id, "folio", null, [{ kind: "paragraph", id: cmd.id, runs: cmd.body as never, source: cmd.source }], null, ident(a.get("style")) || "folio", bp);
     return { story: id, position: enumId(a.get("position")) as Folio["position"], progress: bool(a.get("progress")) };
   };
 
@@ -783,6 +789,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
   // Warnings from the first pass are discarded.
   for (const bp of variants) variant(bp);
   diagnostics.length = 0;
+  for (const [c, message, fix] of storyWarnings) warn("W035", message, c, null, fix);
   const built = variants.map((bp) => [bp, variant(bp)] as const);
   // Readability (2026-10-09): body size, leading and weight, and text contrast, per variant.
   for (const r of readability(built)) warn(r.code, r.message, null, r.variant || null, r.fix);

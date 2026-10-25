@@ -417,7 +417,6 @@ function renderFolio(doc: Document, win: Window, pd: PositionedDocument, rd: Res
       const block = v.stories[f.story]!.blocks[0] as ParagraphBlock;
       applyStyle(label, v.styles[block.style]!, { viewport: pd.viewport, grid: ps.grid, pctOf: pd.viewport.width });
       label.textContent = block.runs.map((r) => (r.kind === "break" ? " " : rd.strings[r.s])).join("");
-      label.style.color = scene.palette.muted;
       const [vert, side] = f.position.split("-") as ["top" | "bottom" | "margin", "left" | "right"];
       const pageTop = k * pd.viewport.height;
       const pageBottom = ps.paged ? (k + 1) * pd.viewport.height : ps.height;

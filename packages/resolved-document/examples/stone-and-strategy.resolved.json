@@ -1247,7 +1247,7 @@
           "case": "upper",
           "align": "left",
           "color": {
-            "role": "ink"
+            "role": "muted"
           },
           "underline": false,
           "indent": {
@@ -3734,7 +3734,7 @@
           "case": "upper",
           "align": "left",
           "color": {
-            "role": "ink"
+            "role": "muted"
           },
           "underline": false,
           "indent": {
@@ -6221,7 +6221,7 @@
           "case": "upper",
           "align": "left",
           "color": {
-            "role": "ink"
+            "role": "muted"
           },
           "underline": false,
           "indent": {
@@ -8708,7 +8708,7 @@
           "case": "upper",
           "align": "left",
           "color": {
-            "role": "ink"
+            "role": "muted"
           },
           "underline": false,
           "indent": {
@@ -11193,7 +11193,7 @@
           "case": "upper",
           "align": "left",
           "color": {
-            "role": "ink"
+            "role": "muted"
           },
           "underline": false,
           "indent": {

@@ -85,3 +85,19 @@ describe("key@breakpoint on story content", () => {
     expect(d.variants.phone!.stories).toEqual(d.variants.base!.stories);
   });
 });
+
+describe("values that had no effect", () => {
+  it("a folio takes its style=, and style@phone= on phones", () => {
+    const d = run(`\\folio[style=caption, style@phone=credit]{The Folio}\n\\headline{H}\n\nText.`);
+    const folio = (v: string) => Object.values(d.variants[v]!.stories).find((s) => s.origin === "folio")!.blocks[0] as ParagraphBlock;
+    expect(folio("base").style).toBe("caption");
+    expect(folio("phone").style).toBe("credit");
+  });
+
+  it("a subhead level other than 1 or 2 warns W035 and is set as level 1", () => {
+    const p = parse(`${FM}Text.\n\n\\subhead[level=3]{A}\n\nMore.`, { file: "t.woc" });
+    const r = resolve(p.ast as Document);
+    expect(r.diagnostics.filter((x) => x.code === "W035").map((x) => x.line)).toEqual([7]);
+    expect(paras(r.doc, "base").find((b) => b.element === "subhead")!.level).toBe(1);
+  });
+});

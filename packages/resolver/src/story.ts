@@ -28,6 +28,8 @@ export type StoryContext = RunContext & {
   proseStyle: string;
   /** The variant being built: an element's `key@at=` values replace its base ones (§06.3). */
   at: string;
+  /** W035: a value that has no effect here. Reported once, from the base build. */
+  ignored: (c: Command, message: string, fix: string) => void;
 };
 
 /** Block-level content in source order. Objects arrive with step 2 and throw until then. */
@@ -170,8 +172,10 @@ const styleAttr = (c: Command, ctx: StoryContext): string | null => {
   const v = attr(c, "style", ctx);
   return v?.t === "ident" ? v.id : null;
 };
+/** §10.3: a subhead is level 1 or 2; another level warns and sets 1. */
 const subheadLevel = (c: Command, ctx: StoryContext): 1 | 2 => {
   const v = attr(c, "level", ctx);
+  if (v?.t === "integer" && v.n !== 1 && v.n !== 2) ctx.ignored(c, `\\subhead[level=${v.n}] is set as level 1: a subhead is level 1 or 2.`, "Use level=1 or level=2.");
   return v?.t === "integer" && v.n === 2 ? 2 : 1;
 };
 const num = (v: Value | undefined): number => (v?.t === "integer" || v?.t === "number" ? v.n : NaN);

@@ -87,7 +87,7 @@ export const DEFAULT_THEME_SOURCE = String.raw`
 \style[name=credit, family="Helvetica Neue, Helvetica, Arial, sans-serif", size=13px, leading=1.4em, case=upper, tracking=0.06em, color=muted, snap=none]
 \style[name=sidebar, family="Helvetica Neue, Helvetica, Arial, sans-serif", size=16px, leading=1.5em, snap=none]
 \style[name=bio, family="Helvetica Neue, Helvetica, Arial, sans-serif", italic, size=16px, leading=0.75bl, color=muted, snap=none]
-\style[name=folio, family="Helvetica Neue, Helvetica, Arial, sans-serif", weight=600, size=12px, case=upper, tracking=0.08em]
+\style[name=folio, family="Helvetica Neue, Helvetica, Arial, sans-serif", weight=600, size=12px, case=upper, tracking=0.08em, color=muted]
 
 %% 2026-09-28: Vanilla has drop caps: three lines deep, in the headline's face, in the accent.
 \style[name=dropcap, extends=headline, family="Georgia, serif", weight=700, color=accent]

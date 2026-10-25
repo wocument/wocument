@@ -709,6 +709,7 @@ A small label (publication name, section, article title): print's running head. 
 | :---- | :---- | :---- |
 | `position` | `top-left` `top-right` `bottom-left` `bottom-right` `margin-left` `margin-right` | `top-left` |
 | `progress` | boolean | `false` |
+| `style` | style name | `folio` |
 
 `margin-left` and `margin-right` set it in the top margin at the screen's own edge, a gutter in, rather than on the grid's edge: on a wide screen, the far corner (added 2026-09-28). `progress=true` adds a reading-progress indicator for the whole article, fixed to the viewport. A scene can suppress its folio with `folio=hide`. Each scene's folio takes its colors from that scene's palette; the progress indicator from the palette of the scene currently under it.
 
@@ -1164,7 +1165,7 @@ Same source, theme, assets, fonts, viewport size **and browser engine** give the
 | Lex error | 1 | Yes | Invalid UTF-8, unterminated string |
 | Parse error | 2 | Yes | Unknown command or attribute, wrong value type, unbalanced braces, child not allowed here, top-level content mixed with scenes |
 | Resolve error | 3 | Yes | Unknown grid/style/palette/story/token, token cycle, overlapping breakpoints, story with no visible frame at a breakpoint, `rows=` in a flow scene, `overset=error` triggered at a test width |
-| Resolve warning | 3 | No | Body-styled frame wider than 90 characters at a test width with no `measure` set (`W041`), scene or anchored object linearized by fallback, missing `alt`/`title`/`poster`, autoplay without `muted`, `snap=hard` on a flow scene, `shape=alpha` on an opaque image, more than one `\headline`, `motion=always`; readability (2026-10-09, after the readability research): body text under 16px (`W060`), body leading under 1.4 of its size (`W061`), an ink, muted or accent colour under 4.5:1 against its paper (`W062`, WCAG 2.2 AA), body weight under 350 (`W063`). Each warns once, naming the breakpoints or scenes it shows at |
+| Resolve warning | 3 | No | Body-styled frame wider than 90 characters at a test width with no `measure` set (`W041`), scene or anchored object linearized by fallback, missing `alt`/`title`/`poster`, autoplay without `muted`, `snap=hard` on a flow scene, `shape=alpha` on an opaque image, more than one `\headline`, `motion=always`, a value that has no effect where it is written (`W035`, 2026-10-25: for example `\subhead[level=3]`, which is set as level 1); readability (2026-10-09, after the readability research): body text under 16px (`W060`), body leading under 1.4 of its size (`W061`), an ink, muted or accent colour under 4.5:1 against its paper (`W062`, WCAG 2.2 AA), body weight under 350 (`W063`). Each warns once, naming the breakpoints or scenes it shows at |
 | Asset warning | 3 to 5 | No | Missing file, font failed to load |
 | Layout warning | 4 | No | `\framebreak` with nowhere to go (`W040`), overset clipped, no slot in a band meets the minimum width (`W042`), anchored object taller than every remaining frame, anchored object taller than a band (`W043`), body lines outside about 45 to 75 characters at a test width, under 30 on a phone (`W064`; `woc check` estimates it with a fixed-width engine at 0.46em a character, Georgia's average) |
 
@@ -1249,7 +1250,7 @@ their minimum and maximum.
 | `sidebar` | sans | 16px / 14px | 1.5em | snap none |
 | `dropcap` | as headline: serif, weight 700 | spans 3 lines | | color accent |
 | `bio` | sans, italic | 16px / 14px | 0.75bl | color muted, snap none |
-| `folio` | sans, weight 600 | 12px / 10px | | case upper, tracking 0.08em |
+| `folio` | sans, weight 600 | 12px / 10px | | case upper, tracking 0.08em, color muted |
 | `link` | inherits | inherits | | character style, color accent, underlined |
 | `code` | monospace | 0.9em | | character style |
 | `title` | as `sidebar`, weight 700 | as `sidebar` | as `sidebar` | no hyphenation; sidebar and box titles |

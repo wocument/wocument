@@ -94,7 +94,7 @@ export function themeStyles(bp: Bp): Record<string, ResolvedStyle> {
     // §16: as headline, in the accent. Size and leading are not used: the cap spans `lines` steps (§10.4).
     dropcap: { ...headline, weight: 700, color: { role: "accent" } },
     bio: s({ family: SANS, italic: true, size: px(k(16, 14)), leading: bl(0.75), color: { role: "muted" }, snap: "none" }),
-    folio: s({ family: SANS, weight: 600, size: px(k(12, 10)), case: "upper", tracking: px(k(0.96, 0.8)) }),
+    folio: s({ family: SANS, weight: 600, size: px(k(12, 10)), case: "upper", tracking: px(k(0.96, 0.8)), color: { role: "muted" } }),
   };
 }
 
