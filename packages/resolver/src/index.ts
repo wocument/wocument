@@ -32,6 +32,7 @@ import type {
   Reveal,
   ResolvedDocument,
   ResolvedStyle,
+  RuleSpec,
   Scene,
   SceneTurn,
   Story,
@@ -403,7 +404,8 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     /** An object at `bp` (spec §11). `where` is its scene (grid-placed) or its anchor (anchored). */
     const objectOf = (cmd: Command, id: string, where: ObjectWhere, reveal: Reveal, z: number): ObjectElement => {
       const oa: Attrs = new Map([...schemaDefaults(cmd.name), ...elementAttrs(cmd, bp, cmd.name, deref)]);
-      const layer = enumId(oa.get("layer")) as ObjectElement["layer"];
+      // A \rule has no layer, bleed or wrap of its own: it is on the content layer, and text does not wrap it.
+      const layer = (enumId(oa.get("layer")) || "content") as ObjectElement["layer"];
       let placement: Placement;
       if (where.mode === "contained") placement = where;
       else if (where.mode === "anchored") {
@@ -441,7 +443,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
       const h = placement.mode === "anchored" ? placement.horizontal.mode : null;
       const explicit = cmd.attrs.some((x) => x.key === "wrap");
       const mode = explicit ? enumId(oa.get("wrap")) : h === "side" || h === "cols" ? "rect" : h === "full" ? "jump" : "none";
-      const offset = len(oa.get("wrap-offset")!);
+      const offset = oa.has("wrap-offset") ? len(oa.get("wrap-offset")!) : ({ u: "px", n: 0 } as const);
       const wrap: Wrap =
         layer !== "content" || mode === "none" || where.mode === "contained"
           ? { mode: "none" }
@@ -461,7 +463,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
         layer,
         z: oa.has("z") ? num(oa.get("z")) : z,
         // §11.9, §11.11: a contained child ignores its own placement attributes.
-        bleed: where.mode === "contained" ? "none" : (enumId(oa.get("bleed")) as ObjectElement["bleed"]),
+        bleed: where.mode === "contained" ? "none" : ((enumId(oa.get("bleed")) || "none") as ObjectElement["bleed"]),
         // §11.9, §11.11: a contained child takes its width from its container.
         maxWidth: where.mode === "contained" || !oa.has("max-width") ? null : len(oa.get("max-width")!),
         offsetX: where.mode === "contained" ? ({ u: "px", n: 0 } as const) : len(oa.get("offset-x")!),
@@ -470,6 +472,20 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
         reveal,
         hidden: bool(oa.get("hide")),
       };
+      // §08.4, §10.4: a rule written in a scene or a group, placed like an object.
+      if (cmd.name === "rule") {
+        const c = oa.get("color")!;
+        return {
+          ...common,
+          kind: "rule",
+          rule: {
+            weight: len(oa.get("weight")!),
+            color: c.t === "role" ? { role: c.id as "rule" } : { hex: `#${(c as { hex: string }).hex}` },
+            width: len(oa.get("width")!),
+            align: enumId(oa.get("align")) as RuleSpec["align"],
+          },
+        };
+      }
       const body = (cmd.body as Node[] | null) ?? [];
       const prose = ident(oa.get("style"));
       if (cmd.name === "pullquote") {
@@ -661,8 +677,6 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
             minWidth: ca.has("min-width") ? len(ca.get("min-width")!) : null,
             maxWidth: ca.has("max-width") ? len(ca.get("max-width")!) : null,
           };
-          // The schema allows a rule among a group's children; the resolver has no scene-level rule yet.
-          if (c.name === "rule") notYet(c, "\\rule in a group");
           if (c.name === "frame") {
             frames[cid] = frameOf(c, cid, index, revealIn(c, ca), ca);
             return { kind: "frame" as const, id: cid, ...sizing };
@@ -675,7 +689,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
       };
       children.forEach(({ cmd, id }, z) => {
         // Groups are placed in scenes only; one anchored in a story is not resolved yet.
-        if (cmd && (OBJECTS.has(cmd.name) || cmd.name === "group")) {
+        if (cmd && (OBJECTS.has(cmd.name) || cmd.name === "group" || cmd.name === "rule")) {
           const oa: Attrs = new Map([...schemaDefaults(cmd.name), ...elementAttrs(cmd, bp, cmd.name, deref)]);
           const o = objectOf(cmd, id, { mode: "grid", scene: src.id, grid, height }, revealFor(cmd, oa), z);
           objects[id] = o;

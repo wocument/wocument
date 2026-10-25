@@ -499,6 +499,16 @@ function placeObject(
   }
   const y = at.y + px(o.offsetY, ctx);
 
+  // §08.4, §10.4: a rule placed like an object. A line its weight high and `width` of its columns
+  // long (a percentage is of them), aligned in them. Text does not wrap it.
+  if (o.kind === "rule") {
+    const weight = px(o.rule.weight, ctx);
+    const long = Math.min(width, px(o.rule.width, { ...ctx, pctOf: width }));
+    const rx = o.rule.align === "right" ? x + width - long : o.rule.align === "center" ? x + (width - long) / 2 : x;
+    const box: Rect = { x: rx, y, width: long, height: weight };
+    return { placed: { ...empty(), objects: [{ name: o.id, kind: o.kind, box, exclusion: null, anchoredAt, media: null }] }, box, exclusions: [] };
+  }
+
   if (o.kind === "pullquote" || o.kind === "sidebar") {
     const inset = o.kind === "sidebar" ? px(o.inset, ctx) : 0;
     // §07.6 mark: the pull quote's decorative mark sits above its text, three times its size; its

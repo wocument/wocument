@@ -192,7 +192,7 @@ export function renderStatic(rd: ResolvedDocument): string {
       case "rule":
         return "<hr>";
       default:
-        // \lottie and \group are not resolved yet (the resolver throws before this is reached).
+        // \lottie is not resolved yet (the resolver throws before this is reached).
         return "";
     }
   }

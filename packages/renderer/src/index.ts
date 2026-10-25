@@ -659,6 +659,11 @@ function objectBox(
     if (o.border === "rule") el.style.border = "1px solid var(--woc-rule)";
   }
   if (o.kind === "pullquote") el.setAttribute("role", "note");
+  // §08.4, §10.4: a rule placed in a scene or a group is its box, filled with its colour.
+  if (o.kind === "rule") {
+    el.style.background = color(o.rule.color);
+    el.setAttribute("role", "separator");
+  }
   if (placed.mark) {
     // §07.6 mark: decoration only, in the pull quote's first style's face, bold, in the accent.
     const m = doc.createElement("span");
