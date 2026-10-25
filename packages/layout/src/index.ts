@@ -2587,10 +2587,14 @@ function fillColumn(
       continue;
     }
 
+    // §10.3: a block quote's paragraphs are set in from both sides of the column by one grid column,
+    // or an eighth of the column where that is less (a phone's single column, a band's narrow one).
+    const quoteInset = block.quote === null ? 0 : Math.min(grid.colWidth + grid.gutter, col.width / 8);
+    const pcol: Col = quoteInset ? { ...col, x: col.x + quoteInset, width: col.width - 2 * quoteInset } : col;
     // Design §5: a fitted paragraph is measured and set at its fitted size; its runs scale with it.
     const own = v.styles[block.style]!;
     const ownPieces = paragraphPieces(rd, v, block, own);
-    const fitted = own.fit ? fitSize(env, own, ownPieces, Math.min(col.width, measure), ctx) : null;
+    const fitted = own.fit ? fitSize(env, own, ownPieces, Math.min(pcol.width, measure), ctx) : null;
     const k = fitted === null ? 1 : fitted / px(own.size, ctx);
     const style = fitted === null ? own : { ...scaled(own, k, ctx), leading: { u: "px" as const, n: fitLeading(own, fitted, ctx, grid) } };
     const resuming = cursor.piece > 0 || cursor.at.seg !== 0 || cursor.at.grapheme !== 0 || cursor.at.item !== 0;
@@ -2606,15 +2610,15 @@ function fillColumn(
     const baselineOffset = (leading - (metrics.ascent + metrics.descent)) / 2 + metrics.ascent;
     const snap = style.snap === "baseline";
     const indent = resuming ? 0 : px(block.indent, ctx);
-    const cap = block.dropcap && !resuming ? dropcap(env, block, style, metrics.capHeight, leading, ctx, col.x) : null;
+    const cap = block.dropcap && !resuming ? dropcap(env, block, style, metrics.capHeight, leading, ctx, pcol.x) : null;
     const minSlot = style.minSlot ? px(style.minSlot, ctx) : 6 * base.size; // §09.6 step 3: min-slot, else 6em
     /** Where the drop cap goes: the first line's first slot. */
-    let capX = col.x;
+    let capX = pcol.x;
     // §07.6 balance: lines break at the narrowest width that keeps their count, so they come out even.
-    const even = style.balance && !resuming ? balancedWidth(cache, pieces.map(prepare), Math.min(col.width, measure) - indent) : Number.POSITIVE_INFINITY;
+    const even = style.balance && !resuming ? balancedWidth(cache, pieces.map(prepare), Math.min(pcol.width, measure) - indent) : Number.POSITIVE_INFINITY;
     const blockTop = y;
     // §07.6 composer=paragraph: breaks chosen for the whole paragraph (balanced text keeps its own).
-    const full = Math.min(col.width, measure);
+    const full = Math.min(pcol.width, measure);
     /** The narrowest line that justifies (§07.6 justify-min); a narrower one is ragged. */
     const justifyFrom = style.align !== "justify" ? Number.POSITIVE_INFINITY : style.justifyMin ? px(style.justifyMin, ctx) : 0;
     let hyphens = 0;
@@ -2680,7 +2684,7 @@ function fillColumn(
         // Balancing (2026-10-17): a paragraph is one block. Text left over means it moves on whole, its
         // kept subhead with it; one that does not fit even at a column's top leaves the column empty,
         // so the balancing search takes a taller height.
-        if (env.whole && linesLeft(lineOf, pieces.slice(piece).map(prepare), at, Math.min(col.width, measure), 1) > 0) {
+        if (env.whole && linesLeft(lineOf, pieces.slice(piece).map(prepare), at, Math.min(pcol.width, measure), 1) > 0) {
           if (kept) return backToKept(kept);
           rollback(out, blockMark.at);
           return { placed: out, cursor, bottom: blockMark.y, stop: "full", why: "bottom-line" };
@@ -2696,7 +2700,7 @@ function fillColumn(
         // Widows: too few lines would start the next column, so lines move over with them,
         // as long as the orphans rule still holds here and no drop cap is split.
         // Nothing left means the paragraph ended exactly at the foot: no widow to protect.
-        const left = n > 0 ? linesLeft(lineOf, pieces.slice(piece).map(prepare), at, Math.min(col.width, measure), style.widows) : 0;
+        const left = n > 0 ? linesLeft(lineOf, pieces.slice(piece).map(prepare), at, Math.min(pcol.width, measure), style.widows) : 0;
         // Keep-with-next (§07.6): a block that ends exactly at the foot would still end the column on
         // its own (a subhead here, its text in the next column): it moves on whole, as an orphan does.
         if (left === 0 && n > 0 && style.keepWithNext && !resuming && !(atTop && blockMark.at.lines === 0)) {
@@ -2730,7 +2734,7 @@ function fillColumn(
       // pictures on phones). Only a column narrower than minSlot keeps its widest gap, or it would
       // never set a line.
       const dropped: Col[] | undefined = out.narrow ? [] : undefined;
-      const slots = slotsFor(col, exclusions, lineY, lineY + leading, minSlot, defer.banded || col.width >= minSlot, dropped);
+      const slots = slotsFor(pcol, exclusions, lineY, lineY + leading, minSlot, defer.banded || pcol.width >= minSlot, dropped);
       for (const d of dropped ?? []) {
         // The object whose side the strip is on: its extent on this band meets the strip.
         const by = exclusions.find((e) => {
@@ -2741,7 +2745,7 @@ function fillColumn(
       }
       // A column with no width (a viewport narrower than its margins) has no slot on any band;
       // in a flow frame the bands never run out, so the column ends here as if full.
-      if (!(col.width > EPS)) return { placed: out, cursor: { block: b, piece, at, offset }, bottom: n === 0 ? blockMark.y : y, stop: "full", why: "bottom-line" };
+      if (!(pcol.width > EPS)) return { placed: out, cursor: { block: b, piece, at, offset }, bottom: n === 0 ? blockMark.y : y, stop: "full", why: "bottom-line" };
       if (slots.length === 0) skipped = true;
       let inBand = 0;
       for (const slot of slots) {
@@ -2782,8 +2786,8 @@ function fillColumn(
         // closing mark (or hyphen, full stop, comma) ending a justified line hangs past the other edge.
         // Only at the column's own edges: beside a picture the standoff stays clear.
         const t = aligned.text.trimEnd();
-        const hangL = style.hang !== "none" && push === 0 && slot.x <= col.x + EPS && HANG_OPEN.test(aligned.text) ? glyph(aligned.text[0]!) : 0;
-        const hangR = style.hang !== "none" && width >= justifyFrom && slot.x + slot.width >= col.x + col.width - EPS && HANG_CLOSE[style.hang].test(t) ? glyph(t.endsWith(SHY_CHAR) ? "-" : t.at(-1)!) : 0;
+        const hangL = style.hang !== "none" && push === 0 && slot.x <= pcol.x + EPS && HANG_OPEN.test(aligned.text) ? glyph(aligned.text[0]!) : 0;
+        const hangR = style.hang !== "none" && width >= justifyFrom && slot.x + slot.width >= pcol.x + pcol.width - EPS && HANG_CLOSE[style.hang].test(t) ? glyph(t.endsWith(SHY_CHAR) ? "-" : t.at(-1)!) : 0;
         out.lines.push({
           story: story.id,
           block: b,

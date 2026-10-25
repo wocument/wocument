@@ -691,6 +691,8 @@ Bold sets weight 700, or 900 when the surrounding style is already 700 or heavie
 
 All text elements accept `style=` and, inside a multi-column frame, `span=all` (the only value in v1) to stretch across every column of the frame (typical for a subhead or a lede above columns).
 
+**Block quote** (2026-10-25). `\blockquote[style=...]{paragraphs \cite{...}}` is part of the story's text: its paragraphs set in its style (`blockquote` by default) and its `\cite` in that style's `+cite` variant (§07.6, the `cite` style), and like any text they break across columns, frames and screens. Its lines are set in from both sides of the column by one grid column (`colWidth` plus a gutter), or by an eighth of the column where that is less, so a phone's single column keeps three quarters of its width. Its first paragraph, its `\cite` and the paragraph after it take no first-line indent (§07.6 `indent`); its later paragraphs take its style's. In the Resolved Document its blocks are paragraphs sharing a `quote` number; the page sets them in one `blockquote` element, the `\cite` in a `cite` (§14).
+
 ### 10.4 Markers
 
 **`\dropcap[lines=3, chars=1]`**: applies to the paragraph that follows. The engine takes the first `chars` graphemes (plus any opening quotation mark, as `quote` says: `inside` keeps it in the cap; `hang`, the default, keeps it in the cap but hangs it outside the column so the letter lines up with the text, or inside where the margin is narrower than the mark; `omit` leaves it out of the cap and the text; added 2026-10-07), sets them in the `dropcap` style scaled to span `lines` baseline steps, and excludes that box from the paragraph's first lines. The cap's height is `lines` baseline steps; its **width is the measured advance width of those glyphs at that size**, so it is measured during prepare (§15.4) and carried in the ResolvedDocument. It is never approximated from the height, which is visibly wrong for narrow letters. The author never splits the word in source.
@@ -1241,7 +1243,7 @@ their minimum and maximum.
 | `subhead-2` | sans, weight 700 | 20px / 17px | 1bl | space-before 1bl, space-after 0, keep-with-next |
 | `pullquote` | serif, italic | fluid(22px, 28px) / fluid(19px, 24px) | 1.25em | color ink, space-after 0, snap none, balance, bind-short, mark `"“”"` |
 | `cite` | as the enclosing style | 17px / 14px | 1.2em | color muted, upright |
-| `blockquote` | serif, italic | 20px / 17px | 1bl | indent via frame inset 1col, hang punctuation |
+| `blockquote` | serif, italic | 20px / 17px | 1bl | set in from both sides (§10.3), hang punctuation |
 | `caption` | serif, italic | 15px / 13px | 1.4em | color muted, snap none |
 | `credit` | sans | 13px / 11px | 1.4em | case upper, tracking 0.06em, color muted, snap none |
 | `sidebar` | sans | 16px / 14px | 1.5em | snap none |

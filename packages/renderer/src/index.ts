@@ -37,7 +37,8 @@ const CSS = `
 .woc-frame * { pointer-events: auto; }
 /* A nested (anchored-object) wrapper covers the scene too; only its content takes the pointer. */
 .woc-frame .woc-frame { pointer-events: none; }
-.woc-block { margin: 0; font-size: inherit; font-weight: inherit; }
+.woc-block { display: block; margin: 0; font-size: inherit; font-weight: inherit; }
+.woc-quote { margin: 0; }
 .woc-line, .woc-cap { position: absolute; white-space: pre; }
 .woc-line.woc-hy::after { content: "-"; }
 .woc-rule { position: absolute; }
@@ -229,6 +230,8 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
     // A paragraph split across frames or columns is several groups; only the last one ends it.
     const endsIn = new Map<string, number>();
     groups.forEach((g, i) => endsIn.set(`${g[0]!.story}\u0000${g[0]!.block}`, i));
+    /** §14: a block quote's consecutive paragraphs in one frame share one <blockquote>. */
+    let quoteEl = null as { key: string; el: HTMLElement } | null;
     for (const [gi, group] of groups.entries()) {
       const first = group[0]!;
       const ends = endsIn.get(`${first.story}\u0000${first.block}`) === gi;
@@ -268,7 +271,12 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
           el.appendChild(hy);
         }
       }
-      frameEl(first.frame).appendChild(wrapper);
+      if (block.quote === null) frameEl(first.frame).appendChild(wrapper);
+      else {
+        const key = `${first.story}\u0000${block.quote}\u0000${first.frame}`;
+        if (quoteEl?.key !== key) quoteEl = { key, el: frameEl(first.frame).appendChild(Object.assign(doc.createElement("blockquote"), { className: "woc-quote" })) };
+        quoteEl.el.appendChild(wrapper);
+      }
     }
     for (const o of ps.objects) frameEl(o.name); // objects with no text of their own still get their box
 
@@ -715,6 +723,7 @@ function paragraphs(lines: readonly PositionedLine[]): PositionedLine[][] {
 function tagFor(b: ParagraphBlock): string {
   if (b.element === "headline") return "h1";
   if (b.element === "caption") return "figcaption";
+  if (b.element === "cite") return "cite";
   if (b.element === "subhead") return b.level === 2 ? "h3" : "h2";
   return "p";
 }

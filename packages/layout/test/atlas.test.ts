@@ -87,7 +87,6 @@ describe("Field Atlas: what the engine does not build yet", () => {
   const attempt = (src: string) => () => resolve(parse(FM + src).ast as Document, { assets });
   it.each([
     ["\\lottie", '\\scene{\\lottie[src=/a.json, alt="A", cols=1-4]}'],
-    ["\\blockquote", "\\story[name=s]{\\blockquote{Quoted.}}\n\\scene{\\frame[story=s]}"],
     ["\\rule in a scene", "\\scene{\\rule[cols=1-4]}"],
     ["\\rule in a group", "\\scene{\\group[cols=all]{\\rule}}"],
   ])("%s is not resolved yet", (_, src) => {

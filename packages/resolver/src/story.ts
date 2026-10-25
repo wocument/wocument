@@ -34,7 +34,21 @@ export type StoryContext = RunContext & {
 export function storyBlocks(nodes: Node[], ctx: StoryContext): Block[] {
   const out: Block[] = [];
   let dropcap: Command | null = null;
+  /** §10.3: a block quote's paragraphs and \cite share a number, counted from 1 in the story. */
+  let quotes = 0;
   for (const n of nodes) {
+    if (n.kind === "command" && n.name === "blockquote") {
+      const quote = ++quotes;
+      const style = styleAttr(n, ctx) ?? "blockquote";
+      for (const child of (n.body as Node[] | null) ?? []) {
+        const cite = child.kind === "command" && child.name === "cite";
+        const inline = child.kind === "paragraph" ? child.runs : (child.body as Inline[]);
+        const own = cite ? styleAttr(child as Command, ctx) : null;
+        const { runs, links } = toRuns(inline, own ?? (cite ? `${style}+cite` : style), ctx);
+        out.push({ ...paragraph(cite ? "cite" : "prose", own ?? (cite ? `${style}+cite` : style), runs, links), quote });
+      }
+      continue;
+    }
     if (n.kind === "command" && n.name === "dropcap") {
       dropcap = n;
       continue;
@@ -63,16 +77,9 @@ export function storyBlocks(nodes: Node[], ctx: StoryContext): Block[] {
     const inline = n.kind === "paragraph" ? n.runs : (n.body as Inline[]);
     const { runs, links } = toRuns(inline, style, ctx);
     const block: ParagraphBlock = {
-      kind: "paragraph",
-      element,
+      ...paragraph(element, style, runs, links),
       level: element === "subhead" ? subheadLevel(n as Command, ctx) : null,
-      quote: null,
-      style,
       span: n.kind === "command" && attr(n, "span", ctx) ? "all" : "column",
-      indent: { u: "px", n: 0 }, // set per variant (withIndents)
-      dropcap: null,
-      runs,
-      links,
     };
     if (dropcap) {
       block.dropcap = takeCap(block, dropcap, ctx);
@@ -81,6 +88,11 @@ export function storyBlocks(nodes: Node[], ctx: StoryContext): Block[] {
     out.push(block);
   }
   return out;
+}
+
+/** A paragraph block with nothing set but its element, style and text. */
+function paragraph(element: ParagraphBlock["element"], style: string, runs: ParagraphBlock["runs"], links: ParagraphBlock["links"]): ParagraphBlock {
+  return { kind: "paragraph", element, level: null, quote: null, style, span: "column", indent: { u: "px", n: 0 }, dropcap: null, runs, links };
 }
 
 /**
@@ -121,12 +133,13 @@ function rule(n: Command, ctx: StoryContext): Extract<Block, { kind: "rule" }>["
   };
 }
 
-/** §07.6: a paragraph takes its style's indent unless it opens the story or follows anything but prose. */
+/** §07.6: a paragraph takes its style's indent unless it opens the story, follows anything but prose, starts or ends a block quote, or is a `\cite`. */
 export function withIndents(story: Story, style: (k: string) => ResolvedStyle): Story {
   const blocks = story.blocks.map((b, i): Block => {
     if (b.kind !== "paragraph") return b;
     const prev = story.blocks[i - 1];
-    const applies = !b.dropcap && prev?.kind === "paragraph" && prev.element === "prose";
+    // Not across a block quote's edge: its first paragraph, and the one after it, start flush.
+    const applies = !b.dropcap && b.element !== "cite" && prev?.kind === "paragraph" && prev.element === "prose" && prev.quote === b.quote;
     return { ...b, indent: applies ? style(b.style).indent : { u: "px", n: 0 } };
   });
   return { ...story, blocks };
