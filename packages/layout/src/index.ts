@@ -568,7 +568,8 @@ function placeObject(
   let mediaHeight: number;
   if (o.kind === "gallery") mediaHeight = placeItems(env, o, { x, y: mediaTop, width }, items);
   // Limit: the browser's audio player is about 54px tall; rounded up to whole baseline steps. Measure it if a theme restyles it.
-  else if (o.kind === "audio") mediaHeight = Math.ceil(54 / env.grid.baseline) * env.grid.baseline;
+  // §11.8: a transcript adds a line under the player for its link.
+  else if (o.kind === "audio") mediaHeight = Math.ceil(54 / env.grid.baseline) * env.grid.baseline + (o.transcript ? env.grid.baseline : 0);
   else {
     const ratio = o.kind === "embed" ? o.ratio : o.media.ratio;
     mediaHeight = fixedHeight !== null ? fixedHeight - (takesSpace ? captionHeight + gap : 0) : (width * ratio.h) / ratio.w + (env.grow?.get(o.id) ?? 0);

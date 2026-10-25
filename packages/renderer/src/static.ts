@@ -167,7 +167,9 @@ export function renderStatic(rd: ResolvedDocument): string {
         const a = rd.assets[o.audio];
         const sources = a?.kind === "audio" ? a.sources.map((s) => `<source src="${esc(s.url)}" type="${esc(s.type)}">`).join("") : "";
         const label = o.title ? ` aria-label="${esc(o.title)}"` : "";
-        return `<figure class="woc-audio"><audio controls preload="none"${label}>${sources}</audio>${caption(o)}</figure>`;
+        const t = o.transcript ? rd.assets[o.transcript] : undefined;
+        const transcript = t?.kind === "file" ? `<p><a href="${esc(t.url)}">Transcript</a></p>` : "";
+        return `<figure class="woc-audio"><audio controls preload="none"${label}>${sources}</audio>${transcript}${caption(o)}</figure>`;
       }
       case "embed": {
         // Without a script there is no facade: a link to the provider's page stands in for the player.

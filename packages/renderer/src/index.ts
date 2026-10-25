@@ -568,7 +568,15 @@ function objectBox(
     if (track?.kind === "file") el.appendChild(Object.assign(doc.createElement("track"), { kind: "captions", src: track.url, default: true }));
     if (o.title !== null) el.setAttribute("aria-label", o.title);
     el.className = "woc-media";
-    return place(el);
+    // §11.8: the transcript is a link on the line layout keeps under the player.
+    const transcript = o.transcript ? rd.assets[o.transcript] : undefined;
+    if (transcript?.kind !== "file") return place(el);
+    const box = place(doc.createElement("div"));
+    el.style.cssText = "display:block;width:100%;";
+    const link = Object.assign(doc.createElement("a"), { href: transcript.url, textContent: "Transcript", className: "woc-transcript" });
+    link.style.cssText = "position:absolute;left:0;bottom:0;font:14px/1.4 system-ui, sans-serif;color:var(--woc-accent);";
+    box.append(el, link);
+    return box;
   }
   if (o.kind === "embed") {
     const s = o.source;

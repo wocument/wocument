@@ -856,7 +856,7 @@ Under reduced motion the first frame is shown.
 
 ### 11.8 `\audio`
 
-`src` (required), `title` (string, warning if missing), `captions` or `transcript` (path). Always shows controls. Never autoplays. Its caption is always below; `caption-side` is not accepted.
+`src` (required), `title` (string, warning if missing), `captions` or `transcript` (path). Always shows controls. Never autoplays. A transcript is a link under the player, on a line of its own. Its caption is always below; `caption-side` is not accepted.
 
 ### 11.9 `\gallery`
 
