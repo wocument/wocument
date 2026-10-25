@@ -726,6 +726,8 @@ A soundtrack cue (2026-10-09). Bodiless; allowed anywhere story content is, and 
 | `loop` | boolean | `true` | `false` plays the track once |
 | `enter-at` | percentage | `50%` | How far up the viewport, from its bottom, the cue's position must come before it fires |
 
+The soundtrack is the same at every screen size, so its attributes take no `@breakpoint` suffix (`P013`).
+
 **Where a cue sits.** In a story, at the first line of the block after it. Written straight in a scene with frames, at the scene's top.
 
 **Which track plays.** Always the last cue above the reading position. Scrolling down past a cue plays its track, crossfading from the one before; scrolling back above it restores the one before. A cue with the same `src` as the track playing changes nothing. With no new cue, the music carries on across scenes.

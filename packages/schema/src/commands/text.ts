@@ -157,12 +157,13 @@ export const FOLIO: CommandSchema = {
  * The playing track is always the last cue above the reading position, so scrolling back restores
  * the one before. Browsers allow sound only after the reader's first tap, click or key press.
  */
+/** One soundtrack for every screen size: its cues take no `@breakpoint` values. */
 export const MUSIC = marker("music", "§10.6", {
-  src: { types: ["enum", "path"], enum: ["none"], required: true, note: "a sound file, or none to fade out" },
-  fade: { types: ["time"], default: "2s", note: "crossfade or fade-out length" },
-  volume: { types: ["percentage"], default: "80%" },
-  loop: { types: ["boolean"], default: "true" },
-  "enter-at": { types: ["percentage"], default: "50%", note: "how far up the screen the cue fires, from the bottom (as reveals)" },
+  src: { types: ["enum", "path"], enum: ["none"], required: true, responsive: false, note: "a sound file, or none to fade out" },
+  fade: { types: ["time"], default: "2s", responsive: false, note: "crossfade or fade-out length" },
+  volume: { types: ["percentage"], default: "80%", responsive: false },
+  loop: { types: ["boolean"], default: "true", responsive: false },
+  "enter-at": { types: ["percentage"], default: "50%", responsive: false, note: "how far up the screen the cue fires, from the bottom (as reveals)" },
 });
 
 export const TEXT_COMMANDS: readonly CommandSchema[] = [

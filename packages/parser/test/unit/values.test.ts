@@ -161,3 +161,11 @@ describe("palette roles", () => {
     expect(parse("---\nwocument: 1\ntitle: T\n---\n\\palette[name=default, paper=#101010]\nText.\n").diagnostics).toEqual([]);
   });
 });
+
+describe("music", () => {
+  it("takes no @breakpoint values: one soundtrack for every width (spec §10.6)", async () => {
+    const { parse } = await import("../../src/index.js");
+    const r = parse("---\nwocument: 1\ntitle: T\n---\nText.\n\n\\music[src=/a.mp3, volume@phone=10%]\n\nMore.\n");
+    expect(r.diagnostics.map((d) => [d.code, d.hint])).toEqual([["P013", "Write it without @phone: one value applies at every width."]]);
+  });
+});

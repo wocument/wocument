@@ -199,7 +199,7 @@ function shapeAttrs(ctx: ShapeContext, node: SCommand, schema: CommandSchema): A
       continue;
     }
     if (raw.at !== null && decl.responsive === false) {
-      diags.add("P013", pos, { key: raw.key, why: "nonresponsive" }, "This attribute cannot vary by breakpoint.");
+      diags.add("P013", pos, { key: raw.key, why: "nonresponsive" }, `Write it without @${raw.at}: one value applies at every width.`);
       continue;
     }
     const valuePos =

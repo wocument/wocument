@@ -247,7 +247,7 @@ describe("conformance vectors 21-31", () => {
     const r = whole("\\scene[name@phone=x]{\\frame}");
     expect(r.codes).toContain("P013");
     const d = r.diagnostics.find((x) => x.code === "P013");
-    expect(d?.hint).toBe("This attribute cannot vary by breakpoint.");
+    expect(d?.hint).toBe("Write it without @phone: one value applies at every width.");
   });
 
   it("31. an unknown command is P012 with a suggestion", () => {
