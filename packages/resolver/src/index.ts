@@ -805,7 +805,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     version: 1,
     meta: meta(ast.frontmatter, lang, socialImage),
     breakpoints: design.breakpoints(),
-    fonts: fonts(defs),
+    fonts: fonts(defs, (src) => options.assets?.file(src)?.url ?? src),
     strings,
     assets,
     variants: Object.fromEntries(built) as Variants,
@@ -843,7 +843,8 @@ function meta(fm: Document["frontmatter"], lang: string, socialImage: string | n
   };
 }
 
-function fonts(defs: Definitions): ResolvedDocument["fonts"] {
+/** `url` gives the URL the page loads a font file from: the asset host's, or the path when there is none or the file is missing. */
+function fonts(defs: Definitions, url: (src: string) => string): ResolvedDocument["fonts"] {
   const out: ResolvedDocument["fonts"] = [];
   // \font has no name; every definition registers a face.
   for (const c of defs.all("font")) {
@@ -851,7 +852,7 @@ function fonts(defs: Definitions): ResolvedDocument["fonts"] {
     const w = a.get("weight")!;
     out.push({
       family: (a.get("family") as { s: string }).s,
-      src: (a.get("src") as { s: string }).s,
+      src: url((a.get("src") as { s: string }).s),
       weight: w.t === "range" ? { min: w.from, max: w.to === "end" ? w.from : w.to } : { min: num(w), max: num(w) },
       italic: bool(a.get("italic")),
     });

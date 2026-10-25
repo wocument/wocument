@@ -51,12 +51,14 @@ export type HostOptions = {
   sourceDir: string;
   /** Serve pictures as WebP: converted files go in `dir`, which the page loads from `url`. */
   webp?: { dir: string; url: string };
+  /** Name files for a build: `url/name-hash.ext`. The build copies the ones the page uses (`named()`). */
+  copy?: { url: string };
 };
 
 /** Pictures worth converting; SVG, WebP and AVIF are served as they are. */
 const CONVERTS = new Set(["image/png", "image/jpeg", "image/gif"]);
 
-export function createAssetHost(opts: HostOptions): AssetHost & { convert(): Promise<number> } {
+export function createAssetHost(opts: HostOptions): AssetHost & { convert(): Promise<number>; named(): ReadonlyMap<string, string> } {
   const cache = new Map<string, Buffer>();
   const fileOf = (path: string): string =>
     path.startsWith("/") ? join(opts.publicDir, path) : resolvePath(opts.sourceDir, path);
@@ -68,8 +70,16 @@ export function createAssetHost(opts: HostOptions): AssetHost & { convert(): Pro
     }
     return b;
   };
-  /** The URL the page loads. Site-absolute paths are served as they are. Limit: relative paths need the build to copy them. */
-  const urlOf = (path: string): string => path;
+  /** URL to source file, for every file named for a build. */
+  const names = new Map<string, string>();
+  /** The URL the page loads: the path itself (a dev server serves it), or a name for a build, by content so a changed file gets a new name. */
+  const urlOf = (path: string): string => {
+    if (!opts.copy) return path;
+    const ext = extname(path);
+    const url = `${opts.copy.url}/${basename(path, ext)}-${createHash("sha1").update(read(path)).digest("hex").slice(0, 10)}${ext.toLowerCase()}`;
+    names.set(url, fileOf(path));
+    return url;
+  };
   const typeOf = (path: string): string => TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
   /** WebP files still to make: output name to source file. */
   const pending = new Map<string, string>();
@@ -106,6 +116,8 @@ export function createAssetHost(opts: HostOptions): AssetHost & { convert(): Pro
     file(path: string): { url: string; type: string } | null {
       return existsSync(fileOf(path)) ? { url: urlOf(path), type: typeOf(path) } : null;
     },
+
+    named: () => names,
 
     /** Makes the WebP files the last resolve asked for; the number made. Photos at quality 80, transparency kept. */
     async convert(): Promise<number> {
