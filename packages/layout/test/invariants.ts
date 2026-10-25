@@ -1,7 +1,7 @@
 /** The layout invariants for one laid-out document, as expectations. */
 
 import { expect } from "vitest";
-import type { ParagraphBlock, ResolvedDocument } from "@wmxdsl/resolved-document";
+import type { ParagraphBlock, ResolvedDocument } from "@wocument/resolved-document";
 import { bandExtent, type PositionedDocument } from "../src/index.js";
 
 const SHY = /­/g;

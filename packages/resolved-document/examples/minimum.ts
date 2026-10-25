@@ -2,7 +2,7 @@
  * Example 1: the resolved form of the minimum valid file (spec §18).
  *
  *   ---
- *   wmxdsl: 1
+ *   wocument: 1
  *   title: A Brief Note
  *   ---
  *   \headline{A Brief Note}
@@ -96,10 +96,10 @@ function variant(bp: Bp): Variant {
 }
 
 const doc: ResolvedDocument = {
-  format: "wmxdsl-resolved",
+  format: "wocument-resolved",
   version: 1,
   meta: {
-    wmxdsl: 1,
+    wocument: 1,
     title: "A Brief Note",
     lang: "en",
     description: null,

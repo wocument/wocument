@@ -14,7 +14,7 @@ import {
   PARAGRAPH,
   type AttrSchema,
   type CommandSchema,
-} from "@wmxdsl/schema";
+} from "@wocument/schema";
 import { ROOT_ID, type Attr, type Command, type IdGen, type Inline, type Node, type NodeId, type Trivia } from "./ast.js";
 import type { RawAttr } from "./attrs.js";
 import { didYouMean, type Diagnostics } from "./diagnostics.js";

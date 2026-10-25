@@ -6,7 +6,7 @@
  * expands them.
  */
 
-import type { Frontmatter, Value } from "@wmxdsl/schema";
+import type { Frontmatter, Value } from "@wocument/schema";
 import type { Pos } from "./positions.js";
 
 /** Unique within one parse, assigned in document order. */

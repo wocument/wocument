@@ -1,23 +1,23 @@
 /// <reference types="vite/client" />
 /**
- * The live editor: WMX source on the left, the
+ * The live editor: Wocument source on the left, the
  * rendered page on the right. On every pause in typing the text goes to the dev
  * server, which parses and resolves it exactly as a saved file would be
  * (vite.config.ts `compile`); the preview iframe lays out and renders the
  * result. A document that stops compiling keeps showing its last good version.
  *
- * Save (or Cmd/Ctrl-S) writes the text back to its .wmx file; until then edits
+ * Save (or Cmd/Ctrl-S) writes the text back to its .woc file; until then edits
  * are kept per document in this browser, and Revert goes back to the file.
  * Documents are fetched rather than imported, so a save does not make Vite
  * reload this page.
  */
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
+import type { ResolvedDocument } from "@wocument/resolved-document";
 
 type Problem = { severity: "error" | "warning"; code: string; message: string; line: number; column: number };
 type Compiled = { problems: Problem[]; rd: ResolvedDocument | null; formatted: string | null };
 
 const api = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const res = await fetch(`/__wmx/${path}`, init);
+  const res = await fetch(`/__woc/${path}`, init);
   const data = (await res.json()) as T & { error?: string };
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data;
@@ -48,7 +48,7 @@ let previewReady = false;
 
 // ---- drafts: per-viewer, so browser storage is enough -----------------------------
 
-const draftKey = (): string => `wmx-editor:${doc}`;
+const draftKey = (): string => `woc-editor:${doc}`;
 const readDraft = (): string | null => {
   try {
     return localStorage.getItem(draftKey());
@@ -114,7 +114,7 @@ async function compileNow(): Promise<void> {
   status.textContent = "Compiling…";
   let result: Compiled;
   try {
-    const res = await fetch("/__wmx/compile", { method: "POST", body: JSON.stringify({ source, doc }) });
+    const res = await fetch("/__woc/compile", { method: "POST", body: JSON.stringify({ source, doc }) });
     result = (await res.json()) as Compiled;
   } catch (e) {
     result = { problems: [{ severity: "error", code: "server", message: `Could not reach the dev server: ${String(e)}`, line: 1, column: 1 }], rd: null, formatted: null };

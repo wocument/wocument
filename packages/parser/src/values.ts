@@ -9,7 +9,7 @@
  * Pure: no diagnostics are emitted here. The caller turns a failure into P015.
  */
 
-import { ROLES, TOKENREF_OK, UNITS, type AttrSchema, type TypeName, type Unit, type Value } from "@wmxdsl/schema";
+import { ROLES, TOKENREF_OK, UNITS, type AttrSchema, type TypeName, type Unit, type Value } from "@wocument/schema";
 import type { RawArg, RawValue } from "./attrs.js";
 
 export type TypeResult = { ok: true; value: Value } | { ok: false; expected: string };

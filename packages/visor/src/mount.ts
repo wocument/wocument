@@ -1,12 +1,12 @@
 /**
  * The visor overlay (design 2026-10-21): draws the model over the rendered page inside `root`
- * (the renderer's `.wmx-doc`), from layout coordinates only. It builds the screens that meet the
+ * (the renderer's `.woc-doc`), from layout coordinates only. It builds the screens that meet the
  * window and rebuilds on scroll, once per animation frame. Decision shapes take the pointer: hover
  * shows a card, a click selects the decision in the side panel, which lists the screen nearest the
  * window's centre. Everything else lets the pointer through to the page.
  */
 
-import type { Decision, Explanation, PositionedDocument } from "@wmxdsl/layout";
+import type { Decision, Explanation, PositionedDocument } from "@wocument/layout";
 import { DEFAULT_LAYERS, type Layer, type ScreenModel, type Shape, buildModel } from "./model.js";
 import { cardOf, currentScreen, dotsOf, LAYER_NAME, LAYER_OF, panelEntries } from "./panel.js";
 
@@ -16,34 +16,34 @@ const FONT = "600 10px/1.4 system-ui, sans-serif";
 
 /** The panel and the cards: a quiet surface with hairline borders, light or dark with the system. */
 const CSS = `
-.wmx-visor-ui { --vs-bg: #fff; --vs-fg: #1c1c1e; --vs-muted: #6b6b70; --vs-line: rgba(0,0,0,.14); --vs-sel: rgba(0,0,0,.06);
+.woc-visor-ui { --vs-bg: #fff; --vs-fg: #1c1c1e; --vs-muted: #6b6b70; --vs-line: rgba(0,0,0,.14); --vs-sel: rgba(0,0,0,.06);
   --vs-flow: ${PALETTE.flow}; --vs-pictures: ${PALETTE.pictures}; --vs-space: ${PALETTE.space}; --vs-lines: ${PALETTE.lines};
   position: fixed; inset: 0; pointer-events: none; z-index: 2147483001; font: 12px/1.45 system-ui, sans-serif; color: var(--vs-fg); }
-@media (prefers-color-scheme: dark) { .wmx-visor-ui { --vs-bg: #1c1c1e; --vs-fg: #f2f2f2; --vs-muted: #a0a0a6; --vs-line: rgba(255,255,255,.16); --vs-sel: rgba(255,255,255,.08);
+@media (prefers-color-scheme: dark) { .woc-visor-ui { --vs-bg: #1c1c1e; --vs-fg: #f2f2f2; --vs-muted: #a0a0a6; --vs-line: rgba(255,255,255,.16); --vs-sel: rgba(255,255,255,.08);
   --vs-flow: #a78bfa; --vs-pictures: #2dd4bf; --vs-space: #fbbf24; --vs-lines: #fb7185; } }
-.wmx-visor-ui button { all: unset; box-sizing: border-box; cursor: pointer; }
-.wmx-visor-ui button:focus-visible { outline: 2px solid var(--vs-fg); outline-offset: 1px; }
-.wmx-visor-panel { position: fixed; top: 12px; right: 40px; bottom: 12px; width: 280px; display: flex; flex-direction: column; pointer-events: auto;
+.woc-visor-ui button { all: unset; box-sizing: border-box; cursor: pointer; }
+.woc-visor-ui button:focus-visible { outline: 2px solid var(--vs-fg); outline-offset: 1px; }
+.woc-visor-panel { position: fixed; top: 12px; right: 40px; bottom: 12px; width: 280px; display: flex; flex-direction: column; pointer-events: auto;
   background: var(--vs-bg); border: 1px solid var(--vs-line); border-radius: 6px; overflow: hidden; }
-.wmx-visor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--vs-line); font-weight: 600; }
-.wmx-visor-small { padding: 2px 8px; border: 1px solid var(--vs-line); border-radius: 4px; font-weight: 400; color: var(--vs-muted); }
-.wmx-visor-open { position: fixed; top: 12px; right: 40px; pointer-events: auto; background: var(--vs-bg); color: var(--vs-fg); }
-.wmx-visor-layers { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--vs-line); }
-.wmx-visor-switch::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border: 1px solid var(--c); border-radius: 50%; vertical-align: 1px; }
-.wmx-visor-switch[aria-pressed="true"] { color: var(--vs-fg); }
-.wmx-visor-switch[aria-pressed="true"]::before { background: var(--c); }
-.wmx-visor-list { list-style: none; margin: 0; padding: 4px; overflow: auto; flex: 1; }
-.wmx-visor-entry { display: block; width: 100%; padding: 6px; border-radius: 4px; }
-.wmx-visor-entry:hover, .wmx-visor-entry[aria-pressed="true"] { background: var(--vs-sel); }
-.wmx-visor-kind { display: block; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
-.wmx-visor-title { display: block; font-weight: 600; }
-.wmx-visor-detail, .wmx-visor-rule, .wmx-visor-none { display: block; color: var(--vs-muted); }
-.wmx-visor-none { padding: 6px; }
-.wmx-visor-card { position: fixed; max-width: 260px; padding: 8px 10px; background: var(--vs-bg); border: 1px solid var(--vs-line); border-radius: 4px; }
-.wmx-visor-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; margin: 4px 0; font-variant-numeric: tabular-nums; }
-.wmx-visor-card dt { color: var(--vs-muted); } .wmx-visor-card dd { margin: 0; }
-.wmx-visor-on { outline: 2px solid var(--c); outline-offset: 3px; }
-.wmx-visor-dot { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: ${PALETTE.pictures}55; border: 1px solid ${PALETTE.pictures}; box-sizing: border-box; }
+.woc-visor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--vs-line); font-weight: 600; }
+.woc-visor-small { padding: 2px 8px; border: 1px solid var(--vs-line); border-radius: 4px; font-weight: 400; color: var(--vs-muted); }
+.woc-visor-open { position: fixed; top: 12px; right: 40px; pointer-events: auto; background: var(--vs-bg); color: var(--vs-fg); }
+.woc-visor-layers { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--vs-line); }
+.woc-visor-switch::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border: 1px solid var(--c); border-radius: 50%; vertical-align: 1px; }
+.woc-visor-switch[aria-pressed="true"] { color: var(--vs-fg); }
+.woc-visor-switch[aria-pressed="true"]::before { background: var(--c); }
+.woc-visor-list { list-style: none; margin: 0; padding: 4px; overflow: auto; flex: 1; }
+.woc-visor-entry { display: block; width: 100%; padding: 6px; border-radius: 4px; }
+.woc-visor-entry:hover, .woc-visor-entry[aria-pressed="true"] { background: var(--vs-sel); }
+.woc-visor-kind { display: block; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
+.woc-visor-title { display: block; font-weight: 600; }
+.woc-visor-detail, .woc-visor-rule, .woc-visor-none { display: block; color: var(--vs-muted); }
+.woc-visor-none { padding: 6px; }
+.woc-visor-card { position: fixed; max-width: 260px; padding: 8px 10px; background: var(--vs-bg); border: 1px solid var(--vs-line); border-radius: 4px; }
+.woc-visor-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; margin: 4px 0; font-variant-numeric: tabular-nums; }
+.woc-visor-card dt { color: var(--vs-muted); } .woc-visor-card dd { margin: 0; }
+.woc-visor-on { outline: 2px solid var(--c); outline-offset: 3px; }
+.woc-visor-dot { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: ${PALETTE.pictures}55; border: 1px solid ${PALETTE.pictures}; box-sizing: border-box; }
 `;
 
 /** The panel starts collapsed unless `open`; `onChange` reports layer and panel changes so a caller can keep them across remounts. */
@@ -58,7 +58,7 @@ export function mountVisor(
   const models = buildModel(pd, explain);
   let layers = new Set(options.layers ?? DEFAULT_LAYERS);
   const overlay = doc.createElement("div");
-  overlay.className = "wmx-visor";
+  overlay.className = "woc-visor";
   overlay.style.cssText = `position:absolute;left:0;top:0;width:100%;height:${pd.height}px;pointer-events:none;z-index:2147483000;`;
   root.appendChild(overlay);
   const drawn = new Map<number, HTMLElement>();
@@ -70,25 +70,25 @@ export function mountVisor(
     if (text !== undefined) e.textContent = text;
     return e;
   };
-  const ui = el("div", "wmx-visor-ui", root);
+  const ui = el("div", "woc-visor-ui", root);
   el("style", "", ui, CSS);
-  const panel = el("aside", "wmx-visor-panel", ui);
+  const panel = el("aside", "woc-visor-panel", ui);
   panel.setAttribute("aria-label", "Layout decisions");
-  const head = el("div", "wmx-visor-head", panel);
+  const head = el("div", "woc-visor-head", panel);
   const heading = el("span", "", head);
-  const hide = el("button", "wmx-visor-small", head, "Hide");
+  const hide = el("button", "woc-visor-small", head, "Hide");
   // A switch per layer.
-  const switches = el("div", "wmx-visor-layers", panel);
+  const switches = el("div", "woc-visor-layers", panel);
   for (const layer of Object.keys(LAYER_NAME) as Layer[]) {
-    const b = el("button", "wmx-visor-small wmx-visor-switch", switches, LAYER_NAME[layer]);
+    const b = el("button", "woc-visor-small woc-visor-switch", switches, LAYER_NAME[layer]);
     b.dataset.layer = layer;
     b.style.setProperty("--c", `var(--vs-${layer})`);
     b.addEventListener("click", () => api.setLayers(layers.has(layer) ? [...layers].filter((x) => x !== layer) : [...layers, layer]));
   }
   const markSwitches = (): void => switches.querySelectorAll<HTMLElement>("button").forEach((b) => b.setAttribute("aria-pressed", String(layers.has(b.dataset.layer as Layer))));
   markSwitches();
-  const list = el("ol", "wmx-visor-list", panel);
-  const open = el("button", "wmx-visor-open wmx-visor-small", ui, "Decisions");
+  const list = el("ol", "woc-visor-list", panel);
+  const open = el("button", "woc-visor-open woc-visor-small", ui, "Decisions");
   let isOpen = options.open ?? false;
   const report = (): void => options.onChange?.({ layers: [...layers], open: isOpen });
   const setOpen = (on: boolean): void => {
@@ -99,7 +99,7 @@ export function mountVisor(
   setOpen(isOpen);
   hide.addEventListener("click", () => (setOpen(false), report()));
   open.addEventListener("click", () => (setOpen(true), report()));
-  const card = el("div", "wmx-visor-card", ui);
+  const card = el("div", "woc-visor-card", ui);
   card.style.display = "none";
   const dots = el("div", "", ui);
 
@@ -111,32 +111,32 @@ export function mountVisor(
     const entries = panelEntries(m, layers);
     heading.textContent = `${m.screen === null ? `Scene ${m.scene}` : `Screen ${m.screen}`} · ${entries.length} decision${entries.length === 1 ? "" : "s"}`;
     list.replaceChildren();
-    if (entries.length === 0) el("li", "wmx-visor-none", list, "No decisions on this screen.");
+    if (entries.length === 0) el("li", "woc-visor-none", list, "No decisions on this screen.");
     for (const e of entries) {
-      const b = el("button", "wmx-visor-entry", el("li", "", list));
+      const b = el("button", "woc-visor-entry", el("li", "", list));
       b.dataset.decision = String(e.index);
-      el("span", "wmx-visor-kind", b, LAYER_NAME[e.layer]).style.color = `var(--vs-${e.layer})`;
-      el("span", "wmx-visor-title", b, e.title);
-      el("span", "wmx-visor-detail", b, e.detail);
+      el("span", "woc-visor-kind", b, LAYER_NAME[e.layer]).style.color = `var(--vs-${e.layer})`;
+      el("span", "woc-visor-title", b, e.title);
+      el("span", "woc-visor-detail", b, e.detail);
       b.addEventListener("click", () => select(shown, e.index, true));
     }
     markEntry();
   };
   const markEntry = (): void => {
-    list.querySelectorAll<HTMLElement>(".wmx-visor-entry").forEach((b) => b.setAttribute("aria-pressed", String(selected?.screen === shown && b.dataset.decision === String(selected.decision))));
+    list.querySelectorAll<HTMLElement>(".woc-visor-entry").forEach((b) => b.setAttribute("aria-pressed", String(selected?.screen === shown && b.dataset.decision === String(selected.decision))));
   };
   const shapesOf = (s: { screen: number; decision: number }): HTMLElement[] => Array.from(drawn.get(s.screen)?.querySelectorAll<HTMLElement>(`[data-decision="${s.decision}"]`) ?? []);
   /** The selection on the page, and a picture's window in the renderer's screen dots. */
   const showSelection = (): void => {
-    overlay.querySelectorAll(".wmx-visor-on").forEach((e) => e.classList.remove("wmx-visor-on"));
-    if (selected) for (const e of shapesOf(selected)) e.classList.add("wmx-visor-on");
+    overlay.querySelectorAll(".woc-visor-on").forEach((e) => e.classList.remove("woc-visor-on"));
+    if (selected) for (const e of shapesOf(selected)) e.classList.add("woc-visor-on");
     dots.replaceChildren();
     const d = selected && models[selected.screen]!.decisions[selected.decision];
     if (d?.kind !== "picture" || d.numbers.windowFrom === undefined) return;
-    const buttons = doc.querySelectorAll(".wmx-dots button");
+    const buttons = doc.querySelectorAll(".woc-dots button");
     for (const i of dotsOf(pd, d.numbers.windowFrom, d.numbers.windowTo ?? d.numbers.windowFrom)) {
       const r = buttons[i]?.getBoundingClientRect();
-      if (r) el("div", "wmx-visor-dot", dots).style.cssText = `left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px;`;
+      if (r) el("div", "woc-visor-dot", dots).style.cssText = `left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px;`;
     }
   };
   const select = (screen: number, decision: number, fromPanel: boolean): void => {
@@ -177,14 +177,14 @@ export function mountVisor(
   const showCard = (d: Decision): void => {
     const c = cardOf(d);
     card.replaceChildren();
-    el("span", "wmx-visor-kind", card, c.kind).style.color = `var(--vs-${c.layer})`;
-    el("span", "wmx-visor-title", card, c.title);
+    el("span", "woc-visor-kind", card, c.kind).style.color = `var(--vs-${c.layer})`;
+    el("span", "woc-visor-title", card, c.title);
     el("span", "", card, c.body);
     if (c.numbers.length) {
       const dl = el("dl", "", card);
       for (const [k, v] of c.numbers) el("dt", "", dl, k), el("dd", "", dl, v);
     }
-    el("span", "wmx-visor-rule", card, c.rule);
+    el("span", "woc-visor-rule", card, c.rule);
     card.style.display = "";
   };
   overlay.addEventListener("pointerover", over);
@@ -241,7 +241,7 @@ export function mountVisor(
 
 function drawScreen(doc: Document, m: ScreenModel, index: number, layers: Set<Layer>): HTMLElement {
   const el = doc.createElement("div");
-  el.className = "wmx-visor-screen";
+  el.className = "woc-visor-screen";
   el.dataset.screen = String(index);
   for (const s of m.shapes) if (layers.has(s.layer)) el.appendChild(drawShape(doc, s));
   return el;
@@ -250,7 +250,7 @@ function drawScreen(doc: Document, m: ScreenModel, index: number, layers: Set<La
 function drawShape(doc: Document, s: Shape): HTMLElement {
   const c = PALETTE[s.layer];
   const el = doc.createElement("div");
-  el.className = `wmx-visor-${s.kind}`;
+  el.className = `woc-visor-${s.kind}`;
   if (s.decision !== undefined) el.dataset.decision = String(s.decision);
   const box = `position:absolute;left:${s.x}px;top:${s.y}px;width:${s.width}px;height:${s.height}px;box-sizing:border-box;`;
   const tag = (text: string, css: string): void => {

@@ -8,14 +8,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
-import { type AssetHost, resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import type { ResolvedDocument } from "@wocument/resolved-document";
+import { type AssetHost, resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
 const VIEW = { width: 1470, height: 956 };
 const fake: AssetHost = {
@@ -66,7 +66,7 @@ describe("speed of picture composition", () => {
   // Real articles, where composition costs more than the layout itself (2026-10-21: about 4.7 and 6.3
   // times once trials share their work, from 10.4 and 7.2). The plan's bound is 4 times; the owner set
   // the real-article bound at 8 times on 2026-10-21 (the synthetic test keeps 4 times).
-  for (const [name, width, height] of [["test-spread.wmx", 2560, 1440], ["stress-portraits.wmx", 1470, 956]] as const)
+  for (const [name, width, height] of [["test-spread.woc", 2560, 1440], ["stress-portraits.woc", 1470, 956]] as const)
     it.skipIf(!existsSync(here(`playground/docs/${name}`)))(`${name} at ${width}x${height} takes at most 8 times the layout without composition`, () => {
       expect(ratio(article(name), { width, height })).toBeLessThanOrEqual(8);
     }, 120_000);

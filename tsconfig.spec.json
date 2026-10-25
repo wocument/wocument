@@ -9,14 +9,14 @@
     "types": ["node"],
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
-      "@wmxdsl/schema": ["./packages/schema/src/index.ts"],
-      "@wmxdsl/parser": ["./packages/parser/src/index.ts"],
-      "@wmxdsl/resolved-document": ["./packages/resolved-document/src/index.ts"],
-      "@wmxdsl/resolver": ["./packages/resolver/src/index.ts"],
-      "@wmxdsl/assets": ["./packages/assets/src/index.ts"],
-      "@wmxdsl/text-engine": ["./packages/text-engine/src/index.ts"],
-      "@wmxdsl/layout": ["./packages/layout/src/index.ts"],
-      "@wmxdsl/renderer": ["./packages/renderer/src/index.ts"]
+      "@wocument/schema": ["./packages/schema/src/index.ts"],
+      "@wocument/parser": ["./packages/parser/src/index.ts"],
+      "@wocument/resolved-document": ["./packages/resolved-document/src/index.ts"],
+      "@wocument/resolver": ["./packages/resolver/src/index.ts"],
+      "@wocument/assets": ["./packages/assets/src/index.ts"],
+      "@wocument/text-engine": ["./packages/text-engine/src/index.ts"],
+      "@wocument/layout": ["./packages/layout/src/index.ts"],
+      "@wocument/renderer": ["./packages/renderer/src/index.ts"]
     },
     "baseUrl": "."
   },

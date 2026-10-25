@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`fixtures > forty-questions.wmx has a snapshot-stable AST 1`] = `
+exports[`fixtures > forty-questions.woc has a snapshot-stable AST 1`] = `
 {
   "definitions": [
     {
@@ -649,7 +649,7 @@ exports[`fixtures > forty-questions.wmx has a snapshot-stable AST 1`] = `
   "frontmatter": {
     "lang": "en",
     "title": "Forty Questions for a Lighthouse Keeper",
-    "wmxdsl": 1,
+    "wocument": 1,
   },
   "implicitContent": [],
   "scenes": [
@@ -2390,14 +2390,14 @@ exports[`fixtures > forty-questions.wmx has a snapshot-stable AST 1`] = `
 }
 `;
 
-exports[`fixtures > minimum.wmx has a snapshot-stable AST 1`] = `
+exports[`fixtures > minimum.woc has a snapshot-stable AST 1`] = `
 {
   "definitions": [],
   "folio": null,
   "form": "implicit",
   "frontmatter": {
     "title": "A Brief Note",
-    "wmxdsl": 1,
+    "wocument": 1,
   },
   "implicitContent": [
     {
@@ -2454,7 +2454,7 @@ exports[`fixtures > minimum.wmx has a snapshot-stable AST 1`] = `
 }
 `;
 
-exports[`fixtures > stone-and-strategy.wmx has a snapshot-stable AST 1`] = `
+exports[`fixtures > stone-and-strategy.woc has a snapshot-stable AST 1`] = `
 {
   "definitions": [
     {
@@ -3431,7 +3431,7 @@ exports[`fixtures > stone-and-strategy.wmx has a snapshot-stable AST 1`] = `
   "frontmatter": {
     "lang": "en",
     "title": "Stone & Strategy",
-    "wmxdsl": 1,
+    "wocument": 1,
   },
   "implicitContent": [],
   "scenes": [
@@ -5359,7 +5359,7 @@ exports[`fixtures > stone-and-strategy.wmx has a snapshot-stable AST 1`] = `
 }
 `;
 
-exports[`fixtures > the-last-signalman.wmx has a snapshot-stable AST 1`] = `
+exports[`fixtures > the-last-signalman.woc has a snapshot-stable AST 1`] = `
 {
   "definitions": [
     {
@@ -6454,7 +6454,7 @@ exports[`fixtures > the-last-signalman.wmx has a snapshot-stable AST 1`] = `
   "frontmatter": {
     "lang": "en",
     "title": "The Last Signalman",
-    "wmxdsl": 1,
+    "wocument": 1,
   },
   "implicitContent": [],
   "scenes": [
@@ -8921,7 +8921,7 @@ exports[`fixtures > the-last-signalman.wmx has a snapshot-stable AST 1`] = `
 }
 `;
 
-exports[`fixtures > white-desert.wmx has a snapshot-stable AST 1`] = `
+exports[`fixtures > white-desert.woc has a snapshot-stable AST 1`] = `
 {
   "definitions": [
     {
@@ -9986,7 +9986,7 @@ exports[`fixtures > white-desert.wmx has a snapshot-stable AST 1`] = `
   "frontmatter": {
     "lang": "en",
     "title": "White Desert",
-    "wmxdsl": 1,
+    "wocument": 1,
   },
   "implicitContent": [],
   "scenes": [

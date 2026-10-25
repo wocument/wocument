@@ -1,14 +1,14 @@
 ---
-title: WMXDSL Formal Grammar
+title: Wocument Formal Grammar
 version: 0.2 (Draft)
 status: Working Draft
 date: 2026-09-19
-companion-to: wmxdsl-specification.md
+companion-to: wocument-specification.md
 ---
 
-# WMXDSL Formal Grammar
+# Wocument Formal Grammar
 
-For the parser team. This document defines exactly which character sequences are valid WMXDSL and what tree they produce. The specification says what things mean; this says how they parse. Where the two disagree on syntax, this document wins (the differences are listed in §12).
+For the parser team. This document defines exactly which character sequences are valid Wocument and what tree they produce. The specification says what things mean; this says how they parse. Where the two disagree on syntax, this document wins (the differences are listed in §12).
 
 ---
 
@@ -34,8 +34,8 @@ Notation: W3C-style EBNF. `::=` defines, `|` alternates, `?` `*` `+` repeat, `[.
 1. Decode as UTF-8. Invalid sequence: `L001`.
 2. Strip one leading U+FEFF if present.
 3. Replace `\r\n` and lone `\r` with `\n`. All positions refer to this normalized text.
-4. **Document files (`.wmx`)**: the first line MUST be a fence. Collect lines up to the next fence, hand them to a YAML 1.2 parser. Everything after the closing fence's newline is the content.
-5. **Theme files (`.wmxt`)**: no frontmatter. The whole text is the content. A leading fence is `P045`.
+4. **Document files (`.woc`)**: the first line MUST be a fence. Collect lines up to the next fence, hand them to a YAML 1.2 parser. Everything after the closing fence's newline is the content.
+5. **Theme files (`.woct`)**: no frontmatter. The whole text is the content. A leading fence is `P045`.
 
 ```
 fence      ::= "---" hspace* NL

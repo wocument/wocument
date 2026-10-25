@@ -1,7 +1,7 @@
 /** Design 2026-09-29: screen pages. Where scrolling settles, which page is current, and hanging hyphens. */
 
 import { describe, expect, it } from "vitest";
-import type { PositionedLine } from "@wmxdsl/layout";
+import type { PositionedLine } from "@wocument/layout";
 import { continuingLines, currentPage, pageStep, screenPoints, snapStops } from "../src/pages.js";
 
 describe("screenPoints", () => {

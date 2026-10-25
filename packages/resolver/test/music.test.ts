@@ -1,18 +1,18 @@
 /** `\music` soundtrack cues (spec §10.6, 2026-10-09). */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { checkInvariants, type ResolvedDocument } from "@wmxdsl/resolved-document";
+import { parse, type Document } from "@wocument/parser";
+import { checkInvariants, type ResolvedDocument } from "@wocument/resolved-document";
 import { resolve, type AssetHost } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const host: AssetHost = {
   image: () => null,
   contour: () => null,
   file: (p) => (p.endsWith(".mp3") ? { url: p, type: "audio/mpeg" } : null),
 };
 function run(body: string): ResolvedDocument {
-  const p = parse(FM + body, { file: "t.wmx" });
+  const p = parse(FM + body, { file: "t.woc" });
   expect(p.diagnostics).toEqual([]);
   const { doc } = resolve(p.ast as Document, { assets: host });
   expect(checkInvariants(doc)).toEqual([]);

@@ -1,7 +1,7 @@
 /** The visor's reason dictionary: a sentence and a rule for every reason code layout can log. */
 
 import { describe, expect, it } from "vitest";
-import { COLUMN_END_REASONS, LINE_REASONS, PICTURE_REASONS, SPACE_REASONS, type Decision } from "@wmxdsl/layout";
+import { COLUMN_END_REASONS, LINE_REASONS, PICTURE_REASONS, SPACE_REASONS, type Decision } from "@wocument/layout";
 import { DICTIONARY, describe as describeDecision } from "../src/index.js";
 
 const lists = { "column-end": COLUMN_END_REASONS, picture: PICTURE_REASONS, space: SPACE_REASONS, line: LINE_REASONS } as const;

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "../../src/index.js";
 import { PositionIndex } from "../../src/positions.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 const SPICY = [
   "\\", "{", "}", "[", "]", "(", ")", "%", "*", "`", "-", ".", '"', "'",
@@ -65,7 +65,7 @@ describe("properties", () => {
   it("never throws and always returns diagnostics", () => {
     fc.assert(
       fc.property(spicy, (s) => {
-        const r = parse(FM + s, { file: "t.wmx" });
+        const r = parse(FM + s, { file: "t.woc" });
         expect(Array.isArray(r.diagnostics)).toBe(true);
         expect(typeof r.ok).toBe("boolean");
       }),

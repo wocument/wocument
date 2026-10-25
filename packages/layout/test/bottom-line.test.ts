@@ -4,13 +4,13 @@
  * screen size. A page that ends early (the rule that keeps columns level) is short by whole lines.
  */
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout } from "../src/index.js";
 import { layoutInvariants } from "./invariants.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const STORY = Array.from({ length: 40 }, () => "Stone endures where nearly everything else decays, and the keepers wrote it down every night.").join(" ");
 
 describe("the bottom line", () => {

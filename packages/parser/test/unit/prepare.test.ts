@@ -3,12 +3,12 @@ import { Diagnostics } from "../../src/diagnostics.js";
 import { normalize, prepare } from "../../src/prepare.js";
 
 function run(src: string | Uint8Array, kind: "document" | "theme" = "document") {
-  const diags = new Diagnostics("t.wmx");
+  const diags = new Diagnostics("t.woc");
   const r = prepare(src, kind, diags);
   return { ...r, codes: diags.sorted().map((d) => d.code), diags: diags.sorted() };
 }
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 describe("normalize", () => {
   it("strips exactly one BOM", () => {
@@ -25,7 +25,7 @@ describe("prepare: frontmatter", () => {
   it("accepts a minimal document", () => {
     const r = run(FM + "body");
     expect(r.codes).toEqual([]);
-    expect(r.frontmatter).toEqual({ wmxdsl: 1, title: "T" });
+    expect(r.frontmatter).toEqual({ wocument: 1, title: "T" });
     expect(r.text.slice(r.contentStart)).toBe("body");
   });
 
@@ -36,13 +36,13 @@ describe("prepare: frontmatter", () => {
   });
 
   it("requires a closing fence", () => {
-    const r = run("---\nwmxdsl: 1\n");
+    const r = run("---\nwocument: 1\n");
     expect(r.codes).toEqual(["L005"]);
     expect(r.fatal).toBe(true);
   });
 
   it("reports unknown fields", () => {
-    const r = run("---\nwmxdsl: 1\ntitle: T\nlayout: wide\n---\n");
+    const r = run("---\nwocument: 1\ntitle: T\nlayout: wide\n---\n");
     expect(r.codes).toEqual(["P002"]);
     expect(r.diags[0]?.pos.line).toBe(4);
   });
@@ -53,26 +53,26 @@ describe("prepare: frontmatter", () => {
   });
 
   it("reports a field of the wrong type", () => {
-    const r = run("---\nwmxdsl: one\ntitle: T\n---\n");
+    const r = run("---\nwocument: one\ntitle: T\n---\n");
     expect(r.codes).toEqual(["P003"]);
     expect(r.diags[0]?.message).toContain("an integer");
     expect(r.diags[0]?.pos.line).toBe(2);
   });
 
   it("accepts author as a string or a list", () => {
-    expect(run("---\nwmxdsl: 1\ntitle: T\nauthor: A\n---\n").codes).toEqual([]);
-    expect(run("---\nwmxdsl: 1\ntitle: T\nauthor:\n  - A\n  - B\n---\n").codes).toEqual([]);
-    expect(run("---\nwmxdsl: 1\ntitle: T\nauthor: 3\n---\n").codes).toEqual(["P003"]);
+    expect(run("---\nwocument: 1\ntitle: T\nauthor: A\n---\n").codes).toEqual([]);
+    expect(run("---\nwocument: 1\ntitle: T\nauthor:\n  - A\n  - B\n---\n").codes).toEqual([]);
+    expect(run("---\nwocument: 1\ntitle: T\nauthor: 3\n---\n").codes).toEqual(["P003"]);
   });
 
   it("keeps an ISO date as a string under YAML 1.2 core", () => {
-    const r = run("---\nwmxdsl: 1\ntitle: T\ndate: 2026-06-01\n---\n");
+    const r = run("---\nwocument: 1\ntitle: T\ndate: 2026-06-01\n---\n");
     expect(r.codes).toEqual([]);
     expect(r.frontmatter?.date).toBe("2026-06-01");
   });
 
   it("maps a YAML error back into the file", () => {
-    const r = run('---\nwmxdsl: 1\ntitle: "unterminated\n---\n');
+    const r = run('---\nwocument: 1\ntitle: "unterminated\n---\n');
     expect(r.codes).toContain("P001");
     expect(r.diags[0]?.pos.line).toBeGreaterThan(1);
   });
@@ -82,7 +82,7 @@ describe("prepare: frontmatter", () => {
   });
 
   it("positions are relative to normalized text", () => {
-    const r = run("---\r\nwmxdsl: 1\r\ntitle: T\r\nlayout: x\r\n---\r\n");
+    const r = run("---\r\nwocument: 1\r\ntitle: T\r\nlayout: x\r\n---\r\n");
     expect(r.diags[0]?.pos).toEqual({ line: 4, column: 1, length: 6 });
   });
 });

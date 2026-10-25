@@ -1,6 +1,6 @@
 /**
- * Regression: Field Atlas (packages/playground/docs/atlas.wmx and its theme,
- * atlas.wmxt), the document that uses every construct the language has. It
+ * Regression: Field Atlas (packages/playground/docs/atlas.woc and its theme,
+ * atlas.woct), the document that uses every construct the language has. It
  * parses, resolves with only its expected warnings, keeps every Resolved
  * Document invariant, and lays out at 33 viewport sizes with every layout
  * invariant, against objects' bare shapes.
@@ -12,20 +12,20 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { format, parse, type Document, type Theme } from "@wmxdsl/parser";
-import { checkInvariants } from "@wmxdsl/resolved-document";
-import { resolve } from "@wmxdsl/resolver";
-import { renderStatic } from "@wmxdsl/renderer";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { format, parse, type Document, type Theme } from "@wocument/parser";
+import { checkInvariants } from "@wocument/resolved-document";
+import { resolve } from "@wocument/resolver";
+import { renderStatic } from "@wocument/renderer";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout } from "../src/index.js";
 import { layoutInvariants } from "./invariants.js";
 
 const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
 /** The cut-out photographs these tests are tuned to are not in the repository; without them the tests skip. */
 const cutouts = existsSync(here("playground/public/img/middle.png")) && existsSync(here("playground/public/img/right.png"));
-const FILE = here("playground/docs/atlas.wmx");
-const THEME_SRC = readFileSync(here("playground/docs/atlas.wmxt"), "utf8");
+const FILE = here("playground/docs/atlas.woc");
+const THEME_SRC = readFileSync(here("playground/docs/atlas.woct"), "utf8");
 const SRC = readFileSync(FILE, "utf8");
 const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: dirname(FILE) });
 
@@ -83,7 +83,7 @@ describe("Field Atlas: layout", () => {
 });
 
 describe("Field Atlas: what the engine does not build yet", () => {
-  const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+  const FM = "---\nwocument: 1\ntitle: T\n---\n";
   const attempt = (src: string) => () => resolve(parse(FM + src).ast as Document, { assets });
   it.each([
     ["\\lottie", '\\scene{\\lottie[src=/a.json, alt="A", cols=1-4]}'],
@@ -107,7 +107,7 @@ describe("Field Atlas: a viewport narrower than its margins", () => {
 describe.skipIf(!cutouts)("a cut-out that spans a whole column", () => {
   it("sends that column's text above and below it; the columns it only cuts into wrap its outline", () => {
     const text = "Stone endures where nearly everything else decays. ".repeat(120).trim();
-    const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 900)}\n\n\\figure[src=/img/middle.png, alt="A portrait", cols=4-9, max-width=540px, shape=alpha, wrap=contour]\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
+    const src = `---\nwocument: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 900)}\n\n\\figure[src=/img/middle.png, alt="A portrait", cols=4-9, max-width=540px, shape=alpha, wrap=contour]\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
     const doc = resolve(parse(src).ast as Document, { assets }).doc;
     const s = layout(doc, { width: 1440, height: 900 }, new PrepareCache(createFixedEngine())).scenes[0]!;
     const box = s.objects.find((o) => o.name.startsWith("figure"))!.box;
@@ -119,7 +119,7 @@ describe.skipIf(!cutouts)("a cut-out that spans a whole column", () => {
 
 describe.skipIf(!cutouts)("cut-outs in a banded frame (design 2026-09-29 rules 4-5)", () => {
   const text = "Stone endures where nearly everything else decays. ".repeat(120).trim();
-  const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 400)}\n\n\\figure[src=/img/middle.png, alt="A portrait", shape=alpha, wrap=contour]\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
+  const src = `---\nwocument: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 400)}\n\n\\figure[src=/img/middle.png, alt="A portrait", shape=alpha, wrap=contour]\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
   const s = layout(resolve(parse(src).ast as Document, { assets }).doc, { width: 1440, height: 900 }, new PrepareCache(createFixedEngine())).scenes[0]!;
   const fig = s.objects.find((o) => o.name.startsWith("figure"))!;
   const col = (1440 - 128 - 2 * 24) / 3;
@@ -143,7 +143,7 @@ describe.skipIf(!cutouts)("cut-outs in a banded frame (design 2026-09-29 rules 4
 describe.skipIf(!cutouts)("a subhead beside a cut-out at a column's top (2026-09-30)", () => {
   it("drops its space above, so its column starts level with the others", () => {
     const text = "Stone endures where nearly everything else decays. ".repeat(160).trim();
-    const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{\\figure[src=/img/right.png, alt="A lighthouse", shape=alpha, wrap=contour]\n\n\\subhead{Three families on a rock}\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
+    const src = `---\nwocument: 1\ntitle: T\n---\n\\story[name=s]{\\figure[src=/img/right.png, alt="A lighthouse", shape=alpha, wrap=contour]\n\n\\subhead{Three families on a rock}\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
     const s = layout(resolve(parse(src).ast as Document, { assets }).doc, { width: 1440, height: 900 }, new PrepareCache(createFixedEngine())).scenes[0]!;
     const first = (c: number) => Math.min(...s.lines.filter((l) => l.story === "s" && l.column === c && l.y < 900).map((l) => l.baseline));
     expect(first(0)).toBeCloseTo(first(1), 6);
@@ -154,7 +154,7 @@ describe("a picture taller than a band (design 2026-09-29 rule 8, extended 2026-
   // A 9:16 photograph in a 405px column is 720px tall before its caption: more than a band at 1440x900.
   const text = "Stone endures where nearly everything else decays. ".repeat(160).trim();
   it.each([[1280, 800], [1440, 900], [1920, 1080]])("narrows to 85%% of the band at %ix%i, and stays on its page", (width, height) => {
-    const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 300)}\n\n\\figure[src=/salt/s1.jpg, alt="A tall picture", ratio=9:16]{\\caption{A squall crossing the bay.}}\n\n\\figure[src=/salt/s2.jpg, alt="Another", ratio=4:5]\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
+    const src = `---\nwocument: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 300)}\n\n\\figure[src=/salt/s1.jpg, alt="A tall picture", ratio=9:16]{\\caption{A squall crossing the bay.}}\n\n\\figure[src=/salt/s2.jpg, alt="Another", ratio=4:5]\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
     const s = layout(resolve(parse(src).ast as Document, { assets }).doc, { width, height }, new PrepareCache(createFixedEngine())).scenes[0]!;
     const band = height - 2 * s.grid.marginY;
     for (const o of s.objects) {
@@ -170,7 +170,7 @@ describe.skipIf(!cutouts)("the continuation arrow beside a cut-out (design 2026-
   const text = "Stone endures where nearly everything else decays. ".repeat(160).trim();
   // At these heights the picture and its caption fill the column's foot (at 1440 wide it opens the third column).
   it.each([840, 860, 900])("sits at the column's right edge, below the picture, at 1440x%i", (height) => {
-    const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 1000)}\n\n\\figure[src=/img/right.png, alt="A lighthouse", shape=alpha, wrap=contour]{\\caption{Rubha Glas, the last station on the coast to be automated.}}\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
+    const src = `---\nwocument: 1\ntitle: T\n---\n\\story[name=s]{${text.slice(0, 1000)}\n\n\\figure[src=/img/right.png, alt="A lighthouse", shape=alpha, wrap=contour]{\\caption{Rubha Glas, the last station on the coast to be automated.}}\n\n${text}}\n\\scene[height=page]{\\frame[story=s, cols=all, columns=3]}`;
     const s = layout(resolve(parse(src).ast as Document, { assets }).doc, { width: 1440, height }, new PrepareCache(createFixedEngine())).scenes[0]!;
     const right = s.grid.originX + s.grid.content; // the last column's right edge
     for (const c of s.continues) {

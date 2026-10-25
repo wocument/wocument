@@ -4,10 +4,10 @@
  * produce, so the final case checks the table is fully covered.
  */
 import { describe, expect, it } from "vitest";
-import { ALL_CODES } from "@wmxdsl/schema";
+import { ALL_CODES } from "@wocument/schema";
 import { parse, type Diagnostic } from "../../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 type Case = {
   code: string;
@@ -49,7 +49,7 @@ const CASES: Case[] = [
   },
   {
     code: "L005",
-    src: "---\nwmxdsl: 1\ntitle: T\n",
+    src: "---\nwocument: 1\ntitle: T\n",
     raw: true,
     at: [1, 1],
     message: /Unterminated frontmatter/,
@@ -69,7 +69,7 @@ const CASES: Case[] = [
   },
   {
     code: "P002",
-    src: "---\nwmxdsl: 1\ntitle: T\nlayout: wide\n---\n",
+    src: "---\nwocument: 1\ntitle: T\nlayout: wide\n---\n",
     raw: true,
     at: [4, 1],
     message: /Unknown frontmatter field `layout`/,
@@ -79,7 +79,7 @@ const CASES: Case[] = [
     src: "---\ntitle: T\n---\n",
     raw: true,
     at: [2, 1],
-    message: /Required frontmatter field `wmxdsl` is missing/,
+    message: /Required frontmatter field `wocument` is missing/,
   },
   {
     code: "P010",
@@ -253,7 +253,7 @@ function run(c: Case): Diagnostic[] {
     (c.kind ?? "document") === "document" &&
     !c.src.startsWith("---");
   return parse(bare ? FM + (c.src as string) : c.src, {
-    file: "t.wmx",
+    file: "t.woc",
     kind: c.kind ?? "document",
   }).diagnostics;
 }
@@ -266,7 +266,7 @@ describe("golden diagnostics", () => {
       expect(hit, `expected ${c.code}, got [${all.map((d) => d.code).join(", ")}]`).toBeDefined();
       expect([hit!.pos.line, hit!.pos.column]).toEqual(c.at);
       expect(hit!.severity).toBe("error");
-      expect(hit!.file).toBe("t.wmx");
+      expect(hit!.file).toBe("t.woc");
       if (c.hint !== undefined) expect(hit!.hint).toBe(c.hint);
       if (c.message !== undefined) expect(hit!.message).toMatch(c.message);
     });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_CODES, CODES } from "@wmxdsl/schema";
+import { ALL_CODES, CODES } from "@wocument/schema";
 import { Diagnostics, editDistance, nearestMatch } from "../../src/diagnostics.js";
 
 describe("codes", () => {
@@ -24,7 +24,7 @@ describe("codes", () => {
 
 describe("Diagnostics", () => {
   it("sorts by position", () => {
-    const d = new Diagnostics("a.wmx");
+    const d = new Diagnostics("a.woc");
     d.add("P011", { line: 3, column: 1, length: 1 });
     d.add("P010", { line: 1, column: 5, length: 1 });
     d.add("P012", { line: 1, column: 2, length: 4 }, { name: "x" });
@@ -32,11 +32,11 @@ describe("Diagnostics", () => {
   });
 
   it("attaches the file name and keeps hints optional", () => {
-    const d = new Diagnostics("a.wmx");
+    const d = new Diagnostics("a.woc");
     d.add("P012", { line: 1, column: 1, length: 2 }, { name: "pullqoute" }, "Did you mean \\pullquote?");
     d.add("P011", { line: 2, column: 1, length: 1 });
     const [first, second] = d.sorted();
-    expect(first?.file).toBe("a.wmx");
+    expect(first?.file).toBe("a.woc");
     expect(first?.hint).toBe("Did you mean \\pullquote?");
     expect(second && "hint" in second).toBe(false);
   });

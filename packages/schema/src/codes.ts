@@ -1,5 +1,5 @@
 /**
- * Every diagnostic code from wmxdsl-grammar.md §11.
+ * Every diagnostic code from wocument-grammar.md §11.
  *
  * Codes are stable; messages may be reworded. Message templates take a small
  * bag of named parameters so call sites stay readable and the wording lives

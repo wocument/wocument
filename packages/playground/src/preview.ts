@@ -5,7 +5,7 @@
  * otherwise they are off, so the page does not re-animate on every keystroke.
  */
 import "./purity.js";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
+import type { ResolvedDocument } from "@wocument/resolved-document";
 import { createView } from "./view.js";
 
 const report = (e: unknown): void => parent.postMessage({ type: "error", message: e instanceof Error ? e.message : String(e) }, location.origin);

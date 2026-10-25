@@ -1,10 +1,10 @@
 /** Readability warnings W060-W063 (spec §15.6, 2026-10-09). */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
+import { parse, type Document } from "@wocument/parser";
 import { contrast, resolve } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const codes = (head: string) => {
   const { diagnostics } = resolve(parse(FM + head + "\nHello.").ast as Document);
   return diagnostics.filter((d) => /^W06/.test(d.code)).map((d) => d.code);

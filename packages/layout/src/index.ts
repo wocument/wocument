@@ -1,5 +1,5 @@
 /**
- * @wmxdsl/layout -- Resolved Document + viewport -> Positioned Document
+ * @wocument/layout -- Resolved Document + viewport -> Positioned Document
  * (spec §15.1 stage 4, §09.6).
  *
  * Pure after prepare: it reads no DOM and measures nothing itself. All text
@@ -28,8 +28,8 @@ import type {
   Scene,
   Story,
   Variant,
-} from "@wmxdsl/resolved-document";
-import { CURSOR_START, type EngineRun, type LineBox, type PrepareCache, type Prepared, type TextCursor, type TextEngine } from "@wmxdsl/text-engine";
+} from "@wocument/resolved-document";
+import { CURSOR_START, type EngineRun, type LineBox, type PrepareCache, type Prepared, type TextCursor, type TextEngine } from "@wocument/text-engine";
 import { type EvalContext, type Viewport, engineFont, gridGeometry, px, span } from "./evaluate.js";
 import { type RowItem, packRows } from "./rows.js";
 import { type Candidate, type Float, type PenaltyParts, type ScreenGeometry, type TrialSummary, UNTRIED, candidates, choose, distance, hardOk, signature } from "./compose.js";

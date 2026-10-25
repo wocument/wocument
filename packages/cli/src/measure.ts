@@ -6,9 +6,9 @@
  * an estimate, close to a browser's for Vanilla; other faces run a few characters either way.
  */
 
-import { activeVariant, layout, type PositionedDocument } from "@wmxdsl/layout";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { activeVariant, layout, type PositionedDocument } from "@wocument/layout";
+import type { ResolvedDocument } from "@wocument/resolved-document";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 
 export const TEST_WIDTHS = [360, 768, 1280, 1470, 2560];
 const CHAR = 0.46;

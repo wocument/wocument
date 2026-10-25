@@ -15,8 +15,8 @@
  * The resolver's entire output and the layout engine's entire input (spec §15.1, §15.3). Every value is concrete: no tokens, `extends`, `parent`, defaults, shorthand or viewport-dependent result remains.
  */
 export type ResolvedDocument = {
-  /** Always `"wmxdsl-resolved"`. Lets a consumer reject a file that is not a Resolved Document before reading further. */
-  format: "wmxdsl-resolved";
+  /** Always `"wocument-resolved"`. Lets a consumer reject a file that is not a Resolved Document before reading further. */
+  format: "wocument-resolved";
   /** Format major version. Bumped on any change that removes a field, changes a field's type or meaning, or weakens a guarantee in the schema document. Adding a field does not bump it. */
   version: 1;
   /** Frontmatter metadata, with defaults written in (spec §04). */
@@ -65,8 +65,8 @@ export type Variants = {
 
 /** Frontmatter, resolved (spec §04). Absent optional fields are written as `null` or `[]`, never omitted. */
 export type Meta = {
-  /** Language major version from frontmatter `wmxdsl`. Always 1 (spec §17). */
-  wmxdsl: 1;
+  /** Language major version from frontmatter `wocument`. Always 1 (spec §17). */
+  wocument: 1;
   /** Document title for `<title>` and social cards. Independent of `\headline` (spec §04). */
   title: string;
   /** BCP-47 language tag; `"en"` when the frontmatter sets none. Drives quote curling, hyphenation and the page's `lang` (spec §04, §10.2). */

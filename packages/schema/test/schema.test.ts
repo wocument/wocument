@@ -9,7 +9,7 @@ import {
   TOKENREF_OK,
   UNITS,
   type AttrSchema,
-} from "@wmxdsl/schema";
+} from "@wocument/schema";
 
 /** Grammar §06: the complete command table. */
 const GRAMMAR_TABLE: Record<string, { arity: string; kind: string | null }> = {
@@ -224,7 +224,7 @@ describe("child lists", () => {
 describe("size, place and \\spot (picture composition)", () => {
   const errors = async (src: string, kind?: "theme") => {
     const { parse } = await import("../../parser/src/index.js");
-    const text = kind ? src : `---\nwmxdsl: 1\ntitle: T\n---\n${src}`;
+    const text = kind ? src : `---\nwocument: 1\ntitle: T\n---\n${src}`;
     return parse(text, kind ? { kind } : {}).diagnostics.filter((d) => d.severity === "error");
   };
 

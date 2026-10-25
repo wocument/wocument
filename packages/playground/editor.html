@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>WMX editor</title>
+    <title>Wocument editor</title>
     <style>
       :root {
         --bg: #f6f5f2; --panel: #ffffff; --ink: #1c1b19; --muted: #6d6a64; --line: #dedbd4;
@@ -69,9 +69,9 @@
   </head>
   <body>
     <header>
-      <h1>WMX editor</h1>
+      <h1>Wocument editor</h1>
       <label>Document <select id="doc"></select></label>
-      <button id="save" type="button" title="Write the source back to its .wmx file (Cmd/Ctrl-S)" disabled>Saved</button>
+      <button id="save" type="button" title="Write the source back to its .woc file (Cmd/Ctrl-S)" disabled>Saved</button>
       <button id="format" type="button" title="Rewrite the source in canonical form (grammar §09)">Format</button>
       <button id="revert" type="button" title="Go back to the file as saved">Revert</button>
       <label>Width
@@ -89,7 +89,7 @@
     <main data-tab="preview">
       <div id="source">
         <pre id="gutter" aria-hidden="true"></pre>
-        <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="WMX source"></textarea>
+        <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Wocument source"></textarea>
       </div>
       <div id="output">
         <div role="tablist">

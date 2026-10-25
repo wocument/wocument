@@ -1,16 +1,16 @@
 /** Slice 2: explicit scenes, stories, parents, tokens, linearize, reveals, folios. */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { checkInvariants, type ParagraphBlock, type ResolvedDocument } from "@wmxdsl/resolved-document";
+import { parse, type Document } from "@wocument/parser";
+import { checkInvariants, type ParagraphBlock, type ResolvedDocument } from "@wocument/resolved-document";
 import { resolve } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 function run(body: string) {
-  const p = parse(FM + body, { file: "t.wmx" });
+  const p = parse(FM + body, { file: "t.woc" });
   expect(p.diagnostics).toEqual([]);
-  const r = resolve(p.ast as Document, { file: "t.wmx" });
+  const r = resolve(p.ast as Document, { file: "t.woc" });
   expect(checkInvariants(r.doc)).toEqual([]);
   return r;
 }
@@ -34,7 +34,7 @@ describe("scenes, stories and threads", () => {
   });
 
   it("a story with no visible frame at a breakpoint is an error (§09.3)", () => {
-    const p = parse(FM + "\\story[name=s]{x}\n\\scene{\\frame[story=s, hide@phone]}", { file: "t.wmx" });
+    const p = parse(FM + "\\story[name=s]{x}\n\\scene{\\frame[story=s, hide@phone]}", { file: "t.woc" });
     expect(() => resolve(p.ast as Document)).toThrow(/no visible frame on phone/);
   });
 });
@@ -112,14 +112,14 @@ describe("story content", () => {
 
 describe("motion=always (§13 rule 3)", () => {
   it("is a warning, W034, wherever it appears", () => {
-    const src = '---\nwmxdsl: 1\ntitle: T\n---\n\\scene{\\frame[enter=fade, motion=always]{Moving.}}';
+    const src = '---\nwocument: 1\ntitle: T\n---\n\\scene{\\frame[enter=fade, motion=always]{Moving.}}';
     const { diagnostics } = resolve(parse(src).ast as Document);
     expect(diagnostics.filter((d) => d.code === "W034")).toHaveLength(1);
   });
 });
 
 describe("page scenes (design 2026-09-22 §1, §3)", () => {
-  const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+  const FM = "---\nwocument: 1\ntitle: T\n---\n";
   const scene = (attrs: string) => resolve(parse(`${FM}\\scene[${attrs}]{\\frame{Text.}}`).ast as Document);
 
   it("height=page resolves, does not snap by default (2026-10-09), and keeps flow placements", () => {

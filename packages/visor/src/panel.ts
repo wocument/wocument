@@ -3,8 +3,8 @@
  * model only. Pure: no DOM.
  */
 
-import type { Decision, PositionedDocument } from "@wmxdsl/layout";
-import { screenPoints, snapStops } from "@wmxdsl/renderer";
+import type { Decision, PositionedDocument } from "@wocument/layout";
+import { screenPoints, snapStops } from "@wocument/renderer";
 import { describe, round } from "./dictionary.js";
 import type { Layer, ScreenModel } from "./model.js";
 

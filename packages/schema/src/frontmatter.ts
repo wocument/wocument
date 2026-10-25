@@ -13,7 +13,7 @@ export type FrontmatterField = {
 };
 
 export const FRONTMATTER_FIELDS: readonly FrontmatterField[] = [
-  { name: "wmxdsl", type: "integer", required: true, note: "Language major version. Currently 1." },
+  { name: "wocument", type: "integer", required: true, note: "Language major version. Currently 1." },
   { name: "title", type: "string", required: true, note: "Used for <title> and social cards." },
   { name: "lang", type: "string", required: false, note: "BCP-47 tag. Default en." },
   { name: "theme", type: "path", required: false, note: "One theme file. The only import mechanism." },
@@ -30,7 +30,7 @@ export const FRONTMATTER_BY_NAME: ReadonlyMap<string, FrontmatterField> = new Ma
 
 /** The typed result of a successful frontmatter parse. */
 export type Frontmatter = {
-  wmxdsl: number;
+  wocument: number;
   title: string;
   lang?: string;
   theme?: string;

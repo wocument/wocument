@@ -8,18 +8,18 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { checkInvariants } from "@wmxdsl/resolved-document";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { checkInvariants } from "@wocument/resolved-document";
 import { resolve } from "../src/index.js";
 
 const repo = (p: string): string => fileURLToPath(new URL(`../../../${p}`, import.meta.url));
 
 function resolveFixture(name: string) {
-  const src = readFileSync(repo(`packages/parser/test/fixtures/${name}.wmx`), "utf8");
-  const parsed = parse(src, { file: `${name}.wmx` });
+  const src = readFileSync(repo(`packages/parser/test/fixtures/${name}.woc`), "utf8");
+  const parsed = parse(src, { file: `${name}.woc` });
   expect(parsed.diagnostics).toEqual([]);
-  return resolve(parsed.ast as Document, { file: `${name}.wmx` });
+  return resolve(parsed.ast as Document, { file: `${name}.woc` });
 }
 
 describe("golden: minimum valid file (spec §18)", () => {
@@ -50,11 +50,11 @@ describe("golden: Stone & Strategy (spec §18), milestone M3", () => {
     );
 
   it("resolves to examples/stone-and-strategy.resolved.json, asset details aside", () => {
-    const src = readFileSync(repo("packages/parser/test/fixtures/stone-and-strategy.wmx"), "utf8");
-    const parsed = parse(src, { file: "stone-and-strategy.wmx" });
+    const src = readFileSync(repo("packages/parser/test/fixtures/stone-and-strategy.woc"), "utf8");
+    const parsed = parse(src, { file: "stone-and-strategy.woc" });
     expect(parsed.diagnostics).toEqual([]);
     const assets = createAssetHost({ publicDir: repo("packages/playground/public"), sourceDir: repo("packages/parser/test/fixtures") });
-    const { doc, diagnostics } = resolve(parsed.ast as Document, { file: "stone-and-strategy.wmx", assets });
+    const { doc, diagnostics } = resolve(parsed.ast as Document, { file: "stone-and-strategy.woc", assets });
     expect(checkInvariants(doc)).toEqual([]);
     const golden = JSON.parse(readFileSync(repo("packages/resolved-document/examples/stone-and-strategy.resolved.json"), "utf8"));
     expect(simplified(doc)).toEqual(simplified(golden));

@@ -1,13 +1,13 @@
 /** The visor's model (design 2026-10-21): what the overlay draws, from layout coordinates only. */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { type AssetHost, resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
-import { type GridGeometry, type PositionedDocument, type PositionedLine, layout } from "@wmxdsl/layout";
+import { parse, type Document } from "@wocument/parser";
+import { type AssetHost, resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
+import { type GridGeometry, type PositionedDocument, type PositionedLine, layout } from "@wocument/layout";
 import { DEFAULT_LAYERS, buildModel } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
 const VIEW = { width: 1280, height: 800 };
 const fake: AssetHost = {

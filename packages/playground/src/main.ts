@@ -4,15 +4,15 @@
  * packages/playground/docs or the parser fixtures and shows it (view.ts).
  */
 import "./purity.js";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
+import type { ResolvedDocument } from "@wocument/resolved-document";
 import { createView } from "./view.js";
 
 type Loader = () => Promise<{ default: ResolvedDocument }>;
 const found = {
-  ...import.meta.glob<{ default: ResolvedDocument }>("../../parser/test/fixtures/*.wmx"),
-  ...import.meta.glob<{ default: ResolvedDocument }>("../docs/*.wmx"),
+  ...import.meta.glob<{ default: ResolvedDocument }>("../../parser/test/fixtures/*.woc"),
+  ...import.meta.glob<{ default: ResolvedDocument }>("../docs/*.woc"),
 };
-const docs = new Map<string, Loader>(Object.entries(found).map(([path, load]) => [path.split("/").pop()!.replace(".wmx", ""), load]));
+const docs = new Map<string, Loader>(Object.entries(found).map(([path, load]) => [path.split("/").pop()!.replace(".woc", ""), load]));
 const params = new URLSearchParams(location.search);
 const name = params.get("doc") ?? "showcase";
 /** `?motion=reduce` previews the reduced-motion rendering (spec §13 rule 3) without changing the OS setting. */
@@ -22,7 +22,7 @@ const svh = document.getElementById("svh")!;
 
 function fail(e: unknown): void {
   // The plain reading version (if the page was served with one) stays, now visible (spec §13 rule 2).
-  document.documentElement.classList.remove("wmx-js");
+  document.documentElement.classList.remove("woc-js");
   root.querySelector("pre")?.remove();
   const pre = document.createElement("pre");
   pre.style.cssText = "margin:24px;padding:16px;background:#fee;color:#900;white-space:pre-wrap;font:14px monospace";

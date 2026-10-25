@@ -6,7 +6,7 @@
  * phase returns.
  */
 
-import { FRONTMATTER_BY_NAME, FRONTMATTER_FIELDS, type Frontmatter, type FrontmatterField } from "@wmxdsl/schema";
+import { FRONTMATTER_BY_NAME, FRONTMATTER_FIELDS, type Frontmatter, type FrontmatterField } from "@wocument/schema";
 import { parseDocument, type Document as YamlDocument } from "yaml";
 import type { Diagnostics } from "./diagnostics.js";
 import { PositionIndex } from "./positions.js";

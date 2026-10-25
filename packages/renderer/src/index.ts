@@ -1,5 +1,5 @@
 /**
- * @wmxdsl/renderer -- Positioned Document + Resolved Document -> DOM
+ * @wocument/renderer -- Positioned Document + Resolved Document -> DOM
  * (spec §15.1 stage 5).
  *
  * The Positioned Document carries geometry; everything else (palette, element
@@ -19,9 +19,9 @@
  * Reveals use opacity and transform only and never move layout (spec §13).
  */
 
-import { type EvalContext, type PositionedDocument, type PositionedLine, engineFont, justifySpacing, px } from "@wmxdsl/layout";
-import type { Color, Folio, ObjectElement, ParagraphBlock, ResolvedDocument, ResolvedStyle, Reveal, RuleBlock } from "@wmxdsl/resolved-document";
-import { cssFont } from "@wmxdsl/text-engine";
+import { type EvalContext, type PositionedDocument, type PositionedLine, engineFont, justifySpacing, px } from "@wocument/layout";
+import type { Color, Folio, ObjectElement, ParagraphBlock, ResolvedDocument, ResolvedStyle, Reveal, RuleBlock } from "@wocument/resolved-document";
+import { cssFont } from "@wocument/text-engine";
 import { continuingLines, installPages, snapStops } from "./pages.js";
 import { soundtrack } from "./music.js";
 import { READ_ASSIST_CSS, readAssist } from "./read-assist.js";
@@ -29,65 +29,65 @@ import { READ_ASSIST_CSS, readAssist } from "./read-assist.js";
 const SHY = "\u00ad";
 
 const CSS = `
-.wmx-doc { position: relative; overflow-x: clip; }
-.wmx-scene { position: absolute; left: 0; width: 100%; scroll-snap-align: none; }
-.wmx-scene[data-snap] { scroll-snap-align: start; }
-.wmx-scene[data-snap="hard"] { scroll-snap-stop: always; }
-.wmx-frame { position: absolute; inset: 0; margin: 0; pointer-events: none; }
-.wmx-frame * { pointer-events: auto; }
+.woc-doc { position: relative; overflow-x: clip; }
+.woc-scene { position: absolute; left: 0; width: 100%; scroll-snap-align: none; }
+.woc-scene[data-snap] { scroll-snap-align: start; }
+.woc-scene[data-snap="hard"] { scroll-snap-stop: always; }
+.woc-frame { position: absolute; inset: 0; margin: 0; pointer-events: none; }
+.woc-frame * { pointer-events: auto; }
 /* A nested (anchored-object) wrapper covers the scene too; only its content takes the pointer. */
-.wmx-frame .wmx-frame { pointer-events: none; }
-.wmx-block { margin: 0; font-size: inherit; font-weight: inherit; }
-.wmx-line, .wmx-cap { position: absolute; white-space: pre; }
-.wmx-line.wmx-hy::after { content: "-"; }
-.wmx-rule { position: absolute; }
-.wmx-column-rule { position: absolute; width: 0; border-left: 1px solid var(--wmx-rule); }
-.wmx-gallery { overflow: hidden; }
-.wmx-gallery[data-layout="strip"] { overflow-x: auto; overscroll-behavior-x: contain; }
-.wmx-facade { border: 0; padding: 0; cursor: pointer; background: #000 center / cover no-repeat; }
-.wmx-facade::after { content: ""; position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; margin: -24px 0 0 -34px; border-radius: 12px; background: rgba(0,0,0,.7) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 68 48'%3E%3Cpath d='M27 15v18l16-9z' fill='%23fff'/%3E%3C/svg%3E"); }
-.wmx-facade:focus-visible::after, .wmx-facade:hover::after { background-color: #c00; }
-.wmx-embed { border: 0; }
-.wmx-reveal { transition-property: opacity, transform, mask-position, -webkit-mask-position; will-change: opacity, transform; }
-/* Enter: the start state until .wmx-in. Exit: the end state while .wmx-out (left through the top). */
-.wmx-reveal:not(.wmx-in), .wmx-reveal.wmx-out { opacity: 0; }
-.wmx-reveal[data-enter="rise"]:not(.wmx-in), .wmx-reveal[data-exit="rise"].wmx-out { transform: translateY(24px); }
-.wmx-reveal[data-enter="drop"]:not(.wmx-in), .wmx-reveal[data-exit="drop"].wmx-out { transform: translateY(-24px); }
-.wmx-reveal[data-enter="slide-left"]:not(.wmx-in), .wmx-reveal[data-exit="slide-left"].wmx-out { transform: translateX(32px); }
-.wmx-reveal[data-enter="slide-right"]:not(.wmx-in), .wmx-reveal[data-exit="slide-right"].wmx-out { transform: translateX(-32px); }
-.wmx-reveal[data-enter="zoom"]:not(.wmx-in), .wmx-reveal[data-exit="zoom"].wmx-out { transform: scale(0.96); }
+.woc-frame .woc-frame { pointer-events: none; }
+.woc-block { margin: 0; font-size: inherit; font-weight: inherit; }
+.woc-line, .woc-cap { position: absolute; white-space: pre; }
+.woc-line.woc-hy::after { content: "-"; }
+.woc-rule { position: absolute; }
+.woc-column-rule { position: absolute; width: 0; border-left: 1px solid var(--woc-rule); }
+.woc-gallery { overflow: hidden; }
+.woc-gallery[data-layout="strip"] { overflow-x: auto; overscroll-behavior-x: contain; }
+.woc-facade { border: 0; padding: 0; cursor: pointer; background: #000 center / cover no-repeat; }
+.woc-facade::after { content: ""; position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; margin: -24px 0 0 -34px; border-radius: 12px; background: rgba(0,0,0,.7) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 68 48'%3E%3Cpath d='M27 15v18l16-9z' fill='%23fff'/%3E%3C/svg%3E"); }
+.woc-facade:focus-visible::after, .woc-facade:hover::after { background-color: #c00; }
+.woc-embed { border: 0; }
+.woc-reveal { transition-property: opacity, transform, mask-position, -webkit-mask-position; will-change: opacity, transform; }
+/* Enter: the start state until .woc-in. Exit: the end state while .woc-out (left through the top). */
+.woc-reveal:not(.woc-in), .woc-reveal.woc-out { opacity: 0; }
+.woc-reveal[data-enter="rise"]:not(.woc-in), .woc-reveal[data-exit="rise"].woc-out { transform: translateY(24px); }
+.woc-reveal[data-enter="drop"]:not(.woc-in), .woc-reveal[data-exit="drop"].woc-out { transform: translateY(-24px); }
+.woc-reveal[data-enter="slide-left"]:not(.woc-in), .woc-reveal[data-exit="slide-left"].woc-out { transform: translateX(32px); }
+.woc-reveal[data-enter="slide-right"]:not(.woc-in), .woc-reveal[data-exit="slide-right"].woc-out { transform: translateX(-32px); }
+.woc-reveal[data-enter="zoom"]:not(.woc-in), .woc-reveal[data-exit="zoom"].woc-out { transform: scale(0.96); }
 /* A wipe uncovers left to right. A mask, not clip-path: a clipped target never intersects, so its reveal would never fire. */
-.wmx-reveal[data-enter="wipe"], .wmx-reveal[data-exit="wipe"] {
+.woc-reveal[data-enter="wipe"], .woc-reveal[data-exit="wipe"] {
   -webkit-mask-image: linear-gradient(90deg, #000 50%, transparent 50%); mask-image: linear-gradient(90deg, #000 50%, transparent 50%);
   -webkit-mask-size: 200% 100%; mask-size: 200% 100%; -webkit-mask-position: 0 0; mask-position: 0 0;
 }
-.wmx-reveal[data-enter="wipe"]:not(.wmx-in), .wmx-reveal[data-exit="wipe"].wmx-out { opacity: 1; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
-.wmx-turn { position: absolute; inset: 0; pointer-events: none; }
-.wmx-scene.wmx-away > .wmx-turn { opacity: 0; }
-.wmx-scene[data-turn="slide"].wmx-away[data-from="below"] > .wmx-turn { transform: translateY(8vh); }
-.wmx-scene[data-turn="slide"].wmx-away[data-from="above"] > .wmx-turn { transform: translateY(-8vh); }
-.wmx-folio { position: absolute; z-index: 10; pointer-events: none; white-space: nowrap; }
-.wmx-progress { position: fixed; top: 0; left: 0; height: 2px; z-index: 11; transform-origin: 0 0; }
-.wmx-sound { position: relative; display: block; width: 28px; height: 28px;
+.woc-reveal[data-enter="wipe"]:not(.woc-in), .woc-reveal[data-exit="wipe"].woc-out { opacity: 1; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+.woc-turn { position: absolute; inset: 0; pointer-events: none; }
+.woc-scene.woc-away > .woc-turn { opacity: 0; }
+.woc-scene[data-turn="slide"].woc-away[data-from="below"] > .woc-turn { transform: translateY(8vh); }
+.woc-scene[data-turn="slide"].woc-away[data-from="above"] > .woc-turn { transform: translateY(-8vh); }
+.woc-folio { position: absolute; z-index: 10; pointer-events: none; white-space: nowrap; }
+.woc-progress { position: fixed; top: 0; left: 0; height: 2px; z-index: 11; transform-origin: 0 0; }
+.woc-sound { position: relative; display: block; width: 28px; height: 28px;
   margin: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: #5f6570; opacity: 0.55; cursor: pointer;
   transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1), color 400ms ease; -webkit-tap-highlight-color: transparent; }
-.wmx-sound::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; }
-.wmx-sound:hover, .wmx-sound[aria-pressed="true"] { opacity: 1; }
-.wmx-sound:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
-.wmx-sound svg { display: block; overflow: visible; }
-.wmx-sound circle { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.45; }
-.wmx-sound rect { fill: currentColor; transform-box: fill-box; transform-origin: 50% 50%; transform: scaleY(0.35); transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1); }
-.wmx-sound rect:nth-of-type(2) { transform: scaleY(0.65); }
-.wmx-sound rect:nth-of-type(3) { transform: scaleY(0.5); }
-.wmx-sound rect:nth-of-type(4) { transform: scaleY(0.3); }
-.wmx-sound[aria-pressed="true"] rect { animation: wmx-sound 1.1s ease-in-out infinite alternate; }
-.wmx-sound[aria-pressed="true"] rect:nth-of-type(2) { animation-delay: -0.35s; animation-duration: 0.9s; }
-.wmx-sound[aria-pressed="true"] rect:nth-of-type(3) { animation-delay: -0.7s; animation-duration: 1.3s; }
-.wmx-sound[aria-pressed="true"] rect:nth-of-type(4) { animation-delay: -0.2s; animation-duration: 1s; }
-@keyframes wmx-sound { from { transform: scaleY(0.25); } to { transform: scaleY(1); } }
+.woc-sound::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; }
+.woc-sound:hover, .woc-sound[aria-pressed="true"] { opacity: 1; }
+.woc-sound:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
+.woc-sound svg { display: block; overflow: visible; }
+.woc-sound circle { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.45; }
+.woc-sound rect { fill: currentColor; transform-box: fill-box; transform-origin: 50% 50%; transform: scaleY(0.35); transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1); }
+.woc-sound rect:nth-of-type(2) { transform: scaleY(0.65); }
+.woc-sound rect:nth-of-type(3) { transform: scaleY(0.5); }
+.woc-sound rect:nth-of-type(4) { transform: scaleY(0.3); }
+.woc-sound[aria-pressed="true"] rect { animation: woc-sound 1.1s ease-in-out infinite alternate; }
+.woc-sound[aria-pressed="true"] rect:nth-of-type(2) { animation-delay: -0.35s; animation-duration: 0.9s; }
+.woc-sound[aria-pressed="true"] rect:nth-of-type(3) { animation-delay: -0.7s; animation-duration: 1.3s; }
+.woc-sound[aria-pressed="true"] rect:nth-of-type(4) { animation-delay: -0.2s; animation-duration: 1s; }
+@keyframes woc-sound { from { transform: scaleY(0.25); } to { transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .wmx-sound[aria-pressed="true"] rect { animation: none; transform: scaleY(0.6); }
-  .wmx-sound[aria-pressed="true"] rect:nth-of-type(2n) { transform: scaleY(1); }
+  .woc-sound[aria-pressed="true"] rect { animation: none; transform: scaleY(0.6); }
+  .woc-sound[aria-pressed="true"] rect:nth-of-type(2n) { transform: scaleY(1); }
 }
 ${READ_ASSIST_CSS}`;
 
@@ -98,7 +98,7 @@ export { continuingLines, currentPage, pageStep, screenPoints, snapStops } from 
 export { cuePositions, currentCue } from "./music.js";
 export { type AssistMode } from "./read-assist.js";
 /** Moved to layout (2026-10-21), which the visor shares; still exported here. */
-export { SHRINK, justifySpacing } from "@wmxdsl/layout";
+export { SHRINK, justifySpacing } from "@wocument/layout";
 
 export type RenderHandle = { destroy(): void };
 
@@ -139,7 +139,7 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
   const reduce = options.reduceMotion ?? win.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const v = rd.variants[pd.breakpoint]!;
   root.textContent = "";
-  root.className = "wmx-doc";
+  root.className = "woc-doc";
   root.style.height = `${pd.height}px`;
   root.lang = rd.meta.lang;
 
@@ -154,18 +154,18 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
     const scene = v.scenes.find((s) => s.id === ps.name)!;
     const section = doc.createElement("section");
     section.id = scene.id;
-    section.className = "wmx-scene";
+    section.className = "woc-scene";
     section.style.top = `${ps.y}px`;
     section.style.height = `${ps.height}px`;
-    for (const [role, hex] of Object.entries(scene.palette)) section.style.setProperty(`--wmx-${role}`, hex);
+    for (const [role, hex] of Object.entries(scene.palette)) section.style.setProperty(`--woc-${role}`, hex);
     section.style.background = color(scene.bg);
-    section.style.color = "var(--wmx-ink)";
+    section.style.color = "var(--woc-ink)";
     // Design §3 turn: the page's layers sit in one wrapper that the turn moves; the section's paper stays put.
     // §13 rule 3: none under reduced motion.
     const turn = scene.turn && !reduce ? scene.turn : null;
     const layer = turn ? section.appendChild(doc.createElement("div")) : section;
     if (turn) {
-      layer.className = "wmx-turn";
+      layer.className = "woc-turn";
       section.dataset.turn = turn.effect;
       layer.style.transition = ["opacity", "transform"].map((p) => `${p} ${turn.durationMs}ms ${EASE[turn.ease]}`).join(", ");
       turns.push(section);
@@ -192,7 +192,7 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
         const obj = v.objects[id];
         // A figure or video is a real <figure>, so its caption is its <figcaption> (§14).
         el = doc.createElement(obj && FIGURES.has(obj.kind) ? "figure" : "div");
-        el.className = "wmx-frame";
+        el.className = "woc-frame";
         // Paint order by layer (§11.2): background beneath text, overlay above it.
         el.style.zIndex = obj?.layer === "background" ? "0" : obj?.layer === "overlay" ? "2" : "1";
         el.dataset.frame = id;
@@ -234,7 +234,7 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
       const block = v.stories[first.story]!.blocks[first.block] as ParagraphBlock;
       const style = v.styles[first.style]!;
       const wrapper = doc.createElement(tagFor(block));
-      wrapper.className = "wmx-block";
+      wrapper.className = "woc-block";
       wrapper.dataset.story = first.story;
       wrapper.dataset.block = String(first.block);
       // Running text, which read assist marks (read-assist.ts).
@@ -243,7 +243,7 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
       const cap = first.paragraphStart ? ps.caps.find((c) => c.story === first.story && c.block === first.block) : undefined;
       if (cap && block.dropcap) {
         const el = doc.createElement("span");
-        el.className = "wmx-cap";
+        el.className = "woc-cap";
         applyStyle(el, v.styles[block.dropcap.style]!, ctx);
         el.style.fontSize = `${cap.size}px`;
         el.style.left = `${cap.x}px`;
@@ -260,7 +260,7 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
         if (continuing.has(l) && style.hyphenMark === "both") {
           // The word's second hyphen, hanging before the line; decoration, not text.
           const hy = doc.createElement("span");
-          hy.className = "wmx-hy-lead";
+          hy.className = "woc-hy-lead";
           hy.setAttribute("aria-hidden", "true");
           hy.textContent = "-";
           hy.style.cssText = "position:absolute;right:100%;margin-right:0.06em;user-select:none;";
@@ -274,13 +274,13 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
     for (const r of ps.rules) {
       const block = v.stories[r.story]!.blocks[r.block] as RuleBlock;
       const el = doc.createElement("hr");
-      el.className = "wmx-rule";
+      el.className = "woc-rule";
       el.style.cssText += `left:${r.x}px;top:${r.y - ps.y - r.weight / 2}px;width:${r.width}px;height:0;margin:0;border:0;border-top:${r.weight}px solid ${color(block.rule.color)};`;
       frameEl(r.frame).appendChild(el);
     }
     for (const r of ps.columnRules) {
       const el = doc.createElement("div");
-      el.className = "wmx-column-rule";
+      el.className = "woc-column-rule";
       el.setAttribute("aria-hidden", "true");
       el.style.cssText += `left:${r.x - 0.5}px;top:${r.y - ps.y}px;height:${r.height}px;`;
       frameEl(r.frame).appendChild(el);
@@ -289,10 +289,10 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
     // last line, against its right edge. Decoration: the reading order is the DOM's.
     for (const c of ps.continues ?? []) {
       const el = doc.createElement("div");
-      el.className = "wmx-continues";
+      el.className = "woc-continues";
       el.setAttribute("aria-hidden", "true");
       el.textContent = "→";
-      el.style.cssText += `position:absolute;left:${c.x}px;top:${c.y - ps.y + 4}px;transform:translateX(-100%);font:600 18px/1 system-ui,sans-serif;color:var(--wmx-accent);`;
+      el.style.cssText += `position:absolute;left:${c.x}px;top:${c.y - ps.y + 4}px;transform:translateX(-100%);font:600 18px/1 system-ui,sans-serif;color:var(--woc-accent);`;
       frameEl(c.frame).appendChild(el);
     }
     root.appendChild(section);
@@ -306,34 +306,34 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
 
   // §13 reveals: fire once the element is `enterAt` inside the viewport.
   const observers = reveals.map(({ el, reveal }) => {
-    el.classList.add("wmx-reveal");
+    el.classList.add("woc-reveal");
     el.dataset.enter = reveal.enter;
     el.dataset.exit = reveal.exit;
     // Nothing to enter: it starts in place, and only its exit moves it.
-    if (reveal.enter === "none") el.classList.add("wmx-in");
+    if (reveal.enter === "none") el.classList.add("woc-in");
     el.style.transitionDuration = `${reveal.durationMs}ms`;
     el.style.transitionDelay = `${reveal.delayMs}ms`;
     el.style.transitionTimingFunction = EASE[reveal.ease];
     const io = new win.IntersectionObserver(
       ([e]) => {
         if (e?.isIntersecting) {
-          el.classList.add("wmx-in");
+          el.classList.add("woc-in");
           if (!reveal.replay) io.disconnect();
-        } else if (reveal.replay) el.classList.remove("wmx-in");
+        } else if (reveal.replay) el.classList.remove("woc-in");
       },
       { threshold: Math.min(1, Math.max(0, reveal.enterAt)) },
     );
     // The frame box is the whole scene and paragraph wrappers have no height (their lines are
     // positioned), so observe the first line: the threshold then means the content. An object's
-    // `.wmx-frame` has no `.wmx-line` (it holds its box directly as `el`'s first child, also
+    // `.woc-frame` has no `.woc-line` (it holds its box directly as `el`'s first child, also
     // scene-sized via inset:0), so fall back to that box rather than the whole-scene wrapper --
     // otherwise both its enter and exit observers watch the whole scene and exit never visibly plays.
-    const target = el.querySelector(".wmx-line") ?? el.firstElementChild ?? el;
+    const target = el.querySelector(".woc-line") ?? el.firstElementChild ?? el;
     if (reveal.enter !== "none") io.observe(target);
     if (reveal.exit === "none") return [io];
     // §13 exit: plays when the element leaves through the top of the viewport, and undoes when it comes back.
     const out = new win.IntersectionObserver(([e]) => {
-      if (e) el.classList.toggle("wmx-out", !e.isIntersecting && e.boundingClientRect.bottom <= 0);
+      if (e) el.classList.toggle("woc-out", !e.isIntersecting && e.boundingClientRect.bottom <= 0);
     });
     out.observe(target);
     return [io, out];
@@ -353,10 +353,10 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
   const turning = turns.map((section) => {
     const io = new win.IntersectionObserver(([e]) => {
       if (!e) return;
-      if (e.isIntersecting) section.classList.remove("wmx-away");
+      if (e.isIntersecting) section.classList.remove("woc-away");
       else {
         section.dataset.from = e.boundingClientRect.top > 0 ? "below" : "above";
-        section.classList.add("wmx-away");
+        section.classList.add("woc-away");
       }
     });
     io.observe(section);
@@ -386,7 +386,7 @@ export function render(root: HTMLElement, pd: PositionedDocument, rd: ResolvedDo
  * scrolling with the page, in the scene's palette; and an optional progress bar fixed to the viewport.
  */
 function renderFolio(doc: Document, win: Window, pd: PositionedDocument, rd: ResolvedDocument): RenderHandle {
-  doc.querySelectorAll(".wmx-folio, .wmx-progress").forEach((e) => e.remove());
+  doc.querySelectorAll(".woc-folio, .woc-progress").forEach((e) => e.remove());
   const v = rd.variants[pd.breakpoint]!;
   const labels: HTMLElement[] = [];
   let progress = false;
@@ -402,7 +402,7 @@ function renderFolio(doc: Document, win: Window, pd: PositionedDocument, rd: Res
     const pages = ps.paged ? Math.max(1, Math.round(ps.height / pd.viewport.height)) : 1;
     for (let k = 0; k < pages; k++) {
       const label = doc.createElement("div");
-      label.className = "wmx-folio";
+      label.className = "woc-folio";
       label.setAttribute("aria-hidden", "true");
       label.dataset.pos = f.position;
       const block = v.stories[f.story]!.blocks[0] as ParagraphBlock;
@@ -423,7 +423,7 @@ function renderFolio(doc: Document, win: Window, pd: PositionedDocument, rd: Res
   }
   const bar = progress ? doc.createElement("div") : null;
   if (!bar) return { destroy: () => labels.forEach((l) => l.remove()) };
-  bar.className = "wmx-progress";
+  bar.className = "woc-progress";
   bar.style.width = "100%";
   doc.body.appendChild(bar);
   const update = (): void => {
@@ -455,7 +455,7 @@ function lineElement(
   stretch = false,
 ): HTMLElement {
   const el = doc.createElement("span");
-  el.className = "wmx-line";
+  el.className = "woc-line";
   // §07.6 hang: hanging punctuation sits outside the slot; the line is justified to the wider box.
   const hung = l.hang ? { ...l, x: l.x - l.hang.left, width: l.width + l.hang.left + l.hang.right } : l;
   el.style.left = `${hung.x}px`;
@@ -472,7 +472,7 @@ function lineElement(
   const spacing = stretch ? justifySpacing(hung, l.size ?? px(blockStyle.size, ctx)) : 0;
   if (spacing > 0) el.style.wordSpacing = `${spacing}px`;
   const breaksAtShy = l.text.endsWith(SHY);
-  if (breaksAtShy) el.classList.add("wmx-hy"); // the word continues on the next line: no trailing space
+  if (breaksAtShy) el.classList.add("woc-hy"); // the word continues on the next line: no trailing space
   for (const f of l.fragments) el.appendChild(fragmentNode(doc, f.text.replaceAll(SHY, ""), block.runs[f.run], block, styles, blockStyle, ctx, sized));
   if (!breaksAtShy && !/\s$/.test(l.text)) el.appendChild(doc.createTextNode(" "));
   return el;
@@ -559,7 +559,7 @@ function objectBox(
     const track = o.captions ? rd.assets[o.captions] : undefined;
     if (track?.kind === "file") el.appendChild(Object.assign(doc.createElement("track"), { kind: "captions", src: track.url, default: true }));
     if (o.title !== null) el.setAttribute("aria-label", o.title);
-    el.className = "wmx-media";
+    el.className = "woc-media";
     return place(el);
   }
   if (o.kind === "embed") {
@@ -578,13 +578,13 @@ function objectBox(
         allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
         allowFullscreen: true,
       });
-      f.className = "wmx-embed";
+      f.className = "woc-embed";
       return place(f);
     };
     if (!o.facade) return frame(false);
     // §11.6 facade: a poster and a play button; the provider's page loads only when asked for.
     const btn = Object.assign(doc.createElement("button"), { type: "button" });
-    btn.className = "wmx-facade";
+    btn.className = "woc-facade";
     btn.setAttribute("aria-label", o.title ? `Play: ${o.title}` : "Play");
     const poster = o.poster && ("url" in o.poster ? o.poster.url : (rd.assets[o.poster.asset] as { fallback?: string } | undefined)?.fallback);
     if (poster) btn.style.backgroundImage = `url("${poster}")`;
@@ -593,7 +593,7 @@ function objectBox(
   }
   if (o.kind === "gallery") {
     const el = doc.createElement("div");
-    el.className = "wmx-gallery";
+    el.className = "woc-gallery";
     el.dataset.layout = o.layout;
     if (o.layout === "strip") el.tabIndex = 0; // a scroll region is reachable by keyboard
     return place(el);
@@ -629,27 +629,27 @@ function objectBox(
     // alt: "" marks a decorative image; null means it was missing (a build warning), so none is set.
     if (o.alt !== null) el.setAttribute(el instanceof HTMLImageElement ? "alt" : "aria-label", o.alt);
     if (o.alt === "" && el instanceof HTMLVideoElement) el.setAttribute("aria-hidden", "true");
-    el.className = "wmx-media";
+    el.className = "woc-media";
     el.style.objectFit = m.fit;
     el.style.objectPosition = `${m.focus.x * 100}% ${m.focus.y * 100}%`;
     if (m.clip) el.style.clipPath = clipFor(m.shape, rd);
     return place(el);
   }
   const el = doc.createElement("div");
-  el.className = `wmx-object wmx-${o.kind}`;
+  el.className = `woc-object woc-${o.kind}`;
   el.dataset.object = o.id;
   if (o.kind === "sidebar") {
     if (o.bg) el.style.background = color(o.bg);
-    if (o.border === "rule") el.style.border = "1px solid var(--wmx-rule)";
+    if (o.border === "rule") el.style.border = "1px solid var(--woc-rule)";
   }
   if (o.kind === "pullquote") el.setAttribute("role", "note");
   if (placed.mark) {
     // §07.6 mark: decoration only, in the pull quote's first style's face, bold, in the accent.
     const m = doc.createElement("span");
-    m.className = "wmx-mark";
+    m.className = "woc-mark";
     m.setAttribute("aria-hidden", "true");
     m.textContent = placed.mark.text;
-    m.style.cssText = `position:absolute;left:-0.04em;top:-0.18em;font-size:${placed.mark.size}px;line-height:1;font-weight:700;color:var(--wmx-accent);`;
+    m.style.cssText = `position:absolute;left:-0.04em;top:-0.18em;font-size:${placed.mark.size}px;line-height:1;font-weight:700;color:var(--woc-accent);`;
     const style = rd.variants[Object.keys(rd.variants)[0]!]?.styles;
     const first = o.kind === "pullquote" ? Object.values(rd.variants).map((v) => v.stories[o.story]?.blocks[0]).find(Boolean) : undefined;
     const family = first?.kind === "paragraph" ? style?.[first.style]?.family : undefined;
@@ -732,12 +732,12 @@ function applyStyle(el: HTMLElement, s: ResolvedStyle, ctx: EvalContext): void {
   if (s.underline) el.style.textDecoration = "underline";
 }
 
-const color = (c: Color): string => ("role" in c ? `var(--wmx-${c.role})` : c.hex);
+const color = (c: Color): string => ("role" in c ? `var(--woc-${c.role})` : c.hex);
 
 function installCss(doc: Document): void {
-  if (doc.getElementById("wmx-css")) return;
+  if (doc.getElementById("woc-css")) return;
   const style = doc.createElement("style");
-  style.id = "wmx-css";
+  style.id = "woc-css";
   style.textContent = CSS;
   doc.head.appendChild(style);
 }

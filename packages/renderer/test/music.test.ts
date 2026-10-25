@@ -1,8 +1,8 @@
 /** The soundtrack's choice of track (spec §10.6): the last cue above the reading position. */
 
 import { describe, expect, it } from "vitest";
-import type { PositionedDocument } from "@wmxdsl/layout";
-import type { MusicCue, ResolvedDocument } from "@wmxdsl/resolved-document";
+import type { PositionedDocument } from "@wocument/layout";
+import type { MusicCue, ResolvedDocument } from "@wocument/resolved-document";
 import { cuePositions, currentCue } from "../src/music.js";
 
 const cue = (at: MusicCue["at"], audio: string | null, enterAt = 0.5): MusicCue => ({ at, audio, fadeMs: 2000, volume: 0.8, loop: true, enterAt });

@@ -5,7 +5,7 @@
  * CSS pixels in document space: every `y` is from the top of the document.
  */
 
-import type { TextCursor } from "@wmxdsl/text-engine";
+import type { TextCursor } from "@wocument/text-engine";
 
 export type PositionedDocument = {
   viewport: { width: number; height: number };

@@ -6,7 +6,7 @@
  * everything it finds rather than stopping at the first error.
  */
 
-import { CODES, type DiagnosticCode, type Severity } from "@wmxdsl/schema";
+import { CODES, type DiagnosticCode, type Severity } from "@wocument/schema";
 import type { Pos } from "./positions.js";
 
 export type Diagnostic = {

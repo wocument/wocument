@@ -7,14 +7,14 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import type { ParagraphBlock } from "@wmxdsl/resolved-document";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import type { ParagraphBlock } from "@wocument/resolved-document";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout, type PositionedDocument } from "../src/index.js";
 
-const src = readFileSync(fileURLToPath(new URL("../../playground/docs/showcase.wmx", import.meta.url)), "utf8");
+const src = readFileSync(fileURLToPath(new URL("../../playground/docs/showcase.woc", import.meta.url)), "utf8");
 const assets = createAssetHost({ publicDir: fileURLToPath(new URL("../../playground/public", import.meta.url)), sourceDir: "." });
 const { doc: rd } = resolve(parse(src).ast as Document, { assets });
 const at = (width: number, height = 900): PositionedDocument => layout(rd, { width, height }, new PrepareCache(createFixedEngine()));
@@ -87,7 +87,7 @@ describe("balanced columns (§09.4)", () => {
   // that cannot split, and there the best split leaves the columns uneven, as §09.4 allows.)
   it("two columns of plain text: whole paragraphs, the second column no taller than the first needs (2026-10-17)", () => {
     const text = Array.from({ length: 9 }, (_, i) => `Paragraph ${i} ${"words that wrap across lines ".repeat(6)}`).join("\n\n");
-    const { doc } = resolve(parse(`---\nwmxdsl: 1\ntitle: T\n---\n\\story[name=s]{${text}}\n\\scene{\\frame[story=s, cols=1-8, columns=2]}`).ast as Document);
+    const { doc } = resolve(parse(`---\nwocument: 1\ntitle: T\n---\n\\story[name=s]{${text}}\n\\scene{\\frame[story=s, cols=1-8, columns=2]}`).ast as Document);
     const s = layout(doc, { width: 1470, height: 900 }, new PrepareCache(createFixedEngine())).scenes[0]!;
     const bottoms = [0, 1].map((c) => Math.max(...s.lines.filter((l) => l.column === c).map((l) => l.y + l.height)));
     expect(bottoms.every(Number.isFinite)).toBe(true);

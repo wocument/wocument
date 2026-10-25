@@ -195,7 +195,7 @@ R-question.
 
 ## 6. Versioning and compatibility
 
-- `format: "wmxdsl-resolved"` and `version: 1` identify the file. A consumer
+- `format: "wocument-resolved"` and `version: 1` identify the file. A consumer
   MUST reject a different `format` or a higher `version`.
 - **Breaking, bumps `version`:** removing or renaming a field, changing a field's
   type or meaning, adding a value to a closed enum that consumers must handle,
@@ -205,7 +205,7 @@ R-question.
 - The generated JSON Schema is the **producer's** contract and is strict: every
   field required, no unknown fields. A consumer on version 1 that meets a newer
   producer's extra fields ignores them and does not validate against this schema.
-- The format version is independent of the language version (`meta.wmxdsl`).
+- The format version is independent of the language version (`meta.wocument`).
 
 ---
 
@@ -245,7 +245,7 @@ The resolver's entire output and the layout engine's entire input (spec §15.1, 
 
 | Field | Type | Meaning |
 | :---- | :---- | :---- |
-| `format` | `"wmxdsl-resolved"` | Always `"wmxdsl-resolved"`. Lets a consumer reject a file that is not a Resolved Document before reading further. |
+| `format` | `"wocument-resolved"` | Always `"wocument-resolved"`. Lets a consumer reject a file that is not a Resolved Document before reading further. |
 | `version` | `1` | Format major version. Bumped on any change that removes a field, changes a field's type or meaning, or weakens a guarantee in the schema document. Adding a field does not bump it. |
 | `meta` | [`Meta`](#meta) | Frontmatter metadata, with defaults written in (spec §04). |
 | `breakpoints` | [`BreakpointRange`](#breakpointrange)[] | Sorted, total cover of all viewport widths from 0 upward, each range naming the variant it selects (spec §07.4). The active variant is the last entry whose `minWidth` is at or below the viewport width. |
@@ -262,7 +262,7 @@ Frontmatter, resolved (spec §04). Absent optional fields are written as `null` 
 
 | Field | Type | Meaning |
 | :---- | :---- | :---- |
-| `wmxdsl` | `1` | Language major version from frontmatter `wmxdsl`. Always 1 (spec §17). |
+| `wocument` | `1` | Language major version from frontmatter `wocument`. Always 1 (spec §17). |
 | `title` | `string` | Document title for `<title>` and social cards. Independent of `\headline` (spec §04). |
 | `lang` | `string` | BCP-47 language tag; `"en"` when the frontmatter sets none. Drives quote curling, hyphenation and the page's `lang` (spec §04, §10.2). |
 | `description` | `string` \| `null` | Meta description, or `null` (spec §04). |

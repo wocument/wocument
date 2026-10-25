@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * wmxdsl -- the command line: parse, resolve, format, check.
+ * wocument -- the command line: parse, resolve, format, check.
  *
  * Diagnostics go to stderr in spec §15.6's shape:
  *
- *   wmxdsl: parse error [P012] at castle.wmx:14:8
+ *   woc: parse error [P012] at castle.woc:14:8
  *     Unknown command \pullqoute. Did you mean \pullquote?
  *
  * Exit status is 1 when anything reported an error (or, for `format --check`,
@@ -15,12 +15,12 @@ import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { createAssetHost } from "@wmxdsl/assets";
-import { format, parse, type Diagnostic, type Document, type ParseResult, type Theme } from "@wmxdsl/parser";
-import { resolve, type ResolveResult } from "@wmxdsl/resolver";
+import { createAssetHost } from "@wocument/assets";
+import { format, parse, type Diagnostic, type Document, type ParseResult, type Theme } from "@wocument/parser";
+import { resolve, type ResolveResult } from "@wocument/resolver";
 import { copyfit, lineLengths, tooShortOrLong } from "./measure.js";
 
-const USAGE = `usage: wmxdsl <command> [options] <file...>
+const USAGE = `usage: woc <command> [options] <file...>
 
   parse <file>       print the AST as JSON
   resolve <file>     print the Resolved Document as JSON
@@ -32,7 +32,7 @@ const USAGE = `usage: wmxdsl <command> [options] <file...>
 
   --public <dir>     where site-absolute paths (/img/a.png) live (default: ./public)
 
-A .wmxt file is read as a theme.`;
+A .woct file is read as a theme.`;
 
 type Options = { public: string; write: boolean; check: boolean };
 
@@ -71,7 +71,7 @@ export function main(argv: string[]): number {
       return each(files, (file) => formatFile(file, opts));
     case "check":
       return each(files, (file) => {
-        if (file.endsWith(".wmxt")) return parseFile(file).ok;
+        if (file.endsWith(".woct")) return parseFile(file).ok;
         const r = resolveFile(file, opts);
         if (r) {
           checkLineLength(file, r);
@@ -81,14 +81,14 @@ export function main(argv: string[]): number {
         return r !== null;
       });
     default:
-      console.error(`wmxdsl: unknown command \`${command}\`\n\n${USAGE}`);
+      console.error(`woc: unknown command \`${command}\`\n\n${USAGE}`);
       return 2;
   }
 }
 
 function one(files: string[], run: (file: string) => boolean): number {
   if (files.length > 1) {
-    console.error("wmxdsl: this command takes one file");
+    console.error("woc: this command takes one file");
     return 2;
   }
   return run(files[0] as string) ? 0 : 1;
@@ -102,7 +102,7 @@ function each(files: string[], run: (file: string) => boolean): number {
 }
 
 function parseFile(file: string): ParseResult {
-  const r = parse(readFileSync(file), { file, kind: file.endsWith(".wmxt") ? "theme" : "document" });
+  const r = parse(readFileSync(file), { file, kind: file.endsWith(".woct") ? "theme" : "document" });
   for (const d of r.diagnostics) report(d);
   return r;
 }
@@ -125,13 +125,13 @@ function resolveFile(file: string, opts: Options): ResolveResult | null {
   try {
     const r = resolve(doc, { file, theme, assets: createAssetHost({ publicDir: opts.public, sourceDir }) });
     for (const d of r.diagnostics) {
-      console.error(`wmxdsl: ${d.category.replace("-", " ")} [${d.code}] at ${d.file}:${d.line}:${d.column}`);
+      console.error(`woc: ${d.category.replace("-", " ")} [${d.code}] at ${d.file}:${d.line}:${d.column}`);
       console.error(`  ${sentence(d.message)}${d.fix ? ` ${d.fix}` : ""}`);
     }
     return r;
   } catch (err) {
     // Resolve errors throw (spec §15.6).
-    console.error(`wmxdsl: resolve error at ${file}\n  ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`woc: resolve error at ${file}\n  ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -141,7 +141,7 @@ function checkLineLength(file: string, r: ResolveResult): void {
   const off = lineLengths(r.doc).filter(tooShortOrLong);
   if (!off.length) return;
   const at = off.map((l) => `about ${l.chars} at ${l.width}px (${l.variant})`).join(", ");
-  console.error(`wmxdsl: layout warning [W064] at ${file}:1:1`);
+  console.error(`woc: layout warning [W064] at ${file}:1:1`);
   console.error(`  Body lines hold ${at}; comfortable reading is about 45 to 75 characters a line (on a phone, 30 or more). Change the frame's columns or measure, or the text size, at those breakpoints.`);
 }
 
@@ -166,7 +166,7 @@ function formatFile(file: string, opts: Options): boolean {
 
 function report(d: Diagnostic): void {
   const stage = d.code.startsWith("L") ? "lex" : "parse";
-  console.error(`wmxdsl: ${stage} ${d.severity} [${d.code}] at ${d.file ?? "<input>"}:${d.pos.line}:${d.pos.column}`);
+  console.error(`woc: ${stage} ${d.severity} [${d.code}] at ${d.file ?? "<input>"}:${d.pos.line}:${d.pos.column}`);
   console.error(`  ${sentence(d.message)}${d.hint ? ` ${d.hint}` : ""}`);
 }
 

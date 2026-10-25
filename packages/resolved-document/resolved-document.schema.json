@@ -7,8 +7,8 @@
       "properties": {
         "format": {
           "type": "string",
-          "const": "wmxdsl-resolved",
-          "description": "Always `\"wmxdsl-resolved\"`. Lets a consumer reject a file that is not a Resolved Document before reading further."
+          "const": "wocument-resolved",
+          "description": "Always `\"wocument-resolved\"`. Lets a consumer reject a file that is not a Resolved Document before reading further."
         },
         "version": {
           "type": "number",
@@ -87,10 +87,10 @@
     "Meta": {
       "type": "object",
       "properties": {
-        "wmxdsl": {
+        "wocument": {
           "type": "number",
           "const": 1,
-          "description": "Language major version from frontmatter `wmxdsl`. Always 1 (spec §17)."
+          "description": "Language major version from frontmatter `wocument`. Always 1 (spec §17)."
         },
         "title": {
           "type": "string",
@@ -148,7 +148,7 @@
         }
       },
       "required": [
-        "wmxdsl",
+        "wocument",
         "title",
         "lang",
         "description",
@@ -4300,6 +4300,6 @@
       "description": "A resolve or asset warning (spec §15.6)."
     }
   },
-  "$id": "https://wmxdsl.dev/schema/resolved-document/1.json",
-  "title": "WMXDSL Resolved Document, format version 1"
+  "$id": "https://wocument.dev/schema/resolved-document/1.json",
+  "title": "Wocument Resolved Document, format version 1"
 }

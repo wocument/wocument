@@ -1,9 +1,9 @@
-# @wmxdsl/parser
+# @wocument/parser
 
-Hand-written parser for WMXDSL. Turns a `.wmx` document or a `.wmxt` theme file
+Hand-written parser for Wocument. Turns a `.woc` document or a `.woct` theme file
 into a validated AST plus a list of diagnostics.
 
-Normative sources: `wmxdsl-grammar.md` for syntax, `wmxdsl-specification.md`
+Normative sources: `wocument-grammar.md` for syntax, `wocument-specification.md`
 for attribute names, types, defaults and meaning. Where they disagree on
 syntax, the grammar wins.
 
@@ -26,9 +26,9 @@ specification tables. Run it whenever a command row changes.
 ## Public API
 
 ```ts
-import { parse, parseSurface } from "@wmxdsl/parser";
+import { parse, parseSurface } from "@wocument/parser";
 
-const result = parse(source, { file: "castle.wmx", kind: "document" });
+const result = parse(source, { file: "castle.woc", kind: "document" });
 //    ^ { ast: Document | Theme | null, diagnostics: Diagnostic[], ok: boolean }
 ```
 

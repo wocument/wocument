@@ -51,7 +51,7 @@ function table(c: CommandSchema): string {
 
 const wanted = process.argv.slice(2);
 const names = wanted.length > 0 ? wanted : COMMAND_NAMES;
-const out: string[] = ["# WMXDSL command schema", ""];
+const out: string[] = ["# Wocument command schema", ""];
 for (const n of names) {
   const c = COMMANDS.get(n);
   if (c === undefined) {

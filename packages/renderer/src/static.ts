@@ -9,7 +9,7 @@
  *
  * When the page's script runs, `render()` replaces it with the laid-out page.
  * To avoid a visible swap, the page marks itself as scripted before the body
- * is parsed -- `<script>document.documentElement.classList.add("wmx-js")</script>`
+ * is parsed -- `<script>document.documentElement.classList.add("woc-js")</script>`
  * in the head -- and the reading version stays hidden while that class is set.
  *
  * Limit: built from the `base` variant; breakpoint overrides (hide@phone and
@@ -25,28 +25,28 @@ import type {
   ResolvedDocument,
   ResolvedStyle,
   Variant,
-} from "@wmxdsl/resolved-document";
+} from "@wocument/resolved-document";
 
 const CSS = `
-.wmx-js .wmx-static { visibility: hidden; }
-.wmx-static { font: 19px/1.55 serif; }
-.wmx-static section { padding: 3rem max(1.25rem, calc((100% - 40rem) / 2)); }
-.wmx-static h1, .wmx-static h2, .wmx-static h3, .wmx-static p { margin: 0 0 0.75em; }
-.wmx-static h1 { line-height: 1.1; }
-.wmx-static h2, .wmx-static h3 { margin-top: 1.5em; line-height: 1.25; }
-.wmx-static figure { margin: 2rem 0; }
-.wmx-static img, .wmx-static video { display: block; max-width: 100%; height: auto; }
-.wmx-static figcaption { margin-top: 0.5rem; }
-.wmx-static blockquote { margin: 2rem 0; padding-left: 1.25rem; border-left: 3px solid var(--wmx-accent); }
-.wmx-static aside { margin: 2rem 0; padding: 1rem 1.25rem; border: 1px solid var(--wmx-rule); }
-.wmx-static hr { border: 0; border-top: 1px solid var(--wmx-rule); margin: 1.5rem 0; }
-.wmx-static a { color: var(--wmx-accent); }
+.woc-js .woc-static { visibility: hidden; }
+.woc-static { font: 19px/1.55 serif; }
+.woc-static section { padding: 3rem max(1.25rem, calc((100% - 40rem) / 2)); }
+.woc-static h1, .woc-static h2, .woc-static h3, .woc-static p { margin: 0 0 0.75em; }
+.woc-static h1 { line-height: 1.1; }
+.woc-static h2, .woc-static h3 { margin-top: 1.5em; line-height: 1.25; }
+.woc-static figure { margin: 2rem 0; }
+.woc-static img, .woc-static video { display: block; max-width: 100%; height: auto; }
+.woc-static figcaption { margin-top: 0.5rem; }
+.woc-static blockquote { margin: 2rem 0; padding-left: 1.25rem; border-left: 3px solid var(--woc-accent); }
+.woc-static aside { margin: 2rem 0; padding: 1rem 1.25rem; border: 1px solid var(--woc-rule); }
+.woc-static hr { border: 0; border-top: 1px solid var(--woc-rule); margin: 1.5rem 0; }
+.woc-static a { color: var(--woc-accent); }
 `;
 
 const esc = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-const color = (c: Color): string => ("role" in c ? `var(--wmx-${c.role})` : c.hex);
+const color = (c: Color): string => ("role" in c ? `var(--woc-${c.role})` : c.hex);
 
 /** A length as CSS, where it has a meaning without a grid; `null` for grid units and percentages. */
 function cssLen(l: Len): string | null {
@@ -88,7 +88,7 @@ export function renderStatic(rd: ResolvedDocument): string {
   /** A class for a style key, registered on first use so the stylesheet holds only what is used. */
   const cls = (key: string): string => {
     let c = classes.get(key);
-    if (!c) classes.set(key, (c = `wmx-s${classes.size}`));
+    if (!c) classes.set(key, (c = `woc-s${classes.size}`));
     return c;
   };
   const emitted = new Set<string>();
@@ -154,39 +154,39 @@ export function renderStatic(rd: ResolvedDocument): string {
     if (o.hidden) return "";
     switch (o.kind) {
       case "figure":
-        return `<figure class="wmx-figure">${image(o.image, o.alt)}${caption(o)}</figure>`;
+        return `<figure class="woc-figure">${image(o.image, o.alt)}${caption(o)}</figure>`;
       case "video": {
         const a = rd.assets[o.video];
         const poster = o.poster ? rd.assets[o.poster] : undefined;
         const sources = a?.kind === "video" ? a.sources.map((s) => `<source src="${esc(s.url)}" type="${esc(s.type)}">`).join("") : "";
         const posterAttr = poster?.kind === "image" ? ` poster="${esc(poster.fallback)}"` : "";
         const label = o.alt ? ` aria-label="${esc(o.alt)}"` : "";
-        return `<figure class="wmx-video"><video controls preload="none"${posterAttr}${label}>${sources}</video>${caption(o)}</figure>`;
+        return `<figure class="woc-video"><video controls preload="none"${posterAttr}${label}>${sources}</video>${caption(o)}</figure>`;
       }
       case "audio": {
         const a = rd.assets[o.audio];
         const sources = a?.kind === "audio" ? a.sources.map((s) => `<source src="${esc(s.url)}" type="${esc(s.type)}">`).join("") : "";
         const label = o.title ? ` aria-label="${esc(o.title)}"` : "";
-        return `<figure class="wmx-audio"><audio controls preload="none"${label}>${sources}</audio>${caption(o)}</figure>`;
+        return `<figure class="woc-audio"><audio controls preload="none"${label}>${sources}</audio>${caption(o)}</figure>`;
       }
       case "embed": {
         // Without a script there is no facade: a link to the provider's page stands in for the player.
         const s = o.source;
         const href =
           "url" in s ? s.url : s.provider === "youtube" ? `https://www.youtube.com/watch?v=${encodeURIComponent(s.id)}` : `https://vimeo.com/${encodeURIComponent(s.id)}`;
-        return `<figure class="wmx-embed"><p><a href="${esc(href)}">${esc(o.title ?? href)}</a></p>${caption(o)}</figure>`;
+        return `<figure class="woc-embed"><p><a href="${esc(href)}">${esc(o.title ?? href)}</a></p>${caption(o)}</figure>`;
       }
       case "gallery":
-        return `<figure class="wmx-gallery">${o.items.map((id) => object(v.objects[id]!)).join("")}${caption(o)}</figure>`;
+        return `<figure class="woc-gallery">${o.items.map((id) => object(v.objects[id]!)).join("")}${caption(o)}</figure>`;
       case "group":
         // Source order, which is also reading order: a stacked photo and its headline stay together.
         return o.children
           .map((c) => (c.kind === "frame" ? (v.frames[c.id]!.hidden ? "" : story(v.frames[c.id]!.story)) : object(v.objects[c.id]!)))
           .join("");
       case "pullquote":
-        return `<blockquote class="wmx-pullquote">${story(o.story)}</blockquote>`;
+        return `<blockquote class="woc-pullquote">${story(o.story)}</blockquote>`;
       case "sidebar":
-        return `<aside class="wmx-sidebar">${story(o.story)}</aside>`;
+        return `<aside class="woc-sidebar">${story(o.story)}</aside>`;
       case "rule":
         return "<hr>";
       default:
@@ -197,7 +197,7 @@ export function renderStatic(rd: ResolvedDocument): string {
 
   const sections = v.scenes.map((scene) => {
     const vars = Object.entries(scene.palette)
-      .map(([role, hex]) => `--wmx-${role}: ${hex}`)
+      .map(([role, hex]) => `--woc-${role}: ${hex}`)
       .join("; ");
     let body = "";
     for (const c of scene.children) {
@@ -211,10 +211,10 @@ export function renderStatic(rd: ResolvedDocument): string {
       if (o.placement.mode === "background" && !("alt" in o && o.alt)) continue;
       body += object(o);
     }
-    return `<section id="${esc(scene.id)}" style="${vars}; background: ${color(scene.bg)}; color: var(--wmx-ink)">${body}</section>`;
+    return `<section id="${esc(scene.id)}" style="${vars}; background: ${color(scene.bg)}; color: var(--woc-ink)">${body}</section>`;
   });
 
-  const styles = [...classes].map(([key, c]) => `.wmx-static .${c} { ${cssStyle(v.styles[key]!)} }`).join("\n");
-  return `<div class="wmx-static" lang="${esc(rd.meta.lang)}"><style>${CSS}${styles}</style>${sections.join("")}</div>`;
+  const styles = [...classes].map(([key, c]) => `.woc-static .${c} { ${cssStyle(v.styles[key]!)} }`).join("\n");
+  return `<div class="woc-static" lang="${esc(rd.meta.lang)}"><style>${CSS}${styles}</style>${sections.join("")}</div>`;
 }
 

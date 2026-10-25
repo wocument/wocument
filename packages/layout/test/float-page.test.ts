@@ -7,14 +7,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { type AssetHost, resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { type AssetHost, resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout, type PositionedDocument, type PositionedObject } from "../src/index.js";
 import { columnHoles, layoutInvariants, windowBreaks } from "./invariants.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
 const VIEW = { width: 1280, height: 800 };
 const fake: AssetHost = {
@@ -180,7 +180,7 @@ describe("floating in screen pages", () => {
     // columns left the subhead "The first rain" at a column's foot and its paragraph in the next.
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-salt.wmx"), "utf8")).ast as Document, { assets });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-salt.woc"), "utf8")).ast as Document, { assets });
     const pd = layout(doc, { width: 2560, height: 1440 }, new PrepareCache(createFixedEngine()));
     layoutInvariants(doc, pd, { standoff: false });
     const v = doc.variants[pd.breakpoint]!;
@@ -257,7 +257,7 @@ describe("floating in screen pages", () => {
   function portraitsPage1(width: number, height: number): { pictures: number; apart: number; limit: number } {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.woc"), "utf8")).ast as Document, { assets });
     const pd = layout(doc, { width, height }, new PrepareCache(createFixedEngine()));
     layoutInvariants(doc, pd, { standoff: false });
     const s = pd.scenes[0]!;
@@ -290,7 +290,7 @@ describe("floating in screen pages", () => {
   it("the text's last page, every picture waiting, is balanced by whole blocks (stress-portraits at 1920x1080)", () => {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.woc"), "utf8")).ast as Document, { assets });
     const pd = layout(doc, { width: 1920, height: 1080 }, new PrepareCache(createFixedEngine()));
     layoutInvariants(doc, pd, { standoff: false });
     expect(windowBreaks(doc, pd)).toEqual([]);
@@ -315,10 +315,10 @@ describe("floating in screen pages", () => {
 
   // 2026-10-21: the all-wait setting was never laid out (the search gave it up before the first
   // layout), so figure-1 fell back to its anchor's screen (y 374.6, screen 1) and not to the next one.
-  it.skipIf(!existsSync(fileURLToPath(new URL("../../playground/docs/stress-portraits.wmx", import.meta.url))))("the all-wait setting competes on a screen (stress-portraits at 1920x1080)", () => {
+  it.skipIf(!existsSync(fileURLToPath(new URL("../../playground/docs/stress-portraits.woc", import.meta.url))))("the all-wait setting competes on a screen (stress-portraits at 1920x1080)", () => {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.woc"), "utf8")).ast as Document, { assets });
     const pd = layout(doc, { width: 1920, height: 1080 }, new PrepareCache(createFixedEngine()));
     const o = pd.scenes.flatMap((s) => s.objects).find((x) => x.name === "figure-1")!;
     expect(screenOf(pd, o.box.y)).toBe(1);
@@ -329,7 +329,7 @@ describe("floating in screen pages", () => {
     // search is, six lines at most, so a trial is its own layout and up to six cuts.
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.wmx"), "utf8")).ast as Document, { assets });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/stress-portraits.woc"), "utf8")).ast as Document, { assets });
     for (const [width, height] of [[1440, 900], [1799, 1000], [1920, 1080]] as const) {
       const layouts: number[] = [];
       layout(doc, { width, height }, new PrepareCache(createFixedEngine()), { onCut: (_, n) => layouts.push(n) });
@@ -346,7 +346,7 @@ describe("floating in screen pages", () => {
   it.each([0.45, 0.5])("no empty room inside a column (vanilla-spread at 1470x956, characters %fem)", (em) => {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-    const { doc } = resolve(parse(readFileSync(here("playground/docs/vanilla-spread.wmx"), "utf8")).ast as Document, { assets });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/vanilla-spread.woc"), "utf8")).ast as Document, { assets });
     const pd = layout(doc, { width: 1470, height: 956 }, new PrepareCache(createFixedEngine(em)));
     layoutInvariants(doc, pd, { standoff: false });
     expect(columnHoles(doc, pd, pd.scenes[0]!.grid.baseline)).toEqual([]);
@@ -356,7 +356,7 @@ describe("floating in screen pages", () => {
   function testSpread(em: number) {
     const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
     const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-    const { doc } = resolve(parse(readFileSync(here("playground/docs/test-spread.wmx"), "utf8")).ast as Document, { assets });
+    const { doc } = resolve(parse(readFileSync(here("playground/docs/test-spread.woc"), "utf8")).ast as Document, { assets });
     const pd = layout(doc, { width: 1470, height: 956 }, new PrepareCache(createFixedEngine(em)));
     layoutInvariants(doc, pd, { standoff: false });
     return { doc, pd };

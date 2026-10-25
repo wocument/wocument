@@ -17,18 +17,18 @@ import type { Command, Document, Node } from "../../src/ast.js";
 const here = dirname(fileURLToPath(import.meta.url));
 
 const FIXTURES = [
-  "stone-and-strategy.wmx",
-  "minimum.wmx",
-  "white-desert.wmx",
-  "the-last-signalman.wmx",
-  "forty-questions.wmx",
+  "stone-and-strategy.woc",
+  "minimum.woc",
+  "white-desert.woc",
+  "the-last-signalman.woc",
+  "forty-questions.woc",
 ] as const;
 
 const read = (name: string): string => readFileSync(join(here, name), "utf8");
 
 describe("fixtures", () => {
   it("has exactly the five expected files", () => {
-    const found = readdirSync(here).filter((f) => f.endsWith(".wmx")).sort();
+    const found = readdirSync(here).filter((f) => f.endsWith(".woc")).sort();
     expect(found).toEqual([...FIXTURES].sort());
   });
 
@@ -54,14 +54,14 @@ describe("what the fixtures prove", () => {
   const doc = (name: string): Document => parse(read(name)).ast as Document;
 
   it("the minimum valid file is implicit form", () => {
-    const d = doc("minimum.wmx");
+    const d = doc("minimum.woc");
     expect(d.form).toBe("implicit");
     expect(d.scenes).toHaveLength(0);
     expect(d.implicitContent.map((n) => (n.kind === "paragraph" ? "p" : n.name))).toEqual(["headline", "p"]);
   });
 
   it("Stone & Strategy threads one story through four scenes", () => {
-    const d = doc("stone-and-strategy.wmx");
+    const d = doc("stone-and-strategy.woc");
     expect(d.form).toBe("explicit");
     expect(d.stories.map((s) => attr(s, "name"))).toEqual(["main"]);
     expect(d.scenes.map((s) => attr(s, "name"))).toEqual(["opener", "part-one", "breath", "part-two"]);
@@ -72,7 +72,7 @@ describe("what the fixtures prove", () => {
   });
 
   it("keeps breakpoint overrides as separate attributes", () => {
-    const d = doc("stone-and-strategy.wmx");
+    const d = doc("stone-and-strategy.woc");
     const opener = d.scenes[0] as Command;
     const frame = (opener.body as Node[]).find(
       (n): n is Command => n.kind === "command" && n.name === "frame",
@@ -81,7 +81,7 @@ describe("what the fixtures prove", () => {
   });
 
   it("White Desert uses a parent for every plate and a strip gallery", () => {
-    const d = doc("white-desert.wmx");
+    const d = doc("white-desert.woc");
     expect(d.definitions.filter((c) => c.name === "parent")).toHaveLength(1);
     const strip = d.scenes.flatMap((s) => (s.body as Node[]))
       .find((n): n is Command => n.kind === "command" && n.name === "gallery");
@@ -92,7 +92,7 @@ describe("what the fixtures prove", () => {
   });
 
   it("The Last Signalman carries links inside an inline body", () => {
-    const d = doc("the-last-signalman.wmx");
+    const d = doc("the-last-signalman.woc");
     const opener = d.scenes.find((s) => attr(s, "name") === "opener") as Command;
     const frame = (opener.body as Node[]).find(
       (n): n is Command => n.kind === "command" && n.name === "frame",
@@ -105,7 +105,7 @@ describe("what the fixtures prove", () => {
   });
 
   it("Forty Questions keeps \\span inline inside paragraphs", () => {
-    const d = doc("forty-questions.wmx");
+    const d = doc("forty-questions.woc");
     const story = d.stories[0] as Command;
     const withSpan = (story.body as Node[]).filter(
       (n) => n.kind === "paragraph" && n.runs.some((r) => r.type === "command" && r.node.name === "span"),

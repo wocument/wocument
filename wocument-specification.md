@@ -1,5 +1,5 @@
 ---
-title: WMXDSL Specification
+title: Wocument Specification
 version: 0.2 (Draft)
 status: Working Draft
 date: 2026-09-19
@@ -7,15 +7,15 @@ authors: Wocument
 supersedes: WMX 0.1
 ---
 
-# WMXDSL
+# Wocument
 
 A domain-specific language for screen-native editorial layout.
 
 ---
 
-## 01 What WMXDSL is
+## 01 What Wocument is
 
-WMXDSL describes a magazine-quality editorial article for digital screens: its content, its grid, its typography, its frames, its media and its scroll behavior, all in one source file. A compiler turns that file into a responsive web page.
+Wocument describes a magazine-quality editorial article for digital screens: its content, its grid, its typography, its frames, its media and its scroll behavior, all in one source file. A compiler turns that file into a responsive web page.
 
 The design target is studio-level editorial layout, written as code. That means the language gives direct control over the things an editorial designer controls: grids, margins, gutters, baseline, type styles, text frames, text threading, runaround, image fitting, layering and reveals.
 
@@ -101,7 +101,7 @@ Definitions MUST appear before the first `\story` or `\scene`.
 
 ### 03.1 Encoding and lines
 
-Files are UTF-8. A BOM is stripped if present. `\r\n` and `\r` are normalized to `\n` before lexing. All source positions refer to normalized lines. File extension: `.wmx` for documents, `.wmxt` for theme files.
+Files are UTF-8. A BOM is stripped if present. `\r\n` and `\r` are normalized to `\n` before lexing. All source positions refer to normalized lines. File extension: `.woc` for documents, `.woct` for theme files.
 
 ### 03.2 Reserved characters
 
@@ -130,7 +130,7 @@ Change from WMX 0.1: the comment marker is `%%`, not `%`. A single `%` is always
 | `\-` `\.` | A hyphen or dot that does not join a dash or ellipsis run. Two literal hyphens: `\-\-` |
 | `\"` `\'` | A straight quote that must not be curled |
 
-A backslash followed by anything else that is not a known command is an error. The exact rules are in the companion document `wmxdsl-grammar.md`, which is normative for syntax.
+A backslash followed by anything else that is not a known command is an error. The exact rules are in the companion document `wocument-grammar.md`, which is normative for syntax.
 
 ### 03.4 Comments
 
@@ -151,7 +151,7 @@ YAML 1.2 between `---` fences at the top of the file. Metadata only. No layout o
 
 | Field | Type | Required | Notes |
 | :---- | :---- | :---- | :---- |
-| `wmxdsl` | integer | Yes | Language major version. Currently `1`. |
+| `wocument` | integer | Yes | Language major version. Currently `1`. |
 | `title` | string | Yes | Used for `<title>` and social cards. Independent of `\headline`. |
 | `lang` | BCP-47 tag | No | Default `en`. Drives hyphenation and the `lang` attribute. |
 | `theme` | path | No | One theme file (§07.8). The only import mechanism in the language. |
@@ -441,7 +441,7 @@ A theme's `\spot` rows replace the built-in rows for each size they name; a size
 
 ### 07.8 Theme files
 
-A `.wmxt` file contains only definition commands (no frontmatter, no stories, no scenes). A document loads at most one through frontmatter `theme:`. Document-level definitions override theme definitions by name. This is how a whole magazine shares one design.
+A `.woct` file contains only definition commands (no frontmatter, no stories, no scenes). A document loads at most one through frontmatter `theme:`. Document-level definitions override theme definitions by name. This is how a whole magazine shares one design.
 
 ### 07.9 Units of reuse: what is and is not allowed
 
@@ -999,7 +999,7 @@ The pointer is followed by line: lines fill their whole line height and touch, s
 ### 15.1 Pipeline
 
 ```
-.wmx source (+ optional .wmxt theme)
+.woc source (+ optional .woct theme)
   1. LEX      -> tokens with source positions
   2. PARSE    -> AST (schema-validated commands, attributes, bodies)
   3. RESOLVE  -> Resolved Document (viewport-independent)
@@ -1148,22 +1148,22 @@ Same source, theme, assets, fonts, viewport size **and browser engine** give the
 | Resolve error | 3 | Yes | Unknown grid/style/palette/story/token, token cycle, overlapping breakpoints, story with no visible frame at a breakpoint, `rows=` in a flow scene, `overset=error` triggered at a test width |
 | Resolve warning | 3 | No | Body-styled frame wider than 90 characters at a test width with no `measure` set (`W041`), scene or anchored object linearized by fallback, missing `alt`/`title`/`poster`, autoplay without `muted`, `snap=hard` on a flow scene, `shape=alpha` on an opaque image, more than one `\headline`, `motion=always`; readability (2026-10-09, after the readability research): body text under 16px (`W060`), body leading under 1.4 of its size (`W061`), an ink, muted or accent colour under 4.5:1 against its paper (`W062`, WCAG 2.2 AA), body weight under 350 (`W063`). Each warns once, naming the breakpoints or scenes it shows at |
 | Asset warning | 3 to 5 | No | Missing file, font failed to load |
-| Layout warning | 4 | No | `\framebreak` with nowhere to go (`W040`), overset clipped, no slot in a band meets the minimum width (`W042`), anchored object taller than every remaining frame, anchored object taller than a band (`W043`), body lines outside about 45 to 75 characters at a test width, under 30 on a phone (`W064`; `wmx check` estimates it with a fixed-width engine at 0.46em a character, Georgia's average) |
+| Layout warning | 4 | No | `\framebreak` with nowhere to go (`W040`), overset clipped, no slot in a band meets the minimum width (`W042`), anchored object taller than every remaining frame, anchored object taller than a band (`W043`), body lines outside about 45 to 75 characters at a test width, under 30 on a phone (`W064`; `woc check` estimates it with a fixed-width engine at 0.46em a character, Georgia's average) |
 
 Every diagnostic carries: file, line, column, category, code, message, and a suggested fix where one exists.
 
 ```
-wmxdsl: parse error [P012] at castle.wmx:14:8
+wocument: parse error [P012] at castle.woc:14:8
   Unknown command \pullqoute. Did you mean \pullquote?
 
-wmxdsl: resolve warning [W031] at castle.wmx:52:3
+wocument: resolve warning [W031] at castle.woc:52:3
   \figure cols=9-12 does not fit grid "feature" at breakpoint "phone" (4 columns).
   Scene "body-1" will linearize on phone. Add cols@phone=... or linearize@phone=true.
 ```
 
 Test widths for build-time layout checks default to 360, 768, 1280, 1470 and 2560px. The last is wider than the default grid `max`, so it exercises the centering and growing-margin path in §07.5.
 
-**The copyfitting report** (2026-10-17). After the diagnostics, `wmx check` prints the content
+**The copyfitting report** (2026-10-17). After the diagnostics, `woc check` prints the content
 changes that would fill each screen of a page scene (§09.7) at the test widths. The engine never
 changes the words; it says which to change and by how much. A screen that is not its frame's last,
 whose columns end one line or more above the bottom line, gets the first form; `characters` is the
@@ -1183,7 +1183,7 @@ screen 4 at 2560px: figure-5 is 2 screens from its paragraph; it had no room nea
 
 ## 16 Built-in default theme
 
-What you get with no design head at all. Implementers ship this as a real `.wmxt` file. The built-in
+What you get with no design head at all. Implementers ship this as a real `.woct` file. The built-in
 theme is **Vanilla**, set value by value from 2026-09-27 to
 2026-10-07; it replaced the first placeholder theme on
 2026-10-07.
@@ -1272,7 +1272,7 @@ scored.
 
 ## 17 Versioning
 
-`wmxdsl: 1` in frontmatter selects the language major version.
+`wocument: 1` in frontmatter selects the language major version.
 
 Breaking (needs a new major): removing or renaming a command or attribute, changing a type or accepted values incompatibly, changing a default in a way that changes rendering, changing lexical rules.
 
@@ -1284,7 +1284,7 @@ Non-breaking: new commands, new attributes with defaults, new enum values.
 
 ```
 ---
-wmxdsl: 1
+wocument: 1
 title: Stone & Strategy
 lang: en
 ---
@@ -1390,7 +1390,7 @@ What happens: the `main` story threads through `part-one` (a balanced two-column
 
 ```
 ---
-wmxdsl: 1
+wocument: 1
 title: A Brief Note
 ---
 \headline{A Brief Note}
@@ -1451,7 +1451,7 @@ This is the entire article.
 
 ## Appendix B: Changes from WMX 0.1
 
-- Renamed to WMXDSL. Version key is `wmxdsl`. Extension stays `.wmx`.
+- Renamed to Wocument (2026-10-25; earlier in 0.2 the language was WMXDSL). Version key is `wocument`. Documents are `.woc` files and themes `.woct` files (were `.wmx` and `.wmxt`). The command line is `woc`, also installed as `wocument`. Rendered pages use the class and custom-property prefix `woc-` (was `wmx-`), and the Resolved Document `format` is `"wocument-resolved"`.
 - Design moved into the language: `\grid`, `\style`, `\font`, `\palette`, `\token`, `\breakpoint`, `\parent`, theme files. Frontmatter is metadata only.
 - Fixed layout registry removed. Scenes, frames and stories replace it.
 - Page model replaced by scroll scenes (`flow`, `screen`), snap and reveals.

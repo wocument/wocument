@@ -4,12 +4,12 @@
  * run through groups in document order.
  */
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { checkInvariants, type GroupObject } from "@wmxdsl/resolved-document";
+import { parse, type Document } from "@wocument/parser";
+import { checkInvariants, type GroupObject } from "@wocument/resolved-document";
 import { resolve } from "../src/index.js";
 
 const SRC = `---
-wmxdsl: 1
+wocument: 1
 title: Groups
 ---
 \\story[name=main]{

@@ -1,8 +1,8 @@
 /** §07.6 `align=justify`: the slack goes into the line's spaces (the renderer, not the browser). */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
 import { justifySpacing, renderStatic } from "../src/index.js";
 
 describe("justifySpacing", () => {
@@ -37,7 +37,7 @@ describe("justifySpacing", () => {
 
 describe("the reading version", () => {
   it("hands justification to the browser, which can break the lines itself", () => {
-    const src = '---\nwmxdsl: 1\ntitle: T\n---\n\\style[name=body, align=justify]\n\\scene{\\frame{Set solid.}}';
+    const src = '---\nwocument: 1\ntitle: T\n---\n\\style[name=body, align=justify]\n\\scene{\\frame{Set solid.}}';
     expect(renderStatic(resolve(parse(src).ast as Document).doc)).toContain("text-align: justify");
   });
 });

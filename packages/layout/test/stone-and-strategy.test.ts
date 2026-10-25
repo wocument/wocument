@@ -8,15 +8,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import type { ParagraphBlock } from "@wmxdsl/resolved-document";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import type { ParagraphBlock } from "@wocument/resolved-document";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { bandExtent, layout } from "../src/index.js";
 
 const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
-const src = readFileSync(here("parser/test/fixtures/stone-and-strategy.wmx"), "utf8");
+const src = readFileSync(here("parser/test/fixtures/stone-and-strategy.woc"), "utf8");
 const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("parser/test/fixtures") });
 const { doc: rd } = resolve(parse(src).ast as Document, { assets });
 

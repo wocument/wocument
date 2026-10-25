@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AttrSchema, TypeName } from "@wmxdsl/schema";
+import type { AttrSchema, TypeName } from "@wocument/schema";
 import { Diagnostics } from "../../src/diagnostics.js";
 import { PositionIndex } from "../../src/positions.js";
 import { lexAttrList, type RawValue } from "../../src/attrs.js";

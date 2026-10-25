@@ -1,5 +1,5 @@
 /**
- * @wmxdsl/resolver -- AST to Resolved Document (spec §15.1 stage 3).
+ * @wocument/resolver -- AST to Resolved Document (spec §15.1 stage 3).
  *
  * Pure: no DOM, no file system, no network, no clocks. The caller parses the
  * theme file, if any, and passes its AST.
@@ -11,7 +11,7 @@
  * throw "not resolved yet" rather than resolving to something half-right.
  */
 
-import { parse, type Command, type Document, type Node, type Theme } from "@wmxdsl/parser";
+import { parse, type Command, type Document, type Node, type Theme } from "@wocument/parser";
 import type {
   AnchorHorizontal,
   Asset,
@@ -38,8 +38,8 @@ import type {
   Variant,
   Variants,
   Vertical,
-} from "@wmxdsl/resolved-document";
-import type { Value } from "@wmxdsl/schema";
+} from "@wocument/resolved-document";
+import type { Value } from "@wocument/schema";
 import { DEFAULT_THEME_SOURCE } from "./default-theme.js";
 import { readability } from "./readability.js";
 export { contrast } from "./readability.js";
@@ -58,7 +58,7 @@ export type ContourRequest = { threshold: number; ratio: number; fit: string; fo
 /**
  * The build-time side of media (spec §11.4-§11.9, §12.2): reading files,
  * dimensions and alpha channels. The resolver stays pure and asks this
- * interface; `@wmxdsl/assets` implements it for Node.
+ * interface; `@wocument/assets` implements it for Node.
  */
 export type AssetHost = {
   /** null when the file does not exist: an asset warning, not an error (spec §15.6). */
@@ -87,7 +87,7 @@ export type ResolveResult = {
 let builtin: Theme | null = null;
 function builtinTheme(): Theme {
   if (builtin) return builtin;
-  const r = parse(DEFAULT_THEME_SOURCE, { kind: "theme", file: "default.wmxt" });
+  const r = parse(DEFAULT_THEME_SOURCE, { kind: "theme", file: "default.woct" });
   if (!r.ok) throw new Error(`built-in theme does not parse: ${JSON.stringify(r.diagnostics)}`);
   builtin = r.ast as Theme;
   return builtin;
@@ -128,7 +128,7 @@ function magazineForm(ast: Document): Document {
     ...(heading.length ? ["\\frame[cols=1-8, cols@tablet=all, cols@phone=all]{x}"] : []),
     ...(rest.length || !heading.length ? ["\\frame[cols=all, columns=auto, columns@wide=4, columns@tablet=1, measure=600px]{x}"] : []),
   ];
-  const r = parse(`---\nwmxdsl: 1\ntitle: T\n---\n\\scene[height=page]{\n${frames.join("\n")}\n}\n`, { file: "implicit-form.wmx" });
+  const r = parse(`---\nwocument: 1\ntitle: T\n---\n\\scene[height=page]{\n${frames.join("\n")}\n}\n`, { file: "implicit-form.woc" });
   if (!r.ok) throw new Error(`implicit form template does not parse: ${JSON.stringify(r.diagnostics)}`);
   const scene = (r.ast as Document).scenes[0]!;
   const renumber = (n: Node): void => {
@@ -143,7 +143,7 @@ function magazineForm(ast: Document): Document {
 
 export function resolve(source: Document, options: ResolveOptions = {}): ResolveResult {
   const ast = magazineForm(source);
-  const file = options.file ?? "document.wmx";
+  const file = options.file ?? "document.woc";
   const defs = new Definitions([builtinTheme().definitions, options.theme?.definitions ?? [], ast.definitions]);
   const design = new Design(defs);
   const variants = design.variants();
@@ -801,7 +801,7 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
   }
 
   const doc: ResolvedDocument = {
-    format: "wmxdsl-resolved",
+    format: "wocument-resolved",
     version: 1,
     meta: meta(ast.frontmatter, lang, socialImage),
     breakpoints: design.breakpoints(),
@@ -831,7 +831,7 @@ function elementAttrs(c: Command, bp: string, command: string, deref: (c: string
 
 function meta(fm: Document["frontmatter"], lang: string, socialImage: string | null): Meta {
   return {
-    wmxdsl: 1,
+    wocument: 1,
     title: fm.title,
     lang,
     description: fm.description ?? null,

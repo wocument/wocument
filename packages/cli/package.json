@@ -1,12 +1,12 @@
 {
-  "name": "@wmxdsl/cli",
+  "name": "@wocument/cli",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
   "bin": {
-    "wmxdsl": "./dist/cli.js",
-    "wmx": "./dist/cli.js"
+    "wocument": "./dist/cli.js",
+    "woc": "./dist/cli.js"
   },
   "files": [
     "dist"

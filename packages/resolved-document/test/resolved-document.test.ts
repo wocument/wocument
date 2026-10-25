@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { Ajv } from "ajv";
 import { describe, expect, it } from "vitest";
-import { checkInvariants, type ResolvedDocument } from "@wmxdsl/resolved-document";
+import { checkInvariants, type ResolvedDocument } from "@wocument/resolved-document";
 import { EXAMPLES, PATHS, buildSchema, examplePath, loadExample, renderReference, serialize, spliceReference } from "../scripts/generate.js";
 
 const schema = buildSchema();

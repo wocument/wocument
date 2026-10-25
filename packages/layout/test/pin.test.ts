@@ -11,17 +11,17 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { bandExtent, layout } from "../src/index.js";
 
 const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
 
 it("sets the frame again when a reflow slides lines under another object", () => {
   // A frozen copy of the spread as it was when the bug was found, so the playground document can keep changing.
-  const ast = parse(readFileSync(here("layout/test/fixtures/r27-spread.wmx"), "utf8")).ast as Document;
+  const ast = parse(readFileSync(here("layout/test/fixtures/r27-spread.woc"), "utf8")).ast as Document;
   const assets = createAssetHost({ publicDir: here("layout/test"), sourceDir: here("playground/docs") });
   const rd = resolve(ast, { assets }).doc;
   const pd = layout(rd, { width: 1600, height: 1080 }, new PrepareCache(createFixedEngine()));

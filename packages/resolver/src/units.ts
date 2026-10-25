@@ -6,8 +6,8 @@
  * they need the viewport or the scene's grid.
  */
 
-import type { Len } from "@wmxdsl/resolved-document";
-import type { Value } from "@wmxdsl/schema";
+import type { Len } from "@wocument/resolved-document";
+import type { Value } from "@wocument/schema";
 
 /** Root font size for `rem`. */
 export const REM_PX = 16;

@@ -10,8 +10,8 @@
  * Volume goes through Web Audio, since iOS ignores an audio element's own volume.
  */
 
-import type { PositionedDocument } from "@wmxdsl/layout";
-import type { MusicCue, ResolvedDocument } from "@wmxdsl/resolved-document";
+import type { PositionedDocument } from "@wocument/layout";
+import type { MusicCue, ResolvedDocument } from "@wocument/resolved-document";
 import { rail } from "./read-assist.js";
 
 type Placed = { y: number; cue: MusicCue };
@@ -69,7 +69,7 @@ function create(root: HTMLElement): { place(rd: ResolvedDocument, pd: Positioned
   // resting when off and moving when on.
   const button = doc.createElement("button");
   button.type = "button";
-  button.className = "wmx-sound";
+  button.className = "woc-sound";
   button.setAttribute("aria-label", "Sound");
   // No focus from a mouse click: the space bar scrolls the page rather than pressing it again.
   button.addEventListener("mousedown", (e) => e.preventDefault());

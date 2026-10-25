@@ -9,10 +9,10 @@
  * whether breakpoints overlap, is the resolve stage's job.
  */
 
-import { DEFINITION_COMMANDS } from "@wmxdsl/schema";
+import { DEFINITION_COMMANDS } from "@wocument/schema";
 import type { Command, Document, Node, Theme, Trivia } from "./ast.js";
 import type { Diagnostics } from "./diagnostics.js";
-import type { Frontmatter } from "@wmxdsl/schema";
+import type { Frontmatter } from "@wocument/schema";
 
 export type DocumentInput = {
   nodes: Node[];
@@ -94,7 +94,7 @@ export function buildDocument(input: DocumentInput): Document {
 
   return {
     version: 1,
-    frontmatter: input.frontmatter ?? ({ wmxdsl: 1, title: "" } as Frontmatter),
+    frontmatter: input.frontmatter ?? ({ wocument: 1, title: "" } as Frontmatter),
     definitions,
     folio,
     form,

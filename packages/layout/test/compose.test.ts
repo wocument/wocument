@@ -3,7 +3,7 @@
  * "How the engine chooses"): candidate spots, hard rules, penalties and the bounded search.
  */
 import { describe, expect, it } from "vitest";
-import type { Spot } from "@wmxdsl/resolved-document";
+import type { Spot } from "@wocument/resolved-document";
 import { PENALTY, candidates, choose, hardOk, penalty, penaltyParts, type Candidate, type Float, type ScreenGeometry, type TrialSummary } from "../src/compose.js";
 
 const geometry = (count: number, over: Partial<ScreenGeometry> = {}): ScreenGeometry => ({

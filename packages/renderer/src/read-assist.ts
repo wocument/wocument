@@ -26,7 +26,7 @@ const LABEL: Record<Exclude<AssistMode, "off">, string> = {
   wash: "Soft highlight behind lines",
   focus: "Fade the other lines",
 };
-const KEY = "wmx-read-assist";
+const KEY = "woc-read-assist";
 /** How long the mark waits after the pointer leaves running text before it fades. */
 const LINGER = 600;
 
@@ -42,47 +42,47 @@ const ICON: Record<AssistMode, string> = {
 const svg = (m: AssistMode) => `<svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><circle cx="14" cy="14" r="13.25" class="ra-ring"/>${ICON[m]}</svg>`;
 
 export const READ_ASSIST_CSS = `
-.wmx-rail { position: fixed; z-index: 21; top: max(14px, env(safe-area-inset-top)); right: 11px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.wmx-assist { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.wmx-assist button { display: block; width: 28px; height: 28px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: #5f6570; cursor: pointer;
+.woc-rail { position: fixed; z-index: 21; top: max(14px, env(safe-area-inset-top)); right: 11px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.woc-assist { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.woc-assist button { display: block; width: 28px; height: 28px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: none; color: #5f6570; cursor: pointer;
   opacity: 0.55; transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1), color 400ms ease; -webkit-tap-highlight-color: transparent; }
-.wmx-assist button:hover, .wmx-assist button[aria-pressed="true"], .wmx-assist button[aria-expanded="true"] { opacity: 1; }
-.wmx-assist button:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
-.wmx-assist svg { display: block; overflow: visible; }
-.wmx-assist .ra-ring { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.45; }
-.wmx-assist button[aria-pressed="true"] .ra-ring { stroke: var(--ra-accent, #1f5fbf); opacity: 0.9; }
-.wmx-assist line, .wmx-assist path { stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; fill: none; }
-.wmx-assist .ra-acc { stroke: var(--ra-accent, #1f5fbf); stroke-width: 1.6; }
-.wmx-assist .ra-faint { opacity: 0.3; }
-.wmx-assist .ra-iband { fill: var(--ra-accent, #1f5fbf); opacity: 0.22; stroke: none; }
-.wmx-assist .ra-dot { position: absolute; top: 1px; right: 1px; width: 6px; height: 6px; border-radius: 50%; background: var(--ra-accent, #1f5fbf); opacity: 0; transition: opacity 200ms; pointer-events: none; }
-.wmx-assist.on .ra-dot { opacity: 1; }
-.wmx-assist .ra-menu { display: flex; flex-direction: column; gap: 8px; }
-.wmx-assist .ra-menu button { opacity: 0; transform: translateY(-6px); pointer-events: none;
+.woc-assist button:hover, .woc-assist button[aria-pressed="true"], .woc-assist button[aria-expanded="true"] { opacity: 1; }
+.woc-assist button:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
+.woc-assist svg { display: block; overflow: visible; }
+.woc-assist .ra-ring { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.45; }
+.woc-assist button[aria-pressed="true"] .ra-ring { stroke: var(--ra-accent, #1f5fbf); opacity: 0.9; }
+.woc-assist line, .woc-assist path { stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; fill: none; }
+.woc-assist .ra-acc { stroke: var(--ra-accent, #1f5fbf); stroke-width: 1.6; }
+.woc-assist .ra-faint { opacity: 0.3; }
+.woc-assist .ra-iband { fill: var(--ra-accent, #1f5fbf); opacity: 0.22; stroke: none; }
+.woc-assist .ra-dot { position: absolute; top: 1px; right: 1px; width: 6px; height: 6px; border-radius: 50%; background: var(--ra-accent, #1f5fbf); opacity: 0; transition: opacity 200ms; pointer-events: none; }
+.woc-assist.on .ra-dot { opacity: 1; }
+.woc-assist .ra-menu { display: flex; flex-direction: column; gap: 8px; }
+.woc-assist .ra-menu button { opacity: 0; transform: translateY(-6px); pointer-events: none;
   transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 260ms cubic-bezier(0.16, 1, 0.3, 1); }
-.wmx-assist.open .ra-menu button { opacity: 0.6; transform: none; pointer-events: auto; }
-.wmx-assist.open .ra-menu button:hover, .wmx-assist.open .ra-menu button[aria-pressed="true"] { opacity: 1; }
-.wmx-assist.open .ra-menu button:nth-child(2) { transition-delay: 30ms; }
-.wmx-assist.open .ra-menu button:nth-child(3) { transition-delay: 60ms; }
-.wmx-doc[data-assist] .wmx-block[data-text] .wmx-line { transition: color 200ms ease; }
-.wmx-doc[data-assist="accent"] .wmx-line.ra-on { color: var(--wmx-accent); }
-.wmx-doc[data-assist="focus"].ra-focusing .wmx-block[data-text] .wmx-line:not(.ra-on) { color: color-mix(in srgb, currentColor 40%, transparent); }
-.ra-band { position: absolute; z-index: 0; background: color-mix(in srgb, var(--wmx-accent) 10%, transparent); pointer-events: none;
+.woc-assist.open .ra-menu button { opacity: 0.6; transform: none; pointer-events: auto; }
+.woc-assist.open .ra-menu button:hover, .woc-assist.open .ra-menu button[aria-pressed="true"] { opacity: 1; }
+.woc-assist.open .ra-menu button:nth-child(2) { transition-delay: 30ms; }
+.woc-assist.open .ra-menu button:nth-child(3) { transition-delay: 60ms; }
+.woc-doc[data-assist] .woc-block[data-text] .woc-line { transition: color 200ms ease; }
+.woc-doc[data-assist="accent"] .woc-line.ra-on { color: var(--woc-accent); }
+.woc-doc[data-assist="focus"].ra-focusing .woc-block[data-text] .woc-line:not(.ra-on) { color: color-mix(in srgb, currentColor 40%, transparent); }
+.ra-band { position: absolute; z-index: 0; background: color-mix(in srgb, var(--woc-accent) 10%, transparent); pointer-events: none;
   opacity: 0; transition: opacity 200ms ease; }
 .ra-band.on { opacity: 1; }
 .ra-band.ra-first { border-top-left-radius: 4px; border-top-right-radius: 4px; }
 .ra-band.ra-last { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }
 @media (prefers-reduced-motion: reduce) {
-  .wmx-assist button, .wmx-assist .ra-menu button, .wmx-doc[data-assist] .wmx-line, .ra-band { transition: none !important; animation: none !important; }
+  .woc-assist button, .woc-assist .ra-menu button, .woc-doc[data-assist] .woc-line, .ra-band { transition: none !important; animation: none !important; }
 }
 `;
 
 /** The fixed column on the screen's right edge that the sound and read-assist controls share. */
 export function rail(doc: Document): HTMLElement {
-  let r = doc.querySelector<HTMLElement>(".wmx-rail");
+  let r = doc.querySelector<HTMLElement>(".woc-rail");
   if (!r) {
     r = doc.createElement("div");
-    r.className = "wmx-rail";
+    r.className = "woc-rail";
     doc.body.appendChild(r);
   }
   return r;
@@ -122,8 +122,8 @@ export function readAssist(root: HTMLElement): void {
     rail(doc).appendChild(s.control);
     // The accent of the page under the top of the screen colours the control.
     s.tint = () => {
-      const scene = doc.elementsFromPoint(win.innerWidth / 2, 40).find((e) => e.classList.contains("wmx-scene")) as HTMLElement | undefined;
-      if (scene) s.control.style.setProperty("--ra-accent", getComputedStyle(scene).getPropertyValue("--wmx-accent").trim() || "#1f5fbf");
+      const scene = doc.elementsFromPoint(win.innerWidth / 2, 40).find((e) => e.classList.contains("woc-scene")) as HTMLElement | undefined;
+      if (scene) s.control.style.setProperty("--ra-accent", getComputedStyle(scene).getPropertyValue("--woc-accent").trim() || "#1f5fbf");
     };
     win.addEventListener("scroll", s.tint, { passive: true });
     states.set(root, s);
@@ -143,7 +143,7 @@ export function readAssist(root: HTMLElement): void {
 
 function control(doc: Document, st: State, changed: () => void): HTMLElement {
   const wrap = doc.createElement("div");
-  wrap.className = "wmx-assist";
+  wrap.className = "woc-assist";
   const main = doc.createElement("button");
   main.type = "button";
   main.setAttribute("aria-label", "Read assist");
@@ -198,7 +198,7 @@ function install(root: HTMLElement, mode: AssistMode): () => void {
 }
 
 /** Every line of running text, in reading order. */
-const runningLines = (root: HTMLElement): HTMLElement[] => Array.from(root.querySelectorAll<HTMLElement>(".wmx-block[data-text] .wmx-line"));
+const runningLines = (root: HTMLElement): HTMLElement[] => Array.from(root.querySelectorAll<HTMLElement>(".woc-block[data-text] .woc-line"));
 
 /**
  * Follows the pointer by line: `on(line, x)` when it is over a line of running text, `off()` once
@@ -214,7 +214,7 @@ function follow(root: HTMLElement, on: (line: HTMLElement, x: number) => void, o
     frame = 0;
     // What is under the pointer now: after a move, or after the page scrolled under a still pointer.
     const hit = at ? doc.elementFromPoint(at.x, at.y) : null;
-    const line = hit?.closest<HTMLElement>(".wmx-block[data-text] .wmx-line");
+    const line = hit?.closest<HTMLElement>(".woc-block[data-text] .woc-line");
     if (line && root.contains(line)) {
       win.clearTimeout(timer);
       timer = 0;
@@ -257,7 +257,7 @@ function lineMarks(root: HTMLElement, mode: AssistMode): () => void {
   const lines = runningLines(root);
   const index = new Map(lines.map((l, i) => [l, i] as const));
   const para = (l: HTMLElement) => {
-    const w = l.closest<HTMLElement>(".wmx-block")!;
+    const w = l.closest<HTMLElement>(".woc-block")!;
     return `${w.dataset.story}\u0000${w.dataset.block}`;
   };
   /** Reading jumps from `a` to the line after it, `b`: a new paragraph, or a new column or page. */
@@ -334,7 +334,7 @@ function band(doc: Document, line: HTMLElement): HTMLElement {
   const parent = line.offsetParent as HTMLElement;
   const box = parent.getBoundingClientRect();
   const lr = line.getBoundingClientRect();
-  const cap = line.closest(".wmx-block")?.querySelector(".wmx-cap")?.getBoundingClientRect();
+  const cap = line.closest(".woc-block")?.querySelector(".woc-cap")?.getBoundingClientRect();
   const byCap = cap !== undefined && lr.top < cap.bottom && lr.left >= cap.right;
   const left = lr.left - (byCap ? 0 : 6);
   const b = doc.createElement("div");

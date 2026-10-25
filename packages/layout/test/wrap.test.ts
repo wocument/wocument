@@ -1,12 +1,12 @@
 /** Step 2 in layout: anchored objects, rectangular wrap and slots (§09.6, §11.3, §12), fragments. */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout, type PositionedScene } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const LONG = Array.from({ length: 12 }, () => "Stone endures where nearly everything else decays.").join(" ");
 
 function scene(body: string, width = 1470): PositionedScene {

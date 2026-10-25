@@ -9,7 +9,7 @@
  */
 
 import Lenis from "lenis";
-import type { PositionedLine } from "@wmxdsl/layout";
+import type { PositionedLine } from "@wocument/layout";
 
 const SHY = "­";
 
@@ -46,9 +46,9 @@ export function continuingLines(lines: readonly PositionedLine[]): Set<Positione
 }
 
 const CSS = `
-.wmx-dots { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.wmx-dots button { all: unset; cursor: pointer; width: 6px; height: 6px; border-radius: 50%; background: var(--dot); opacity: 0.35; transition: width 200ms, height 200ms, opacity 200ms; }
-.wmx-dots button[aria-current="true"] { width: 10px; height: 10px; opacity: 1; }`;
+.woc-dots { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.woc-dots button { all: unset; cursor: pointer; width: 6px; height: 6px; border-radius: 50%; background: var(--dot); opacity: 0.35; transition: width 200ms, height 200ms, opacity 200ms; }
+.woc-dots button[aria-current="true"] { width: 10px; height: 10px; opacity: 1; }`;
 
 /** Where Space (dir 1) or Shift + Space (dir -1) goes from `y`: the next page's top, or a screen on. */
 export function pageStep(y: number, dir: 1 | -1, stops: readonly number[], viewportHeight: number, max: number): number {
@@ -75,7 +75,7 @@ export function installPages(win: Window, _root: HTMLElement, stops: readonly nu
   const to = (y: number): void => (lenis ? lenis.scrollTo(y, { duration: 1.1, easing: glide }) : win.scrollTo({ top: y }));
 
   const bar = doc.createElement("nav");
-  bar.className = "wmx-dots";
+  bar.className = "woc-dots";
   bar.setAttribute("aria-hidden", "true");
   if (points.length >= 2) {
     for (const y of points) {
@@ -91,8 +91,8 @@ export function installPages(win: Window, _root: HTMLElement, stops: readonly nu
     const now = currentPage(win.scrollY, points);
     Array.from(bar.children).forEach((d, i) => d.setAttribute("aria-current", String(i === now)));
     // The dots take the accent of the scene under the middle of the screen.
-    const under = doc.elementsFromPoint(win.innerWidth / 2, win.innerHeight / 2).find((e) => e.classList.contains("wmx-scene"));
-    if (under) bar.style.setProperty("--dot", getComputedStyle(under).getPropertyValue("--wmx-accent"));
+    const under = doc.elementsFromPoint(win.innerWidth / 2, win.innerHeight / 2).find((e) => e.classList.contains("woc-scene"));
+    if (under) bar.style.setProperty("--dot", getComputedStyle(under).getPropertyValue("--woc-accent"));
   };
 
   // Space and Page Down glide a page on, Shift + Space and Page Up a page back. Keys meant for a

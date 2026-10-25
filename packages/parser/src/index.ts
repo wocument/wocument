@@ -1,5 +1,5 @@
 /**
- * @wmxdsl/parser -- public API.
+ * @wocument/parser -- public API.
  *
  * Pure: no DOM, no file system, no network, no clocks, no randomness. The
  * same source always gives the same result, in Node and in a browser worker.

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { createAssetHost } from "../src/index.js";
 
 async function setup() {
-  const pub = mkdtempSync(join(tmpdir(), "wmx-webp-"));
+  const pub = mkdtempSync(join(tmpdir(), "woc-webp-"));
   const frame = (r: number) => sharp({ create: { width: 40, height: 30, channels: 4, background: { r, g: 90, b: 200, alpha: 1 } } }).png().toBuffer();
   writeFileSync(join(pub, "photo.png"), await frame(10));
   // An animated GIF of three frames, stacked as pages.

@@ -4,8 +4,8 @@
  * too, so layout and rendering can never disagree about a size.
  */
 
-import type { Grid, Len, ResolvedStyle } from "@wmxdsl/resolved-document";
-import type { EngineFont } from "@wmxdsl/text-engine";
+import type { Grid, Len, ResolvedStyle } from "@wocument/resolved-document";
+import type { EngineFont } from "@wocument/text-engine";
 import type { GridGeometry } from "./positioned.js";
 
 export type Viewport = { width: number; height: number };

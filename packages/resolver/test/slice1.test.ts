@@ -1,14 +1,14 @@
 /** Rules slice 1 implements that the minimum golden file does not exercise. */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document, type Theme } from "@wmxdsl/parser";
-import { checkInvariants, type ParagraphBlock, type ResolvedDocument } from "@wmxdsl/resolved-document";
+import { parse, type Document, type Theme } from "@wocument/parser";
+import { checkInvariants, type ParagraphBlock, type ResolvedDocument } from "@wocument/resolved-document";
 import { resolve } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 function run(body: string, theme?: string): ResolvedDocument {
-  const p = parse(FM + body, { file: "t.wmx" });
+  const p = parse(FM + body, { file: "t.woc" });
   expect(p.diagnostics).toEqual([]);
   const t = theme === undefined ? null : (parse(theme, { kind: "theme" }).ast as Theme);
   const { doc } = resolve(p.ast as Document, { theme: t });
@@ -116,7 +116,7 @@ describe("text", () => {
 
 describe("not yet", () => {
   it("objects throw instead of resolving half-right", () => {
-    const p = parse(FM + '\\scene{\\lottie[src=/a.json, alt="A loop"]}', { file: "t.wmx" });
+    const p = parse(FM + '\\scene{\\lottie[src=/a.json, alt="A loop"]}', { file: "t.woc" });
     expect(() => resolve(p.ast as Document)).toThrow(/not resolved yet/);
   });
 });

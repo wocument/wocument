@@ -6,11 +6,11 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 /** Regression tests that lay out sample articles kept outside the repository; they run where the articles are. */
 const articleTests: Record<string, string> = {
-  "packages/layout/test/atlas.test.ts": "atlas.wmx",
-  "packages/layout/test/magazine.test.ts": "magazine.wmx",
-  "packages/layout/test/showcase.test.ts": "showcase.wmx",
-  "packages/layout/test/spread.test.ts": "spread.wmx",
-  "packages/layout/test/stress.test.ts": "stress-coast.wmx",
+  "packages/layout/test/atlas.test.ts": "atlas.woc",
+  "packages/layout/test/magazine.test.ts": "magazine.woc",
+  "packages/layout/test/showcase.test.ts": "showcase.woc",
+  "packages/layout/test/spread.test.ts": "spread.woc",
+  "packages/layout/test/stress.test.ts": "stress-coast.woc",
 };
 const missing = Object.entries(articleTests)
   .filter(([, doc]) => !existsSync(r(`./packages/playground/docs/${doc}`)))
@@ -19,15 +19,15 @@ const missing = Object.entries(articleTests)
 export default defineConfig({
   resolve: {
     alias: {
-      "@wmxdsl/schema": r("./packages/schema/src/index.ts"),
-      "@wmxdsl/parser": r("./packages/parser/src/index.ts"),
-      "@wmxdsl/resolved-document": r("./packages/resolved-document/src/index.ts"),
-      "@wmxdsl/resolver": r("./packages/resolver/src/index.ts"),
-      "@wmxdsl/assets": r("./packages/assets/src/index.ts"),
-      "@wmxdsl/text-engine": r("./packages/text-engine/src/index.ts"),
-      "@wmxdsl/layout": r("./packages/layout/src/index.ts"),
-      "@wmxdsl/renderer": r("./packages/renderer/src/index.ts"),
-      "@wmxdsl/visor": r("./packages/visor/src/index.ts"),
+      "@wocument/schema": r("./packages/schema/src/index.ts"),
+      "@wocument/parser": r("./packages/parser/src/index.ts"),
+      "@wocument/resolved-document": r("./packages/resolved-document/src/index.ts"),
+      "@wocument/resolver": r("./packages/resolver/src/index.ts"),
+      "@wocument/assets": r("./packages/assets/src/index.ts"),
+      "@wocument/text-engine": r("./packages/text-engine/src/index.ts"),
+      "@wocument/layout": r("./packages/layout/src/index.ts"),
+      "@wocument/renderer": r("./packages/renderer/src/index.ts"),
+      "@wocument/visor": r("./packages/visor/src/index.ts"),
     },
   },
   test: {

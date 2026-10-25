@@ -4,7 +4,7 @@
  * exists so far, and an author's wording can go beside it without engine changes.
  */
 
-import type { ColumnEndReason, Decision, LineReason, PictureReason, SpaceReason } from "@wmxdsl/layout";
+import type { ColumnEndReason, Decision, LineReason, PictureReason, SpaceReason } from "@wocument/layout";
 
 export type Voice = "engineer";
 type N = Record<string, number>;

@@ -3,7 +3,7 @@
  * from the Positioned Document and its reasons log only. Pure: no DOM.
  */
 
-import type { Decision, Explanation, PositionedDocument, PositionedScene } from "@wmxdsl/layout";
+import type { Decision, Explanation, PositionedDocument, PositionedScene } from "@wocument/layout";
 
 export type Layer = "flow" | "pictures" | "space" | "lines";
 

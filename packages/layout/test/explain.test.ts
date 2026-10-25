@@ -3,14 +3,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { type AssetHost, resolve } from "@wmxdsl/resolver";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { type AssetHost, resolve } from "@wocument/resolver";
+import type { ResolvedDocument } from "@wocument/resolved-document";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { COLUMN_END_REASONS, LINE_REASONS, PICTURE_REASONS, SPACE_REASONS, type Decision, type PositionedDocument, layout } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const GRID = "\\grid[name=page, cols=12, gutter=24px, margin-x=48px, margin-y=2bl, baseline=28px, body=1-12]\n";
 const VIEW = { width: 1280, height: 800 };
 const fake: AssetHost = {
@@ -45,7 +45,7 @@ function columnsWithLines(rd: ResolvedDocument, pd: PositionedDocument): string[
 const keyOf = (d: Decision): string => `${d.screen}|${d.frame}|${d.column}`;
 
 const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
-const SPREAD = here("playground/docs/test-spread.wmx");
+const SPREAD = here("playground/docs/test-spread.woc");
 
 describe("the reasons log", () => {
   it("lists every column-end code", () => {

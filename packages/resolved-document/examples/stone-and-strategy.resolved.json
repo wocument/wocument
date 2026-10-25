@@ -1,8 +1,8 @@
 {
-  "format": "wmxdsl-resolved",
+  "format": "wocument-resolved",
   "version": 1,
   "meta": {
-    "wmxdsl": 1,
+    "wocument": 1,
     "title": "Stone & Strategy",
     "lang": "en",
     "description": null,
@@ -105,11 +105,11 @@
           "type": "image/avif",
           "srcset": [
             {
-              "url": "/_wmx/ramparts-800.avif",
+              "url": "/_woc/ramparts-800.avif",
               "width": 800
             },
             {
-              "url": "/_wmx/ramparts-1600.avif",
+              "url": "/_woc/ramparts-1600.avif",
               "width": 1600
             }
           ]
@@ -118,17 +118,17 @@
           "type": "image/webp",
           "srcset": [
             {
-              "url": "/_wmx/ramparts-800.webp",
+              "url": "/_woc/ramparts-800.webp",
               "width": 800
             },
             {
-              "url": "/_wmx/ramparts-1600.webp",
+              "url": "/_woc/ramparts-1600.webp",
               "width": 1600
             }
           ]
         }
       ],
-      "fallback": "/_wmx/ramparts-1600.jpg"
+      "fallback": "/_woc/ramparts-1600.jpg"
     },
     "img:keep-cutout": {
       "kind": "image",
@@ -140,11 +140,11 @@
           "type": "image/avif",
           "srcset": [
             {
-              "url": "/_wmx/keep-cutout-800.avif",
+              "url": "/_woc/keep-cutout-800.avif",
               "width": 800
             },
             {
-              "url": "/_wmx/keep-cutout-1600.avif",
+              "url": "/_woc/keep-cutout-1600.avif",
               "width": 1600
             }
           ]
@@ -153,17 +153,17 @@
           "type": "image/webp",
           "srcset": [
             {
-              "url": "/_wmx/keep-cutout-800.webp",
+              "url": "/_woc/keep-cutout-800.webp",
               "width": 800
             },
             {
-              "url": "/_wmx/keep-cutout-1600.webp",
+              "url": "/_woc/keep-cutout-1600.webp",
               "width": 1600
             }
           ]
         }
       ],
-      "fallback": "/_wmx/keep-cutout-1600.png"
+      "fallback": "/_woc/keep-cutout-1600.png"
     },
     "poly:keep-cutout": {
       "kind": "polygon",
@@ -228,11 +228,11 @@
           "type": "image/avif",
           "srcset": [
             {
-              "url": "/_wmx/valley-800.avif",
+              "url": "/_woc/valley-800.avif",
               "width": 800
             },
             {
-              "url": "/_wmx/valley-1600.avif",
+              "url": "/_woc/valley-1600.avif",
               "width": 1600
             }
           ]
@@ -241,17 +241,17 @@
           "type": "image/webp",
           "srcset": [
             {
-              "url": "/_wmx/valley-800.webp",
+              "url": "/_woc/valley-800.webp",
               "width": 800
             },
             {
-              "url": "/_wmx/valley-1600.webp",
+              "url": "/_woc/valley-1600.webp",
               "width": 1600
             }
           ]
         }
       ],
-      "fallback": "/_wmx/valley-1600.jpg"
+      "fallback": "/_woc/valley-1600.jpg"
     },
     "img:valley-portrait": {
       "kind": "image",
@@ -263,11 +263,11 @@
           "type": "image/avif",
           "srcset": [
             {
-              "url": "/_wmx/valley-portrait-800.avif",
+              "url": "/_woc/valley-portrait-800.avif",
               "width": 800
             },
             {
-              "url": "/_wmx/valley-portrait-1600.avif",
+              "url": "/_woc/valley-portrait-1600.avif",
               "width": 1600
             }
           ]
@@ -276,17 +276,17 @@
           "type": "image/webp",
           "srcset": [
             {
-              "url": "/_wmx/valley-portrait-800.webp",
+              "url": "/_woc/valley-portrait-800.webp",
               "width": 800
             },
             {
-              "url": "/_wmx/valley-portrait-1600.webp",
+              "url": "/_woc/valley-portrait-1600.webp",
               "width": 1600
             }
           ]
         }
       ],
-      "fallback": "/_wmx/valley-portrait-1600.jpg"
+      "fallback": "/_woc/valley-portrait-1600.jpg"
     }
   },
   "variants": {
@@ -12725,7 +12725,7 @@
       "code": "W031",
       "category": "resolve-warning",
       "message": "Scene \"breath\" will linearize on tablet: frame-3 cols=3-10 does not fit the 8-column grid.",
-      "file": "stone-and-strategy.wmx",
+      "file": "stone-and-strategy.woc",
       "line": 88,
       "column": 3,
       "fix": "Add cols@tablet=... or linearize@tablet=true.",
@@ -12735,7 +12735,7 @@
       "code": "W031",
       "category": "resolve-warning",
       "message": "Anchored figure-1 will linearize on phone: cols=7-12 does not fit the 4-column grid.",
-      "file": "stone-and-strategy.wmx",
+      "file": "stone-and-strategy.woc",
       "line": 49,
       "column": 3,
       "fix": "Add cols@phone=... to the figure.",

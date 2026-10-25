@@ -1,6 +1,6 @@
 /**
  * The build half of the pipeline (spec §15.1 stages 1-3) as a Vite plugin:
- * importing a `.wmx` file parses and resolves it in Node and hands the browser
+ * importing a `.woc` file parses and resolves it in Node and hands the browser
  * the Resolved Document as JSON. Layout and rendering run in the page.
  *
  * Reads the workspace packages' compiled dist/, so `npm run dev` builds first.
@@ -10,11 +10,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
-import { createAssetHost } from "@wmxdsl/assets";
-import { format, parse, type Document, type Theme } from "@wmxdsl/parser";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
-import { resolve } from "@wmxdsl/resolver";
-import { renderStatic } from "@wmxdsl/renderer";
+import { createAssetHost } from "@wocument/assets";
+import { format, parse, type Document, type Theme } from "@wocument/parser";
+import type { ResolvedDocument } from "@wocument/resolved-document";
+import { resolve } from "@wocument/resolver";
+import { renderStatic } from "@wocument/renderer";
 
 const publicDir = fileURLToPath(new URL("./public", import.meta.url));
 /** Where `?doc=name` is looked up, as in src/main.ts: local sample articles, where present, and the parser fixtures. */
@@ -37,7 +37,7 @@ type Compiled = { problems: Problem[]; rd: ResolvedDocument | null; formatted: s
  * relative paths (and the frontmatter theme) resolve from.
  */
 function compile(source: string, dir: string): Compiled {
-  const parsed = parse(source, { file: "editor.wmx" });
+  const parsed = parse(source, { file: "editor.woc" });
   const problems: Problem[] = parsed.diagnostics.map((d) => ({
     severity: d.severity,
     code: d.code,
@@ -56,7 +56,7 @@ function compile(source: string, dir: string): Compiled {
       if (!t.ok) throw new Error(`theme ${path}: ${t.diagnostics.map((d) => `${d.code} ${d.message}`).join("; ")}`);
       theme = t.ast as Theme;
     }
-    const r = resolve(doc, { file: "editor.wmx", theme, assets: createAssetHost({ publicDir, sourceDir: dir }) });
+    const r = resolve(doc, { file: "editor.woc", theme, assets: createAssetHost({ publicDir, sourceDir: dir }) });
     for (const d of r.diagnostics) {
       problems.push({ severity: "warning", code: d.code, message: d.fix ? `${d.message} ${d.fix}` : d.message, line: d.line, column: d.column });
     }
@@ -70,13 +70,13 @@ function compile(source: string, dir: string): Compiled {
 
 /** Every document the editor can open: `?doc=` names in the playground docs and the parser fixtures. */
 function docNames(): string[] {
-  return [...new Set(docDirs.flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".wmx")).map((f) => f.slice(0, -4))))].sort();
+  return [...new Set(docDirs.flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".woc")).map((f) => f.slice(0, -4))))].sort();
 }
 
 /** The file for a document name, or null. Names are checked against the list, so no path can escape the doc folders. */
 function docFile(name: string): string | null {
   if (!docNames().includes(name)) return null;
-  return docDirs.map((d) => join(d, `${name}.wmx`)).find((f) => existsSync(f)) ?? null;
+  return docDirs.map((d) => join(d, `${name}.woc`)).find((f) => existsSync(f)) ?? null;
 }
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -112,23 +112,23 @@ function body(req: IncomingMessage): Promise<string> {
   });
 }
 
-function wmx(): Plugin {
+function woc(): Plugin {
   return {
-    name: "wmx",
+    name: "woc",
     // The editor page (editor.html): list, read, compile and save documents.
     configureServer(server) {
-      server.middlewares.use("/__wmx/docs", guard(false, (_req, res) => send(res, 200, docNames())));
-      server.middlewares.use("/__wmx/source", guard(false, (req, res) => {
+      server.middlewares.use("/__woc/docs", guard(false, (_req, res) => send(res, 200, docNames())));
+      server.middlewares.use("/__woc/source", guard(false, (req, res) => {
         const file = docFile(new URL(req.url ?? "", "http://x").searchParams.get("doc") ?? "");
         if (!file) return send(res, 404, { error: "no such document" });
         send(res, 200, { source: readFileSync(file, "utf8") });
       }));
-      server.middlewares.use("/__wmx/compile", guard(false, async (req, res) => {
+      server.middlewares.use("/__woc/compile", guard(false, async (req, res) => {
         const { source, doc } = JSON.parse(await body(req)) as { source: string; doc: string };
-        send(res, 200, compile(source, dirname(docFile(doc) ?? join(docDirs[0]!, "x.wmx"))));
+        send(res, 200, compile(source, dirname(docFile(doc) ?? join(docDirs[0]!, "x.woc"))));
       }));
       // Writes a file, so it answers this machine only, and only for a document that already exists.
-      server.middlewares.use("/__wmx/save", guard(true, async (req, res) => {
+      server.middlewares.use("/__woc/save", guard(true, async (req, res) => {
         if (req.method !== "POST") return send(res, 405, { error: "POST only" });
         const { source, doc } = JSON.parse(await body(req)) as { source: string; doc: string };
         const file = docFile(doc);
@@ -138,14 +138,14 @@ function wmx(): Plugin {
       }));
     },
     load(id) {
-      if (!id.endsWith(".wmx")) return null;
+      if (!id.endsWith(".woc")) return null;
       return `export default ${JSON.stringify(resolveFile(id))};`;
     },
     // Spec §13 rule 2: the page is served with the document's text already in it, as a plain
     // reading version; the script lays the real page out over it. Errors are left to the script.
     transformIndexHtml(html, ctx) {
       const name = new URL(ctx.originalUrl ?? "/", "http://localhost").searchParams.get("doc") ?? "showcase";
-      const file = docDirs.map((d) => join(d, `${name}.wmx`)).find((f) => existsSync(f));
+      const file = docDirs.map((d) => join(d, `${name}.woc`)).find((f) => existsSync(f));
       if (!file) return html;
       try {
         return html.replace('<main id="page"></main>', `<main id="page">${renderStatic(resolveFile(file))}</main>`);
@@ -157,7 +157,7 @@ function wmx(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [wmx()],
+  plugins: [woc()],
   // Port 5188 is the spike's; the playground gets its own.
   server: { port: 5190 },
 });

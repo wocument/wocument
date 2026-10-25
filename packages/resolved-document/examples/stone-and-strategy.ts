@@ -486,17 +486,17 @@ const imageSet = (name: string, w: number, h: number, fallbackExt: string, alpha
   height: h,
   animated: false,
   sources: [
-    { type: "image/avif", srcset: [800, 1600].map((width) => ({ url: `/_wmx/${name}-${width}.avif`, width })) },
-    { type: "image/webp", srcset: [800, 1600].map((width) => ({ url: `/_wmx/${name}-${width}.webp`, width })) },
+    { type: "image/avif", srcset: [800, 1600].map((width) => ({ url: `/_woc/${name}-${width}.avif`, width })) },
+    { type: "image/webp", srcset: [800, 1600].map((width) => ({ url: `/_woc/${name}-${width}.webp`, width })) },
   ],
-  fallback: `/_wmx/${name}-1600.${alpha ? "png" : fallbackExt}`,
+  fallback: `/_woc/${name}-1600.${alpha ? "png" : fallbackExt}`,
 });
 
 const doc: ResolvedDocument = {
-  format: "wmxdsl-resolved",
+  format: "wocument-resolved",
   version: 1,
   meta: {
-    wmxdsl: 1,
+    wocument: 1,
     title: "Stone & Strategy",
     lang: "en",
     description: null,
@@ -535,7 +535,7 @@ const doc: ResolvedDocument = {
       code: "W031",
       category: "resolve-warning",
       message: 'Scene "breath" will linearize on tablet: frame-3 cols=3-10 does not fit the 8-column grid.',
-      file: "stone-and-strategy.wmx",
+      file: "stone-and-strategy.woc",
       line: 88,
       column: 3,
       fix: "Add cols@tablet=... or linearize@tablet=true.",
@@ -545,7 +545,7 @@ const doc: ResolvedDocument = {
       code: "W031",
       category: "resolve-warning",
       message: 'Anchored figure-1 will linearize on phone: cols=7-12 does not fit the 4-column grid.',
-      file: "stone-and-strategy.wmx",
+      file: "stone-and-strategy.woc",
       line: 49,
       column: 3,
       fix: "Add cols@phone=... to the figure.",

@@ -5,11 +5,11 @@
  * visor: layout then runs with `explain` and the overlay is mounted on the page.
  */
 import { counter } from "./purity.js";
-import { layout } from "@wmxdsl/layout";
-import { type RenderHandle, loadFonts, render } from "@wmxdsl/renderer";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
-import { PrepareCache, createPretextEngine } from "@wmxdsl/text-engine";
-import { type Layer, mountVisor } from "@wmxdsl/visor";
+import { layout } from "@wocument/layout";
+import { type RenderHandle, loadFonts, render } from "@wocument/renderer";
+import type { ResolvedDocument } from "@wocument/resolved-document";
+import { PrepareCache, createPretextEngine } from "@wocument/text-engine";
+import { type Layer, mountVisor } from "@wocument/visor";
 
 export type View = { show(rd: ResolvedDocument): Promise<void>; setVisor(on: boolean): void };
 
@@ -39,7 +39,7 @@ export function createView(root: HTMLElement, svh: HTMLElement, options: { reduc
     handle?.destroy();
     handle = render(root, pd, rd, { reduceMotion: options.reduceMotion });
     if (visorOn && pd.explain) visor = mountVisor(root, pd, pd.explain, { ...visorState, onChange: (st) => (visorState = st) });
-    Object.assign(window, { __wmx: { rd, pd, cache, counter, run, visor: visorOn, setVisor } });
+    Object.assign(window, { __woc: { rd, pd, cache, counter, run, visor: visorOn, setVisor } });
   };
 
   const setVisor = (on: boolean): void => {

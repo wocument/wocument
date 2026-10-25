@@ -1,11 +1,11 @@
 /** Floating placement and the spot menu in the Resolved Document (spec §07.7, §11.3). */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document, type Theme } from "@wmxdsl/parser";
-import { checkInvariants, type ObjectElement, type ResolvedDocument } from "@wmxdsl/resolved-document";
+import { parse, type Document, type Theme } from "@wocument/parser";
+import { checkInvariants, type ObjectElement, type ResolvedDocument } from "@wocument/resolved-document";
 import { resolve, type AssetHost } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 const HOST: AssetHost = {
   image: () => ({ width: 800, height: 600, url: "/a.jpg", animated: false, type: "image/jpeg" }),
@@ -14,7 +14,7 @@ const HOST: AssetHost = {
 };
 
 function run(body: string, theme?: string): ResolvedDocument {
-  const p = parse(FM + body, { file: "t.wmx" });
+  const p = parse(FM + body, { file: "t.woc" });
   expect(p.diagnostics).toEqual([]);
   const t = theme === undefined ? null : (parse(theme, { kind: "theme" }).ast as Theme);
   const { doc } = resolve(p.ast as Document, {

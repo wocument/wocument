@@ -49,8 +49,8 @@ export function buildSchema(): Schema {
     jsDoc: "extended",
     skipTypeCheck: true,
   }).createSchema("ResolvedDocument") as Schema;
-  schema.$id = "https://wmxdsl.dev/schema/resolved-document/1.json";
-  schema.title = "WMXDSL Resolved Document, format version 1";
+  schema.$id = "https://wocument.dev/schema/resolved-document/1.json";
+  schema.title = "Wocument Resolved Document, format version 1";
   return schema;
 }
 

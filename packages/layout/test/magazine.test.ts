@@ -1,21 +1,21 @@
-/** Design 2026-09-22 test case: magazine.wmx at the test widths and two screen heights. */
+/** Design 2026-09-22 test case: magazine.woc at the test widths and two screen heights. */
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { bandExtent, layout } from "../src/index.js";
 import { layoutInvariants } from "./invariants.js";
 
 const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
 const assets = createAssetHost({ publicDir: here("playground/public"), sourceDir: here("playground/docs") });
-const { doc: rd, diagnostics } = resolve(parse(readFileSync(here("playground/docs/magazine.wmx"), "utf8")).ast as Document, { assets });
+const { doc: rd, diagnostics } = resolve(parse(readFileSync(here("playground/docs/magazine.woc"), "utf8")).ast as Document, { assets });
 const lay = (width: number, height: number) => layout(rd, { width, height }, new PrepareCache(createFixedEngine()));
 
-describe("magazine.wmx", () => {
+describe("magazine.woc", () => {
   it("resolves without warnings", () => {
     expect(diagnostics).toEqual([]);
   });

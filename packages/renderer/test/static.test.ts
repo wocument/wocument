@@ -6,10 +6,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import type { ParagraphBlock, ResolvedDocument } from "@wmxdsl/resolved-document";
-import { resolve } from "@wmxdsl/resolver";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import type { ParagraphBlock, ResolvedDocument } from "@wocument/resolved-document";
+import { resolve } from "@wocument/resolver";
 import { renderStatic } from "../src/static.js";
 
 const here = (p: string): string => fileURLToPath(new URL(`../../${p}`, import.meta.url));
@@ -45,12 +45,12 @@ function storyWords(rd: ResolvedDocument, story: string): string[] {
 /** Sample articles kept outside the repository run only where they are. */
 const present = (p: string): boolean => existsSync(here(p));
 const DOCS = [
-  ...["playground/docs/magazine.wmx", "playground/docs/showcase.wmx"].filter(present),
-  "parser/test/fixtures/minimum.wmx",
-  "parser/test/fixtures/stone-and-strategy.wmx",
-  "parser/test/fixtures/the-last-signalman.wmx",
-  "parser/test/fixtures/white-desert.wmx",
-  "parser/test/fixtures/forty-questions.wmx",
+  ...["playground/docs/magazine.woc", "playground/docs/showcase.woc"].filter(present),
+  "parser/test/fixtures/minimum.woc",
+  "parser/test/fixtures/stone-and-strategy.woc",
+  "parser/test/fixtures/the-last-signalman.woc",
+  "parser/test/fixtures/white-desert.woc",
+  "parser/test/fixtures/forty-questions.woc",
 ];
 
 describe.each(DOCS)("%s", (path) => {
@@ -80,10 +80,10 @@ describe.each(DOCS)("%s", (path) => {
   });
 });
 
-describe.skipIf(!present("playground/docs/magazine.wmx"))("element mapping (§14)", () => {
+describe.skipIf(!present("playground/docs/magazine.woc"))("element mapping (§14)", () => {
   // Soft hyphens (kept in the output for the browser's hyphenation) removed for matching, and the
   // no-break spaces that bind short words in display text (§07.6 bind-short) read as spaces.
-  const html = present("playground/docs/magazine.wmx") ? renderStatic(load("playground/docs/magazine.wmx")).replace(/\u00ad/g, "").replace(/\u00a0|&nbsp;/g, " ") : "";
+  const html = present("playground/docs/magazine.woc") ? renderStatic(load("playground/docs/magazine.woc")).replace(/\u00ad/g, "").replace(/\u00a0|&nbsp;/g, " ") : "";
 
   it("headline is h1, subheads are h2, scenes are sections", () => {
     expect(html).toMatch(/<h1[^>]*>The tide tables are wrong, and the fishermen know it<\/h1>/);
@@ -101,13 +101,13 @@ describe.skipIf(!present("playground/docs/magazine.wmx"))("element mapping (§14
   });
 
   it("hides itself only when the page says JavaScript is running", () => {
-    expect(html).toContain(".wmx-js .wmx-static");
+    expect(html).toContain(".woc-js .woc-static");
   });
 });
 
 describe("escaping", () => {
   it("text and attributes are escaped", () => {
-    const src = '---\nwmxdsl: 1\ntitle: T\n---\n\\scene{\\frame{Fish & chips <b>not bold</b> "quoted"}}';
+    const src = '---\nwocument: 1\ntitle: T\n---\n\\scene{\\frame{Fish & chips <b>not bold</b> "quoted"}}';
     const html = renderStatic(resolve(parse(src).ast as Document).doc);
     expect(html).toContain("Fish &amp; chips &lt;b&gt;not bold&lt;/b&gt;");
     expect(html).not.toContain("<b>");

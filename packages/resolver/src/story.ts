@@ -2,9 +2,9 @@
  * Story content to blocks (spec §09.1, §10).
  */
 
-import type { Command, Inline, Node } from "@wmxdsl/parser";
-import type { Block, ParagraphBlock, ResolvedStyle, Story } from "@wmxdsl/resolved-document";
-import type { Value } from "@wmxdsl/schema";
+import type { Command, Inline, Node } from "@wocument/parser";
+import type { Block, ParagraphBlock, ResolvedStyle, Story } from "@wocument/resolved-document";
+import type { Value } from "@wocument/schema";
 import { schemaDefaults } from "./definitions.js";
 import { type RunContext, toRuns } from "./text.js";
 import { toLen } from "./units.js";

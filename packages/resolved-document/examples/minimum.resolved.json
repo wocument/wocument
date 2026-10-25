@@ -1,8 +1,8 @@
 {
-  "format": "wmxdsl-resolved",
+  "format": "wocument-resolved",
   "version": 1,
   "meta": {
-    "wmxdsl": 1,
+    "wocument": 1,
     "title": "A Brief Note",
     "lang": "en",
     "description": null,

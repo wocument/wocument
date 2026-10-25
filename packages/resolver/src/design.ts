@@ -4,8 +4,8 @@
  * and falls back to the schema's defaults, never to a table of its own.
  */
 
-import type { BreakpointRange, FloatSize, Grid, Len, Palette, ResolvedStyle, Spot } from "@wmxdsl/resolved-document";
-import type { Value } from "@wmxdsl/schema";
+import type { BreakpointRange, FloatSize, Grid, Len, Palette, ResolvedStyle, Spot } from "@wocument/resolved-document";
+import type { Value } from "@wocument/schema";
 import { type Attrs, Definitions, schemaDefaults } from "./definitions.js";
 import { type LenContext, toLen, toPx } from "./units.js";
 

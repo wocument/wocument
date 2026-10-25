@@ -6,7 +6,7 @@
  * (`tryLayout`) and summarises the result; this module makes the candidates, applies the hard rules,
  * scores, and searches the combinations best first within a fixed budget.
  */
-import type { FloatPlace, FloatSize, Spot } from "@wmxdsl/resolved-document";
+import type { FloatPlace, FloatSize, Spot } from "@wocument/resolved-document";
 
 const EPS = 1e-6;
 

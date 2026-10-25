@@ -1,5 +1,5 @@
 {
-  "name": "wmxdsl",
+  "name": "wocument",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -12,7 +12,7 @@
     "typecheck": "tsc --build --force && tsc -p tsconfig.spec.json",
     "print-tables": "vite-node packages/schema/scripts/print-tables.ts --",
     "gen:resolved": "vite-node packages/resolved-document/scripts/generate.ts",
-    "playground": "npm run dev --workspace=@wmxdsl/playground"
+    "playground": "npm run dev --workspace=@wocument/playground"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

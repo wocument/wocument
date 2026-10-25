@@ -1,5 +1,5 @@
 /**
- * The built-in default theme (spec §16), as real `.wmxt` source. It sits at
+ * The built-in default theme (spec §16), as real `.woct` source. It sits at
  * cascade level 1 (§02.1) beneath any theme file and the document, and is
  * parsed by the same parser authors' themes go through.
  *

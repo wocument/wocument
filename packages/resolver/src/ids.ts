@@ -5,7 +5,7 @@
  *: scenes, frames, objects.
  */
 
-import type { Command, Node } from "@wmxdsl/parser";
+import type { Command, Node } from "@wocument/parser";
 
 const OBJECTS = new Set(["figure", "video", "embed", "lottie", "audio", "gallery", "pullquote", "sidebar", "group", "rule"]);
 

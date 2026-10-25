@@ -4,13 +4,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { checkInvariants, type ParagraphBlock, type ResolvedDocument } from "@wmxdsl/resolved-document";
+import { parse, type Document } from "@wocument/parser";
+import { checkInvariants, type ParagraphBlock, type ResolvedDocument } from "@wocument/resolved-document";
 import { resolve } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 function run(body: string): ResolvedDocument {
-  const p = parse(FM + body, { file: "t.wmx" });
+  const p = parse(FM + body, { file: "t.woc" });
   expect(p.diagnostics).toEqual([]);
   const { doc } = resolve(p.ast as Document);
   expect(checkInvariants(doc)).toEqual([]);

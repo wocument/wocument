@@ -7,13 +7,13 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_THEME_SOURCE } from "../../../resolver/src/default-theme.js";
 import { roundTrip } from "../helpers.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 const body = (src: string): string => roundTrip(FM + src).slice(FM.length + 1);
 
 describe("format: layout rules", () => {
   it("writes frontmatter in §04 order and one trailing newline (rules 1-2)", () => {
-    expect(roundTrip("---\ntitle: T\nlang: en\nwmxdsl: 1\n---\nHi")).toBe("---\nwmxdsl: 1\ntitle: T\nlang: en\n---\n\nHi\n");
+    expect(roundTrip("---\ntitle: T\nlang: en\nwocument: 1\n---\nHi")).toBe("---\nwocument: 1\ntitle: T\nlang: en\n---\n\nHi\n");
   });
 
   it("orders attributes by schema, base before overrides (rules 3-5)", () => {

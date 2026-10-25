@@ -5,10 +5,10 @@
  */
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout, span, type PositionedDocument } from "../src/index.js";
 import { layoutInvariants } from "./invariants.js";
 
@@ -17,7 +17,7 @@ const here = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
 const assets = createAssetHost({ publicDir: here("."), sourceDir: here(".") });
 
 const SRC = (valign: string) => `---
-wmxdsl: 1
+wocument: 1
 title: Groups
 ---
 \\story[name=main]{
@@ -92,7 +92,7 @@ describe("row group", () => {
   });
 
   it("valign=text: the row is as tall as its text, and the photo is cropped to it (the opener, 2026-09-30)", () => {
-    const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\scene{\\group[layout=row, cols=all, valign=text]{\\frame[min-width=8col]{\\kicker{A kicker}\n\\headline{A headline}\n\\deck{A short deck.}}\n\\figure[src=/b.jpg, alt="B", min-width=4col, ratio=4:5]}}`;
+    const src = `---\nwocument: 1\ntitle: T\n---\n\\scene{\\group[layout=row, cols=all, valign=text]{\\frame[min-width=8col]{\\kicker{A kicker}\n\\headline{A headline}\n\\deck{A short deck.}}\n\\figure[src=/b.jpg, alt="B", min-width=4col, ratio=4:5]}}`;
     const pd = layout(resolve(parse(src).ast as Document, { assets }).doc, { width: 1280, height: 800 }, new PrepareCache(createFixedEngine()));
     const text = pd.scenes[0]!.lines.filter((l) => l.frame === "frame-1");
     const b = obj(pd, "figure-1");
@@ -101,7 +101,7 @@ describe("row group", () => {
   });
 
   it("width=fit: a frame takes the columns its widest line needs, and the photo the rest", () => {
-    const src = `---\nwmxdsl: 1\ntitle: T\n---\n\\scene{\\group[layout=row, cols=all, valign=text]{\\frame[width=fit]{\\headline{Short}}\n\\figure[src=/b.jpg, alt="B", min-width=3col, ratio=4:5]}}`;
+    const src = `---\nwocument: 1\ntitle: T\n---\n\\scene{\\group[layout=row, cols=all, valign=text]{\\frame[width=fit]{\\headline{Short}}\n\\figure[src=/b.jpg, alt="B", min-width=3col, ratio=4:5]}}`;
     const pd = layout(resolve(parse(src).ast as Document, { assets }).doc, { width: 1280, height: 800 }, new PrepareCache(createFixedEngine()));
     const text = pd.scenes[0]!.lines.filter((l) => l.frame === "frame-1");
     const b = obj(pd, "figure-1");

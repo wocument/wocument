@@ -10,7 +10,7 @@
  * attribute order (rule 3 decides it).
  */
 
-import { COMMANDS, FRONTMATTER_FIELDS, type AttrSchema, type Value } from "@wmxdsl/schema";
+import { COMMANDS, FRONTMATTER_FIELDS, type AttrSchema, type Value } from "@wocument/schema";
 import { stringify } from "yaml";
 import { ROOT_ID, type Attr, type Command, type Document, type Inline, type Node, type NodeId, type Theme, type Trivia } from "./ast.js";
 import { typeValue } from "./values.js";

@@ -10,7 +10,7 @@ import { parse } from "../../src/index.js";
 import { roundTrip } from "../helpers.js";
 import type { Command, Document, Inline, Node, Paragraph } from "../../src/ast.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 
 type Parsed = {
   doc: Document;
@@ -21,7 +21,7 @@ type Parsed = {
 
 /** Parses `src` as the content of an implicit-form document. */
 function content(src: string): Parsed {
-  const r = parse(FM + src, { file: "t.wmx" });
+  const r = parse(FM + src, { file: "t.woc" });
   const doc = r.ast as Document;
   return {
     doc,
@@ -32,7 +32,7 @@ function content(src: string): Parsed {
 }
 
 function whole(src: string) {
-  const r = parse(FM + src, { file: "t.wmx" });
+  const r = parse(FM + src, { file: "t.woc" });
   return { doc: r.ast as Document, codes: r.diagnostics.map((d) => d.code), ok: r.ok, diagnostics: r.diagnostics };
 }
 
@@ -376,7 +376,7 @@ describe("conformance vectors 32-37", () => {
 
   // "Any valid file": every document in the repository. The rules themselves are in unit/format.test.ts.
   for (const dir of ["packages/parser/test/fixtures", "packages/playground/docs"].filter((d) => existsSync(d))) {
-    for (const name of readdirSync(dir).filter((f) => f.endsWith(".wmx"))) {
+    for (const name of readdirSync(dir).filter((f) => f.endsWith(".woc"))) {
       it(`37. format is a fixed point and parse round-trips: ${name}`, () => {
         roundTrip(readFileSync(`${dir}/${name}`, "utf8"));
       });

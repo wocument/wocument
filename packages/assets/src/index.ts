@@ -1,5 +1,5 @@
 /**
- * @wmxdsl/assets -- the build-time asset host the resolver calls for media
+ * @wocument/assets -- the build-time asset host the resolver calls for media
  * (spec §11.4-§11.9, §12.2). Node only: it reads files. The resolver stays
  * pure and sees only the `AssetHost` interface it defines.
  *
@@ -19,7 +19,7 @@ import { basename, extname, join, resolve as resolvePath } from "node:path";
 import sharp from "sharp";
 import { imageSize } from "image-size";
 import { PNG } from "pngjs";
-import type { AssetHost, ContourRequest, ImageInfo } from "@wmxdsl/resolver";
+import type { AssetHost, ContourRequest, ImageInfo } from "@wocument/resolver";
 import { cropFor, traceAlpha } from "./contour.js";
 
 export { cropFor, traceAlpha } from "./contour.js";

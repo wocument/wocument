@@ -6,7 +6,7 @@
  * layout, so it is the CLI's (W064). Pure: no layout, no DOM.
  */
 
-import type { Len, Palette, Variant } from "@wmxdsl/resolved-document";
+import type { Len, Palette, Variant } from "@wocument/resolved-document";
 
 export type Readability = { code: string; message: string; variant: string; fix: string };
 

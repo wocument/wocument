@@ -3,9 +3,9 @@
  * punctuation and a drop cap's hung quotation mark (spec §07.6, §10.4), on the fixed-width engine.
  */
 import { describe, expect, it } from "vitest";
-import { parse, type Document } from "@wmxdsl/parser";
-import { resolve } from "@wmxdsl/resolver";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { parse, type Document } from "@wocument/parser";
+import { resolve } from "@wocument/resolver";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout, type PositionedDocument } from "../src/index.js";
 import { layoutInvariants } from "./invariants.js";
 
@@ -14,7 +14,7 @@ const WORDS = "the keeper wound the clock at night and counted every turn of the
 const STORY = Array.from({ length: 40 }, (_, i) => Array.from({ length: 20 + i }, (_, k) => WORDS[(i * 7 + k) % WORDS.length]).join(" ") + ".").join("\n\n");
 
 function lay(head: string, story = STORY, width = 1440) {
-  const rd = resolve(parse(`---\nwmxdsl: 1\ntitle: T\n---\n${head}\n\\story[name=main]{\n${story}\n}\n\\scene{\\frame[story=main, cols=4-9]}\n`).ast as Document).doc;
+  const rd = resolve(parse(`---\nwocument: 1\ntitle: T\n---\n${head}\n\\story[name=main]{\n${story}\n}\n\\scene{\\frame[story=main, cols=4-9]}\n`).ast as Document).doc;
   const pd = layout(rd, { width, height: 900 }, new PrepareCache(createFixedEngine()));
   return { rd, pd };
 }
@@ -99,7 +99,7 @@ describe("a drop cap's hung quotation mark (§10.4 quote=hang)", () => {
 describe("balance never splits a word", () => {
   it("a balanced headline whose bound words make a wide unit still breaks between words", () => {
     // Narrow on purpose: "The keepers' great" is one unit once short words are bound.
-    const rd = resolve(parse(`---\nwmxdsl: 1\ntitle: T\n---\n\\scene{\\frame[cols=all]{\\headline{The keepers' great logbooks of the northern lighthouses}}}\n`).ast as Document).doc;
+    const rd = resolve(parse(`---\nwocument: 1\ntitle: T\n---\n\\scene{\\frame[cols=all]{\\headline{The keepers' great logbooks of the northern lighthouses}}}\n`).ast as Document).doc;
     const pd = layout(rd, { width: 390, height: 844 }, new PrepareCache(createFixedEngine()));
     const heads = pd.scenes[0]!.lines.filter((l) => l.style === "headline");
     expect(heads.length).toBeGreaterThan(1);

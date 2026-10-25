@@ -9,8 +9,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { ResolvedDocument } from "@wmxdsl/resolved-document";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import type { ResolvedDocument } from "@wocument/resolved-document";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { activeVariant, layout, type PositionedDocument } from "../src/index.js";
 
 const rd = JSON.parse(

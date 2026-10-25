@@ -9,8 +9,8 @@
  * schema's defaults, which are the spec's default columns.
  */
 
-import { parse, type Command, type Document, type Node, type SourceKind, type Theme } from "@wmxdsl/parser";
-import { COMMANDS, type Value } from "@wmxdsl/schema";
+import { parse, type Command, type Document, type Node, type SourceKind, type Theme } from "@wocument/parser";
+import { COMMANDS, type Value } from "@wocument/schema";
 
 export type Attrs = Map<string, Value>;
 
@@ -152,7 +152,7 @@ function parseOne(command: string, pairs: string[]): Command {
     .map(([k, a]) => `${k}=${a.enum?.[0] ?? "x"}`);
   const body = schema.arity === "required" ? (schema.kind === "scene" ? "{\\rule}" : "{x}") : "";
   const cmd = `\\${command}[${[...required, ...pairs].join(", ")}]${body}`;
-  const FM = "---\nwmxdsl: 1\ntitle: x\n---\n";
+  const FM = "---\nwocument: 1\ntitle: x\n---\n";
   const contexts: [string, SourceKind][] = [
     [cmd, "theme"],
     [`${FM}\\scene{${cmd}}`, "document"],

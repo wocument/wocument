@@ -4,7 +4,7 @@
  * end-to-end in vectors.test.ts.
  */
 import { describe, expect, it } from "vitest";
-import type { AttrSchema } from "@wmxdsl/schema";
+import type { AttrSchema } from "@wocument/schema";
 import { lexAttrList } from "../../src/attrs.js";
 import { Diagnostics } from "../../src/diagnostics.js";
 import { PositionIndex } from "../../src/positions.js";

@@ -7,8 +7,8 @@
  * into runs whose style hyphenates in at least one variant.
  */
 
-import type { Command, Inline } from "@wmxdsl/parser";
-import type { Link, Run } from "@wmxdsl/resolved-document";
+import type { Command, Inline } from "@wocument/parser";
+import type { Link, Run } from "@wocument/resolved-document";
 import enUs from "hyphen/en-us/index.js";
 
 type Mark = "strong" | "em" | "code";

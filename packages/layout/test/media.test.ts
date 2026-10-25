@@ -2,14 +2,14 @@
 
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createAssetHost } from "@wmxdsl/assets";
-import { parse, type Document } from "@wmxdsl/parser";
-import { type AssetHost, resolve } from "@wmxdsl/resolver";
-import { checkInvariants } from "@wmxdsl/resolved-document";
-import { PrepareCache, createFixedEngine } from "@wmxdsl/text-engine";
+import { createAssetHost } from "@wocument/assets";
+import { parse, type Document } from "@wocument/parser";
+import { type AssetHost, resolve } from "@wocument/resolver";
+import { checkInvariants } from "@wocument/resolved-document";
+import { PrepareCache, createFixedEngine } from "@wocument/text-engine";
 import { layout, type PositionedScene } from "../src/index.js";
 
-const FM = "---\nwmxdsl: 1\ntitle: T\n---\n";
+const FM = "---\nwocument: 1\ntitle: T\n---\n";
 const LONG = Array.from({ length: 14 }, () => "Stone endures where nearly everything else decays.").join(" ");
 
 /** 800x600 images; any PNG is a diamond silhouette: widest at mid-height. */
