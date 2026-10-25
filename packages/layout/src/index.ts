@@ -16,8 +16,8 @@
  * with slots and `wrap-side` (§09.6, §12). With `explain`, every decision is
  * logged for the visor.
  *
- * Not laid out yet (they throw): `\lottie` objects, and a `\group` on the
- * background layer. `docs/capabilities.md` lists what every attribute does.
+ * Not laid out yet (it throws): `\lottie` objects. `docs/capabilities.md`
+ * lists what every attribute does.
  */
 
 import type {
@@ -433,6 +433,14 @@ function layoutScene(env: Env, scene: Scene, cursors: Map<string, Resume>): Posi
   for (const child of scene.children) {
     const o = child.kind === "object" ? v.objects[child.id] : undefined;
     if (!o || o.hidden || o.placement.mode !== "background") continue;
+    // A group in the background: its children across every column from the content's top, beneath
+    // everything, cutting into no text. placeGroup sets into `out`; what it adds moves here.
+    if (o.kind === "group") {
+      const from = { lines: out.lines.length, caps: out.caps.length, rules: out.rules.length, objects: out.objects.length, columnRules: out.columnRules.length, continues: out.continues.length };
+      placeGroup(o, 1, grid.cols, contentTop);
+      append(behind, { lines: out.lines.splice(from.lines), caps: out.caps.splice(from.caps), rules: out.rules.splice(from.rules), objects: out.objects.splice(from.objects), columnRules: out.columnRules.splice(from.columnRules), continues: out.continues.splice(from.continues) });
+      continue;
+    }
     const r = placeObject(env, o, { x: 0, y: sceneY, width: viewport.width }, height);
     append(behind, r.placed);
   }

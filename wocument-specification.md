@@ -905,6 +905,8 @@ A text frame's height in a row is its last line, not its last paragraph's space 
 
 A group is placed in a scene. A group anchored in a story is not in this version.
 
+**Layer.** A group's children are on its layer (§11.2). On the background layer (2026-10-25) a group ignores its `cols`, `rows` and `top`: its children are set across every column from the top of the scene's content, beneath everything, and exclude no text.
+
 ```
 \group[layout=row, cols=all]{
   \group[min-width=7col]{                         %% a stack: the photo and headline travel together

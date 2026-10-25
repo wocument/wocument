@@ -405,7 +405,10 @@ export function resolve(source: Document, options: ResolveOptions = {}): Resolve
     const objectOf = (cmd: Command, id: string, where: ObjectWhere, reveal: Reveal, z: number): ObjectElement => {
       const oa: Attrs = new Map([...schemaDefaults(cmd.name), ...elementAttrs(cmd, bp, cmd.name, deref)]);
       // A \rule has no layer, bleed or wrap of its own: it is on the content layer, and text does not wrap it.
-      const layer = (enumId(oa.get("layer")) || "content") as ObjectElement["layer"];
+      // §11.2, §11.11: a group's children are on its layer. (A gallery's items are built before their
+      // gallery is registered, and keep their own.)
+      const container = where.mode === "contained" ? objects[where.container] : undefined;
+      const layer = (container?.layer ?? (enumId(oa.get("layer")) || "content")) as ObjectElement["layer"];
       let placement: Placement;
       if (where.mode === "contained") placement = where;
       else if (where.mode === "anchored") {
