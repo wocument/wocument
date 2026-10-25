@@ -11,13 +11,14 @@
  * when a file is not in canonical form).
  */
 
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { createAssetHost } from "@wocument/assets";
 import { format, parse, type Diagnostic, type Document, type ParseResult, type Theme } from "@wocument/parser";
-import { resolve, type ResolveResult } from "@wocument/resolver";
+import { resolve, type AssetHost, type ResolveResult } from "@wocument/resolver";
+import { buildSite } from "./build.js";
 import { copyfit, lineLengths, tooShortOrLong } from "./measure.js";
 
 const USAGE = `usage: woc <command> [options] <file...>
@@ -29,6 +30,9 @@ const USAGE = `usage: woc <command> [options] <file...>
       --check        print nothing; exit 1 if any file is not canonical
   check <file...>    parse and resolve, report every diagnostic and the
                      content changes that would fill each screen
+  build <file...>    a static site: one page per document, its script and its files
+      --out <dir>    where to write it (default: ./dist)
+      --no-webp      keep JPEG, PNG and GIF pictures as they are
 
   --public <dir>     where site-absolute paths (/img/a.png) live (default: ./public)
 
@@ -36,7 +40,8 @@ A .woct file is read as a theme.`;
 
 type Options = { public: string; write: boolean; check: boolean };
 
-export function main(argv: string[]): number {
+/** Exit status: 0 when everything worked, 1 when anything reported an error, 2 for a usage error. `build` is asynchronous. */
+export function main(argv: string[]): number | Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
@@ -44,6 +49,8 @@ export function main(argv: string[]): number {
       public: { type: "string", default: "public" },
       write: { type: "boolean", default: false },
       check: { type: "boolean", default: false },
+      out: { type: "string", default: "dist" },
+      "no-webp": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -53,6 +60,11 @@ export function main(argv: string[]): number {
     return values.help ? 0 : 2;
   }
   const opts: Options = { public: values.public as string, write: values.write as boolean, check: values.check as boolean };
+  const absent = files.filter((f) => !existsSync(f));
+  if (absent.length) {
+    for (const f of absent) console.error(`woc: cannot read ${f}: no such file`);
+    return 1;
+  }
 
   switch (command) {
     case "parse":
@@ -80,6 +92,8 @@ export function main(argv: string[]): number {
         }
         return r !== null;
       });
+    case "build":
+      return buildSite(files, { out: values.out as string, public: opts.public, webp: !values["no-webp"] }, (file, host, quiet) => resolveFile(file, opts, host, quiet)).then((ok) => (ok ? 0 : 1));
     default:
       console.error(`woc: unknown command \`${command}\`\n\n${USAGE}`);
       return 2;
@@ -101,14 +115,15 @@ function each(files: string[], run: (file: string) => boolean): number {
   return ok ? 0 : 1;
 }
 
-function parseFile(file: string): ParseResult {
+function parseFile(file: string, quiet = false): ParseResult {
   const r = parse(readFileSync(file), { file, kind: file.endsWith(".woct") ? "theme" : "document" });
-  for (const d of r.diagnostics) report(d);
+  if (!quiet) for (const d of r.diagnostics) report(d);
   return r;
 }
 
-function resolveFile(file: string, opts: Options): ResolveResult | null {
-  const parsed = parseFile(file);
+/** `host` defaults to one that serves files where they are; `quiet` prints nothing. */
+function resolveFile(file: string, opts: Options, host?: AssetHost, quiet = false): ResolveResult | null {
+  const parsed = parseFile(file, quiet);
   if (!parsed.ok) return null;
   const doc = parsed.ast as Document;
   const sourceDir = dirname(file);
@@ -117,21 +132,26 @@ function resolveFile(file: string, opts: Options): ResolveResult | null {
   if (doc.frontmatter.theme !== undefined) {
     const path = doc.frontmatter.theme;
     const themeFile = path.startsWith("/") ? join(opts.public, path) : resolvePath(sourceDir, path);
-    const t = parseFile(themeFile);
+    if (!existsSync(themeFile)) {
+      if (!quiet) console.error(`woc: cannot read the theme ${path} (${themeFile}): no such file`);
+      return null;
+    }
+    const t = parseFile(themeFile, quiet);
     if (!t.ok) return null;
     theme = t.ast as Theme;
   }
 
   try {
-    const r = resolve(doc, { file, theme, assets: createAssetHost({ publicDir: opts.public, sourceDir }) });
-    for (const d of r.diagnostics) {
-      console.error(`woc: ${d.category.replace("-", " ")} [${d.code}] at ${d.file}:${d.line}:${d.column}`);
-      console.error(`  ${sentence(d.message)}${d.fix ? ` ${d.fix}` : ""}`);
-    }
+    const r = resolve(doc, { file, theme, assets: host ?? createAssetHost({ publicDir: opts.public, sourceDir }) });
+    if (!quiet)
+      for (const d of r.diagnostics) {
+        console.error(`woc: ${d.category.replace("-", " ")} [${d.code}] at ${d.file}:${d.line}:${d.column}`);
+        console.error(`  ${sentence(d.message)}${d.fix ? ` ${d.fix}` : ""}`);
+      }
     return r;
   } catch (err) {
     // Resolve errors throw (spec §15.6).
-    console.error(`woc: resolve error at ${file}\n  ${err instanceof Error ? err.message : String(err)}`);
+    if (!quiet) console.error(`woc: resolve error at ${file}\n  ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -174,5 +194,5 @@ const sentence = (s: string): string => (/[.!?]$/.test(s) ? s : `${s}.`);
 
 // Run only as a program, so tests can import `main`. argv[1] may be the npm bin symlink.
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  process.exitCode = main(process.argv.slice(2));
+  void Promise.resolve(main(process.argv.slice(2))).then((code) => (process.exitCode = code));
 }

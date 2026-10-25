@@ -10,5 +10,8 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "dependencies": {
+    "esbuild": "^0.21.5"
+  }
 }

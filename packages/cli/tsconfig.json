@@ -2,5 +2,5 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "dist", "types": ["node"] },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../parser" }, { "path": "../resolver" }, { "path": "../assets" }, { "path": "../layout" }, { "path": "../text-engine" }, { "path": "../resolved-document" }]
+  "references": [{ "path": "../parser" }, { "path": "../resolver" }, { "path": "../assets" }, { "path": "../layout" }, { "path": "../text-engine" }, { "path": "../resolved-document" }, { "path": "../renderer" }]
 }
