@@ -169,3 +169,11 @@ describe("music", () => {
     expect(r.diagnostics.map((d) => [d.code, d.hint])).toEqual([["P013", "Write it without @phone: one value applies at every width."]]);
   });
 });
+
+describe("parent", () => {
+  it("takes no parent=: parents do not chain (spec §08.4)", async () => {
+    const { parse } = await import("../../src/index.js");
+    const r = parse("---\nwocument: 1\ntitle: T\n---\n\\parent[name=a, height=screen]\n\\parent[name=b, parent=a]\n\\story[name=s]{Text.}\n\\scene[parent=b]{\\frame[story=s]}\n");
+    expect(r.diagnostics.map((d) => [d.code, d.message])).toEqual([["P013", "Unknown attribute `parent` on \\parent."]]);
+  });
+});

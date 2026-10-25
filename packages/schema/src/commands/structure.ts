@@ -52,7 +52,8 @@ export const PARENT: CommandSchema = {
   attrs: {
     name: { types: ["ident"], required: true, responsive: false },
     at: { types: ["ident"], responsive: false },
-    ...SCENE_ATTRS,
+    // §08.4: parents do not chain, so a parent takes no parent=.
+    ...Object.fromEntries(Object.entries(SCENE_ATTRS).filter(([k]) => k !== "parent")),
   },
   rules: [],
   spec: "§08.4",
