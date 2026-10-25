@@ -4,16 +4,20 @@
  * the page on the right; the page alone is client/page.html, for a phone. The
  * `V` key shows the visor, which explains the layout's decisions.
  *
- * Parse and resolve run here, in Node, as `woc build` runs them (without the
- * WebP step, to stay fast); layout and render run in the page. Every file a
- * document uses is served at /__woc/files/<name-hash.ext>, so relative paths
- * work and a changed picture gets a new URL. A .woc or .woct file saved by
+ * Parse and resolve run here, in Node, as `woc build` runs them; layout and
+ * render run in the page. JPEG, PNG and GIF pictures are shown as WebP, as a
+ * build ships them: the first time, the page shows the original while the
+ * WebP is made in the background (typically under 2 s for an article), then
+ * shows the WebP. WebP files are kept in the system cache folder, named by
+ * content, so a picture converts once. Every file a document uses is served
+ * at /__woc/files/<name-hash.ext>, so relative paths work and a changed
+ * picture gets a new URL. A .woc or .woct file saved by
  * another editor updates the open pages.
  */
 
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer, type Plugin, type ViteDevServer } from "vite";
@@ -30,6 +34,8 @@ export type DevOptions = {
   host: boolean;
   /** Open the editor in the browser. */
   open: boolean;
+  /** Where converted WebP pictures are kept; the system cache folder when absent. */
+  cache?: string;
 };
 
 /** A problem as the editor lists it: parse errors and resolve warnings in one shape. */
@@ -44,6 +50,12 @@ title: Untitled
 
 Start writing here.
 `;
+
+/** The system cache folder for converted pictures. */
+function cacheFolder(): string {
+  const base = process.env.XDG_CACHE_HOME ?? (process.platform === "darwin" ? join(homedir(), "Library", "Caches") : process.platform === "win32" ? (process.env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local")) : join(homedir(), ".cache"));
+  return join(base, "wocument", "webp");
+}
 
 const CLIENT = fileURLToPath(new URL("../client", import.meta.url));
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -68,6 +80,8 @@ export async function dev(target: string, opts: DevOptions): Promise<ViteDevServ
   const fileOf = (name: string): string | null => (names().includes(name) ? join(folder, `${name}.woc`) : null);
   /** URL to source file, for every file a compiled document used. */
   const files = new Map<string, string>();
+  const webp = opts.cache ?? cacheFolder();
+  let server: ViteDevServer | null = null;
 
   /** Parse and resolve, reporting problems instead of throwing. */
   const compile = (source: string): Compiled => {
@@ -84,9 +98,14 @@ export async function dev(target: string, opts: DevOptions): Promise<ViteDevServ
         if (!t.ok) throw new Error(`theme ${path}: ${t.diagnostics.map((d) => `${d.code} ${d.message}`).join("; ")}`);
         theme = t.ast as Theme;
       }
-      const host = createAssetHost({ publicDir: opts.public, sourceDir: folder, copy: { url: "/__woc/files" } });
+      const host = createAssetHost({ publicDir: opts.public, sourceDir: folder, copy: { url: "/__woc/files" }, webp: { dir: webp, url: "/__woc/files" } });
       const r = resolve(doc, { file: "editor.woc", theme, assets: host });
       for (const [url, src] of host.named()) files.set(url, src);
+      // Pictures not yet in WebP: make them, then have the open pages compile again (null: every document).
+      void host
+        .convert()
+        .then((made) => made && server?.ws.send({ type: "custom", event: "woc:change", data: { doc: null } }))
+        .catch((e: unknown) => console.error(`woc: a picture did not convert to WebP: ${e instanceof Error ? e.message : String(e)}`));
       for (const d of r.diagnostics) problems.push({ severity: "warning", code: d.code, message: d.fix ? `${d.message} ${d.fix}` : d.message, line: d.line, column: d.column });
       return { problems, rd: r.doc, formatted };
     } catch (e) {
@@ -129,7 +148,9 @@ export async function dev(target: string, opts: DevOptions): Promise<ViteDevServ
       // Pictures, fonts and videos load as page elements and from a phone, so no Sec-Fetch-Site check:
       // only files a compiled document used are served.
       server.middlewares.use("/__woc/files", (req, res) => {
-        const src = files.get(`/__woc/files${(req.url ?? "").split("?")[0]}`);
+        const name = (req.url ?? "").split("?")[0]!.slice(1);
+        // A converted picture is in the cache folder; a plain name, so no path can leave it.
+        const src = files.get(`/__woc/files/${name}`) ?? (/^[^/\\]+\.webp$/.test(name) && !name.includes("..") ? join(webp, name) : undefined);
         if (!src || !existsSync(src)) return send(res, 404, { error: "no such file" });
         serveFile(req, res, src);
       });
@@ -146,7 +167,7 @@ export async function dev(target: string, opts: DevOptions): Promise<ViteDevServ
     },
   };
 
-  const server = await createServer({
+  server = await createServer({
     configFile: false,
     root: CLIENT,
     publicDir: false,

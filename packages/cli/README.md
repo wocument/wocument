@@ -25,6 +25,7 @@ opens the editor in the browser: the source on the left, the page on the right, 
 - **Save** (Cmd/Ctrl-S) writes the file. Edits you have not saved are kept in this browser until you save or revert.
 - Edit in your own editor if you prefer: when you save there, the open pages show the new version.
 - **Page** opens the page alone. `woc dev --host` also listens on your network, so a phone can open it; saving still works from this machine only.
+- Pictures show as WebP, as `woc build` ships them. The first time, a picture shows as it is for a moment while its WebP is made (typically under 2 s for an article); WebP files are kept in the system cache folder (`~/Library/Caches/wocument` on macOS, `~/.cache/wocument` on Linux), so each picture converts once.
 - Press **V** on a page for the visor: it marks the grid and lines and explains each layout decision.
 - **Problems** lists errors and warnings at their line; **Resolved** shows the Resolved Document.
 

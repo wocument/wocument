@@ -14,7 +14,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { basename, extname, join, resolve as resolvePath } from "node:path";
 import sharp from "sharp";
 import { imageSize } from "image-size";
@@ -57,6 +57,24 @@ export type HostOptions = {
 
 /** Pictures worth converting; SVG, WebP and AVIF are served as they are. */
 const CONVERTS = new Set(["image/png", "image/jpeg", "image/gif"]);
+
+/** WebP files being made in this process, by output file: two hosts that ask for one picture share one conversion. */
+const converting = new Map<string, Promise<void>>();
+
+/** Writes a temporary file and renames it, so a reader never sees half a picture. */
+function toWebp(src: string, file: string): Promise<void> {
+  let job = converting.get(file);
+  if (!job) {
+    const tmp = `${file}.${process.pid}.tmp.webp`;
+    job = sharp(src, { animated: true })
+      .webp({ quality: 80, alphaQuality: 90 })
+      .toFile(tmp)
+      .then(() => renameSync(tmp, file))
+      .finally(() => converting.delete(file));
+    converting.set(file, job);
+  }
+  return job;
+}
 
 export function createAssetHost(opts: HostOptions): AssetHost & { convert(): Promise<number>; named(): ReadonlyMap<string, string> } {
   const cache = new Map<string, Buffer>();
@@ -125,7 +143,7 @@ export function createAssetHost(opts: HostOptions): AssetHost & { convert(): Pro
       mkdirSync(opts.webp.dir, { recursive: true });
       const jobs = [...pending];
       pending.clear();
-      await Promise.all(jobs.map(([name, src]) => sharp(src, { animated: true }).webp({ quality: 80, alphaQuality: 90 }).toFile(join(opts.webp!.dir, name))));
+      await Promise.all(jobs.map(([name, src]) => toWebp(src, join(opts.webp!.dir, name))));
       return jobs.length;
     },
   };

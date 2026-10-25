@@ -7,6 +7,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ViteDevServer } from "vite";
+import { PNG } from "pngjs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dev } from "../src/dev.js";
 
@@ -16,7 +17,7 @@ let base = "";
 const PAGE = { "sec-fetch-site": "same-origin" };
 
 const start = async (target: string): Promise<void> => {
-  server = await dev(target, { public: join(dir, "public"), port: 0, host: false, open: false });
+  server = await dev(target, { public: join(dir, "public"), port: 0, host: false, open: false, cache: join(dir, "cache") });
   base = `http://127.0.0.1:${(server.httpServer!.address() as AddressInfo).port}`;
 };
 const get = (path: string, headers: Record<string, string> = PAGE) => fetch(base + path, { headers });
@@ -62,6 +63,29 @@ describe("woc dev", () => {
     expect(part.headers.get("content-range")).toBe("bytes 2-4/10");
     expect(await part.text()).toBe("234");
     expect((await get("/__woc/files/other-0000000000.mp4", {})).status).toBe(404);
+  });
+
+  it("shows a picture as it is at first, then as WebP once converted, from the cache folder", async () => {
+    const png = new PNG({ width: 30, height: 20 });
+    png.data.fill(120);
+    writeFileSync(join(dir, "p.png"), PNG.sync.write(png));
+    writeFileSync(join(dir, "b.woc"), "---\nwocument: 1\ntitle: B\n---\n\\figure[src=./p.png, alt=\"Grey\"]\n");
+    await start(dir);
+    const picture = async (): Promise<string> => {
+      const { rd } = await (await get("/__woc/document?doc=b")).json();
+      return (Object.values(rd.assets) as { kind: string; fallback: string }[]).find((a) => a.kind === "image")!.fallback;
+    };
+    expect(await picture()).toMatch(/^\/__woc\/files\/p-[0-9a-f]{10}\.png$/);
+    let url = "";
+    for (let i = 0; i < 50 && !url.endsWith(".webp"); i++) {
+      await new Promise((ok) => setTimeout(ok, 100));
+      url = await picture();
+    }
+    expect(url).toMatch(/^\/__woc\/files\/p-[0-9a-f]{10}\.webp$/);
+    expect(existsSync(join(dir, "cache", url.split("/").pop()!))).toBe(true);
+    const res = await get(url, {});
+    expect(res.headers.get("content-type")).toBe("image/webp");
+    expect((await get("/__woc/files/..%2Fa.woc", {})).status).toBe(404);
   });
 
   it("compiles unsaved text and reports errors where they are", async () => {
