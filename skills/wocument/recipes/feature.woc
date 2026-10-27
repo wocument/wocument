@@ -1,0 +1,51 @@
+---
+wocument: 1
+title: The Last Keepers
+lang: en-GB
+theme: ./edition.woct
+description: A feature in the implicit form, the zero-configuration magazine page.
+---
+%% RECIPE: a feature. No \scene: the whole file is one magazine page (spec §02.2). The heading run
+%% goes in a heading frame over eight columns; the rest is set in columns, in screen-tall bands,
+%% on laptops and desktops, and in one scrolling column on tablets and phones.
+%% The text is sample text: replace it with the author's.
+
+\folio[position=top-right, progress]{The Coast Issue}
+
+\kicker{Feature · Coast}
+\headline{The Last Keepers}
+\deck{For two centuries the lights were kept by hand. Then, within a decade, the keepers went home.}
+\byline{By A. Writer}
+\meta{October 2026 · 9 min read}
+
+\lede{The lamp had to be lit before sunset and watched until dawn, every night of the year, and for most of the light's history that work fell to three families who rarely saw anyone else.}
+
+\dropcap[lines=3]
+They kept logbooks in a careful hand: the wind at each change of watch, the ships that passed, the hours the fog signal sounded. Read now, the entries are short and almost always the same, and that sameness is the point. A light that does its work leaves nothing worth writing down.
+
+The keepers wound the clockwork that turned the lens every two hours through the night. They trimmed the wicks, polished the brass and cleaned the salt from the lantern glass each morning. When the weather closed in they sounded the horn until it lifted, sometimes for two days without sleep.
+
+\figure[src=./pictures/landscape-dusk.jpg, alt="The headland at dusk, the light just lit above the cliff", size=wide]{
+  \caption{The headland at dusk. The light was lit half an hour before sunset.}
+  \credit{Stand-in picture}
+}
+
+Supplies came by boat once a fortnight when the sea allowed it, and in winter it often did not. Each station kept three months of food and oil in reserve. Children were taught at home until they were old enough to board on the mainland, and most of them did not come back to the coast.
+
+\pullquote{A light that does its work leaves nothing worth writing down.}
+
+The change came quickly. Automatic lamps, first powered by acetylene and later by electricity from the mainland, needed a visit a month rather than a watch every night. One station after another was handed over, and the logbooks end with the same line: the light was left in good order.
+
+\subhead{After the handover}
+
+Some keepers stayed on as attendants, living in the cottages and checking the equipment. Most moved inland. Asked what they missed, many gave the same answer: the routine, and the sense that the work mattered every single night.
+
+\figure[src=./pictures/portrait-valley.jpg, alt="A narrow valley running down to the sea", size=column, ratio=1:1, focus="50% 60%"]{
+  \caption{The road down to the station, built in the year the light was automated.}
+}
+
+The towers are still there, and most of the lights still turn. They are monitored from a control room hundreds of miles away, and a fault shows on a screen before anyone at sea would notice it. The work the keepers did is done, more reliably than they could do it, by no one in particular.
+
+What remains of their time is the logbooks, the cottages and the habits of the people who grew up in them. Ask one of the children of the last keepers what the light meant, and the answer is rarely about ships. It is about watching something through the night because someone had to.
+
+\bio{A. Writer writes about the coast and the people who work on it.}

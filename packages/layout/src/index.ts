@@ -16,7 +16,7 @@
  * with slots and `wrap-side` (§09.6, §12). With `explain`, every decision is
  * logged for the visor.
  *
- * Not laid out yet (it throws): `\lottie` objects. `docs/capabilities.md`
+ * Not laid out yet (it throws): `\lottie` objects. `skills/wocument/references/capabilities.md`
  * lists what every attribute does.
  */
 

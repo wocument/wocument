@@ -1,0 +1,73 @@
+---
+wocument: 1
+title: Night Shift
+lang: en-GB
+theme: ./edition.woct
+description: An opener over a picture, a page of columns, an interlude and a close.
+---
+%% RECIPE: explicit scenes. An opener (a screen scene: a background picture, the heading on its
+%% lower rows), the story set in columns on a page scene, an interlude from the theme's parent,
+%% and a close. A page scene needs enough text to fill its screens: a short section set in columns
+%% leaves screens ending short (the copyfitting report and the render check say by how much).
+%% The text is sample text: replace it with the author's.
+
+\folio[position=top-right, progress]{The Coast Issue}
+
+\story[name=main]{
+  \lede[span=all]{The night shift at a coastal station begins with a walk to the tower and ends, eleven hours later, with the same walk back.}
+
+  \dropcap[lines=3]
+  In between there is the log, the lamp, the clockwork and the weather. The keepers who worked these stations described the hours in the same few words: watching, winding, writing. Nothing happened most nights, and a night when something did was remembered for years.
+
+  The lamp burned oil until the lighthouse service changed to paraffin vapour, which gave a brighter light and needed more attention. A mantle could fail without warning, and a keeper who missed it would leave a gap in the light that ships were counting on to fix their position.
+
+  \figure[src=./pictures/landscape-valley.jpg, alt="Fog lying in a valley that opens to the sea", size=column]{
+    \caption{Fog came in from the valley before it came in from the sea.}
+  }
+
+  Fog was the hardest part of the job. The signal had to sound for as long as visibility stayed under two miles, and on some stretches of coast that meant whole days. The engine that drove it needed tending every hour, and the noise made sleep almost impossible for anyone off watch.
+
+  \subhead{The second watch}
+
+  The second watch ran from midnight until four. It was the one most keepers disliked, not for the work but for the hour: too late to have slept, too early to look forward to the morning. Many filled it with small repairs, reading, or letters that would leave on the next boat.
+
+  Some stations kept a book for visitors, and a few kept a book for the keepers themselves: notes left from one shift to the next about a sticking door, a gull's nest on the gallery, a ship that had passed too close. Those books read like a conversation between people who rarely met.
+
+  \pullquote{Watching, winding, writing: the whole job in three words.}
+
+  By the time the last stations were automated, the night shift had become a story the keepers told rather than work they did. The towers kept their lights. The cottages were sold or let to visitors, who are often surprised by how small the rooms are and how much of the window is sea.
+
+  The logbooks went to archives, where they are read now by family historians and by people who want to know what the weather was on a particular night a century ago. They find it there, in the same careful hand, at every change of watch. \endmark
+}
+
+%% An opener: one screen, the picture behind, the heading on the lower rows.
+\scene[name=opener, height=screen, palette=night, folio=hide]{
+  \figure[src=./pictures/landscape-night.jpg, alt="", layer=background, focus="50% 70%", loading=eager]
+  \frame[cols=1-7, rows=4-6, cols@tablet=1-6, cols@phone=all, valign=bottom, enter=rise]{
+    \kicker{Feature · Night}
+    \headline{Night Shift}
+    \deck{Eleven hours, one lamp and the weather: how a keeper's night went.}
+    \byline{By A. Writer}
+  }
+}
+
+%% The story in columns, set in screen-tall bands on laptops and desktops.
+\scene[name=pages, height=page]{
+  \frame[story=main, cols=all, columns=auto, measure=600px, columns@tablet=1, columns@phone=1]
+}
+
+%% An interlude: one picture and one line, from the theme's parent.
+\scene[name=interlude, parent=interlude]{
+  \figure[src=./pictures/landscape-dusk.jpg, alt="The headland at dusk", layer=background]
+  \frame[cols=2-9, rows=3-4, cols@tablet=1-7, cols@phone=all, valign=center]{
+    \pullquote{A night when something happened was remembered for years.}
+  }
+}
+
+%% The close: a rule and the bio, on the body's columns.
+\scene[name=close]{
+  \frame[cols=4-9, cols@tablet=2-7, cols@phone=all]{
+    \rule
+    \bio{A. Writer writes about the coast and the people who work on it.}
+  }
+}

@@ -1,0 +1,66 @@
+---
+wocument: 1
+title: Coastline
+lang: en-GB
+theme: ./edition.woct
+description: "A photo essay: full-screen pictures, a row of pictures, short text between."
+---
+%% RECIPE: a photo essay. Pictures lead: full-screen scenes with one picture and one line, a row
+%% group that becomes a column on a phone by itself, and short text frames between. Captions do
+%% more work than body copy here.
+%% The pictures are stand-ins and the text is sample text: replace both with the author's.
+
+\folio[position=top-right, progress]{The Coast Issue}
+
+%% The cover picture, with the title on its lower rows.
+\scene[name=cover, height=screen, palette=night, folio=hide]{
+  \figure[src=./pictures/landscape-dusk.jpg, alt="The coast at dusk", layer=background, focus="50% 65%", loading=eager]
+  \frame[cols=1-8, rows=5-6, cols@phone=all, valign=bottom, enter=rise]{
+    \kicker{Photo essay}
+    \headline{Coastline}
+    \deck{Six pictures from a winter on the edge of the land.}
+  }
+}
+
+%% A short introduction on the body's columns, then a row of pictures: side by side on wide
+%% screens, one under another on a phone. One scene, so one running head (every scene draws its own).
+%% valign=stretch gives the row one height: pictures on the grid's outer edges reach into the margin.
+\scene[name=intro]{
+  \frame[cols=4-9, cols@tablet=2-7, cols@phone=all]{
+    \lede{The coast changes more in a winter than in the rest of the year together. These pictures were made over four months, at the same few places, in whatever light the weather allowed.}
+  }
+  \group[layout=row, cols=all, valign=stretch]{
+    \figure[src=./pictures/portrait-valley.jpg, alt="A valley running down to the sea under low cloud", min-width=4col, ratio=4:5]{
+      \caption{The valley in January, under low cloud.}
+    }
+    \figure[src=./pictures/square-portrait.jpg, alt="The ridge above the station, grey on grey", min-width=4col, ratio=4:5]{
+      \caption{The ridge above the station.}
+    }
+    \figure[src=./pictures/landscape-valley.jpg, alt="Fog filling the valley floor", min-width=4col, ratio=4:5, focus="40% 60%"]{
+      \caption{Fog in the morning, gone by ten.}
+    }
+  }
+}
+
+%% One picture, one line: an interlude from the theme's parent.
+\scene[name=night, parent=interlude]{
+  \figure[src=./pictures/landscape-night.jpg, alt="Stars over the hills on a clear night", layer=background, focus="50% 60%"]
+  \frame[cols=2-9, rows=4-5, cols@tablet=1-7, cols@phone=all, valign=center]{
+    \pullquote{On the clear nights you could see every light along the coast.}
+  }
+}
+
+%% A picture with its text beside it, then the close.
+\scene[name=tower, folio=hide]{
+  \figure[src=./pictures/cutout-tower.png, alt="The tower, cut out against the page", cols=1-5, cols@tablet=2-7, cols@phone=all, top=0, max-width=480px]{
+    \caption{The tower, the one thing in every picture that did not change.}
+  }
+  \frame[cols=7-12, cols@tablet=all, cols@phone=all, top=4bl, top@tablet=auto, top@phone=auto]{
+    \subhead{Notes}
+    Every picture was made within a mile of the station, between November and February. The light was rarely good for more than an hour a day, and some weeks it was never good at all.
+
+    The tower appears in most of them by accident: it is the tallest thing for miles, and the eye goes to it wherever the camera points.
+    \rule
+    \credit{Pictures and text: A. Photographer}
+  }
+}

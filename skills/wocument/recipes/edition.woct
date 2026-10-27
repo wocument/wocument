@@ -1,0 +1,29 @@
+%% An edition theme: definitions only. Every page of the edition loads it (theme: ./edition.woct),
+%% so the pages share one grid, one type system and one set of palettes. Vanilla supplies
+%% everything not named here.
+
+%% ---------- colour ----------
+\token[name=accent, value=#b4472c]
+\palette[name=default, paper=#f7f4ee, ink=#1b1a17, muted=#635e55, accent=$accent, rule=#ddd6c8]
+\palette[name=night, paper=#121315, ink=#eeeae2, muted=#a39e94, accent=#e2a564, rule=#2c2d31]
+
+%% ---------- type: system fonts with fallbacks; Vanilla's sizes and spacing are kept ----------
+\style[name=headline, family="Iowan Old Style, Georgia, serif", weight=400, size=fluid(42px, 88px), tracking=-0.02em]
+\style[name=deck, family="Iowan Old Style, Georgia, serif", italic, color=muted]
+\style[name=kicker, color=accent]
+\style[name=body, family="Iowan Old Style, Georgia, serif"]
+\style[name=lede, family="Iowan Old Style, Georgia, serif", size=24px]
+\style[name=lede, at=compact, size=20px]
+\style[name=lede, at=phone, size=20px]
+\style[name=pullquote, family="Iowan Old Style, Georgia, serif", color=accent]
+
+%% A quieter headline for pages where a picture leads.
+\style[name=headline-quiet, extends=headline, size=fluid(32px, 56px)]
+%% Interview questions: the subhead's voice, in ink, sentence case.
+\style[name=question, extends=subhead, case=none, tracking=0em, color=ink, size=19px]
+\style[name=question, at=compact, size=16px]
+
+%% ---------- scene templates ----------
+%% A full-screen interlude in the night palette: a picture behind, a line of text over it.
+%% Used by opener.woc and photo-essay.woc; leave it out of a theme whose pages do not use it.
+\parent[name=interlude, height=screen, palette=night, enter=fade, folio=hide]

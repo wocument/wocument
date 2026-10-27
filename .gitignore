@@ -7,3 +7,6 @@ dist/
 packages/playground/public/spread/
 # Pictures converted to WebP for the playground.
 packages/playground/public/_webp/
+
+# The skill's render check (skills/wocument/scripts/render-check.mjs)
+.woc-check/

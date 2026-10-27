@@ -1,0 +1,46 @@
+---
+wocument: 1
+title: "The Engineer: an interview"
+lang: en-GB
+theme: ./edition.woct
+description: An interview in the implicit form, with questions in their own style and a portrait.
+---
+%% RECIPE: an interview. Implicit form: a heading block and columns. Questions are subheads in
+%% the theme's `question` style (sentence case, ink, kept with the answer that follows); answers
+%% are body text. A portrait at the start and a pull quote of the best line.
+%% The text is sample text: replace it with the author's.
+
+\folio[position=top-right, progress]{The Coast Issue}
+
+\kicker{Interview}
+\headline{The Engineer}
+\deck{She spent thirty years keeping the automatic lights working. She thinks the keepers had the better job.}
+\byline{Interview by A. Writer}
+
+\lede{For three decades the engineer travelled the coast servicing lights that no longer had keepers. We asked her what the job was like, and what the stations were like once everyone had gone.}
+
+\figure[src=./pictures/square-portrait.jpg, alt="Portrait of the engineer at her desk", size=small, size@tablet=column, size@phone=column]{
+  \caption{The engineer, photographed at the depot where she started.}
+}
+
+\subhead[style=question]{How did you start?}
+
+I answered an advertisement for an electrician. I thought it would be a year or two. The first station I went to still had a keeper living in the cottage, and he made me tea and watched everything I did as if I were going to break it. I probably was.
+
+\subhead[style=question]{What did a visit involve?}
+
+A day, sometimes two if the boat could not come back for us. You checked the lamp, the batteries, the generator, the fog signal. You read the logs the equipment kept, which told you everything and nothing. A keeper would have told you the door had been banging all winter. The machine just recorded that it was still working.
+
+\pullquote{The machine just recorded that it was still working.}
+
+\subhead[style=question]{Did you miss the keepers?}
+
+Yes, and I only knew them at the very end. The stations changed when they left. Nobody painted anything. Nobody noticed the small things going wrong until they became large things. The lights were more reliable, but the stations were worse looked after, and that never seemed to bother anyone except us.
+
+\subhead[style=question]{What do you think the job was really about?}
+
+Attention. Keeping a light is paying attention to one thing for a very long time, and making sure it never stops. We replaced that with instruments, and the instruments are very good. But they do not care, and it turns out caring was part of the work.
+
+\rule
+
+\bio{The engineer retired in 2019. She lives on the coast she used to service.}
