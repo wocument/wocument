@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 /**
  * One document as a page, without the editor: for another window or a phone
- * (`woc dev --host`). `?doc=name` picks it. When its file, or a theme, is
- * saved, the page shows the new version and keeps the scroll position.
+ * (`woc dev --host`). `?doc=name` picks it; `&inspect` adds a report on the
+ * layout (inspect.ts). When its file, or a theme, is saved, the page shows the
+ * new version and keeps the scroll position.
  */
 import type { ResolvedDocument } from "@wocument/resolved-document";
 import { createView } from "./view.js";
@@ -21,7 +22,9 @@ function fail(message: string): void {
   root.prepend(pre);
 }
 
-const view = createView(root, { onError: (e) => fail(e instanceof Error ? e.message : String(e)) });
+// `&inspect`: the page reports on itself (inspect.ts), for the skill's render check.
+const inspect = new URLSearchParams(location.search).has("inspect");
+const view = createView(root, { inspect, onError: (e) => fail(e instanceof Error ? e.message : String(e)) });
 
 async function show(): Promise<void> {
   const res = await fetch(`/__woc/document?doc=${encodeURIComponent(doc)}`);
