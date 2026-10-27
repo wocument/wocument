@@ -374,7 +374,7 @@ A named paragraph or character style.
 | `case` | `none` `upper` `lower` `small-caps` | `none` | |
 | `align` | `left` `right` `center` `justify` | `left` | `justify` spreads every line but a paragraph's last to the full width of its slot, by widening the line's spaces. With `composer=line` (the default) the line breaks are the ones the ragged setting would take, so a narrow column can open wide gaps; `composer=paragraph` evens them out. A line a little longer than its slot (the paragraph composer's) closes its spaces instead, by at most 0.05em each. A line that would open its spaces by more than half an em (a sliver beside a picture) is set flush left instead (2026-09-30). |
 | `color` | palette role, color or token | `ink` | |
-| `indent` | length | `0` | First-line indent. Always skipped for the first paragraph of a story, the first paragraph after any non-paragraph block (subhead, figure, pull quote, rule), and the paragraph a `\dropcap` applies to. |
+| `indent` | length | `0` | First-line indent. Always skipped for the first paragraph of a story, the first paragraph after any non-paragraph block (subhead, figure, pull quote, rule), and the paragraph a `\dropcap` applies to. An object that is not set between the two paragraphs (it floated to another spot, waits for another column, or is hidden) does not count: the paragraph after it follows the text before it and takes its indent (2026-10-27). |
 | `space-before` | length | `0` | Suppressed at the top of a frame or column |
 | `space-after` | length | `1bl` | |
 | `hyphenate` | boolean | `true` | Uses document `lang` |

@@ -2583,6 +2583,21 @@ function fillColumn(
   const opened = stub();
   if (opened && textAhead(cursor.block)) return { placed: out, cursor, bottom: y, stop: "full", why: "picture-at-foot", object: opened.name };
 
+  /** Object blocks this fill set where they stand, between the paragraphs around them. */
+  const here = new Set<number>();
+  /**
+   * §07.6 indent: the resolver gives no first-line indent to a paragraph after any object, but one
+   * the reader does not see there (it floated to another spot, waits for another column, or is
+   * hidden) leaves the paragraph running on from the text before it, which then takes its indent.
+   */
+  const indentOf = (b: number, block: ParagraphBlock): Len => {
+    if (block.element !== "prose" || block.dropcap || !("n" in block.indent && block.indent.n === 0)) return block.indent;
+    let p = b - 1;
+    while (p >= 0 && story.blocks[p]!.kind === "object" && !here.has(p)) p--;
+    const prev = p < b - 1 ? story.blocks[p] : undefined;
+    return prev?.kind === "paragraph" && prev.element === "prose" && prev.quote === block.quote ? v.styles[block.style]!.indent : block.indent;
+  };
+
   while (cursor.block < story.blocks.length) {
     const b = cursor.block;
     const block = story.blocks[b]!;
@@ -2634,6 +2649,7 @@ function fillColumn(
         }
         return { placed: out, cursor, bottom: y, stop: "full", why: "bottom-line" };
       }
+      here.add(b);
       cursor = { ...START, block: b + 1 };
       const atFoot = stub();
       if (atFoot && textAhead(b + 1)) return { placed: out, cursor, bottom: y, stop: "full", why: "picture-at-foot", object: atFoot.name };
@@ -2676,7 +2692,7 @@ function fillColumn(
     const metrics = prepare(pieces[0]!);
     const baselineOffset = (leading - (metrics.ascent + metrics.descent)) / 2 + metrics.ascent;
     const snap = style.snap === "baseline";
-    const indent = resuming ? 0 : px(block.indent, ctx);
+    const indent = resuming ? 0 : px(indentOf(b, block), ctx);
     const cap = block.dropcap && !resuming ? dropcap(env, block, style, metrics.capHeight, leading, ctx, pcol.x) : null;
     const minSlot = style.minSlot ? px(style.minSlot, ctx) : 6 * base.size; // §09.6 step 3: min-slot, else 6em
     /** Where the drop cap goes: the first line's first slot. */
